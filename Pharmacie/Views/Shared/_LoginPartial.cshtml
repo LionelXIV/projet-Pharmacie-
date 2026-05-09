@@ -1,22 +1,22 @@
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<IdentityUser> SignInManager
 
-<ul class="navbar-nav app-nav-user ms-lg-3 border-top border-lg-0 pt-3 pt-lg-0 mt-3 mt-lg-0 align-items-lg-center">
+<ul class="navbar-nav app-nav-user ms-xl-3 border-top pt-3 pt-xl-0 mt-3 mt-xl-0 align-items-xl-center flex-shrink-0">
 @if (SignInManager.IsSignedIn(User))
 {
     <li class="nav-item">
-        <a class="nav-link app-nav-link app-nav-user-link text-truncate" asp-area="Identity" asp-page="/Account/Manage/Index" title="Compte"><i class="bi bi-person-circle me-1" aria-hidden="true"></i><span class="align-middle">@User.Identity?.Name</span></a>
+        <a class="nav-link app-nav-link app-nav-user-link text-truncate" asp-area="Identity" asp-page="/Account/Manage/Index" title="Compte"><i class="bi bi-person-circle app-nav-ic me-1" aria-hidden="true"></i><span class="align-middle">@User.Identity?.Name</span></a>
     </li>
     <li class="nav-item">
         <form class="d-inline w-100" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
-            <button type="submit" class="nav-link app-nav-link btn btn-link w-100 text-start text-lg-end"><i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Déconnexion</button>
+            <button type="submit" class="nav-link app-nav-link btn btn-link w-100 text-start text-xl-end"><i class="bi bi-box-arrow-right app-nav-ic me-1" aria-hidden="true"></i>Déconnexion</button>
         </form>
     </li>
 }
 else
 {
-    <li class="nav-item d-lg-flex align-items-lg-center">
-        <a class="btn btn-primary btn-sm w-100 w-lg-auto ms-lg-0 mt-2 mt-lg-0" asp-area="Identity" asp-page="/Account/Login"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Connexion</a>
+    <li class="nav-item d-xl-flex align-items-xl-center">
+        <a class="btn btn-primary btn-sm w-100 w-xl-auto ms-xl-0 mt-2 mt-xl-0" asp-area="Identity" asp-page="/Account/Login"><i class="bi bi-box-arrow-in-right me-1" aria-hidden="true"></i>Connexion</a>
     </li>
 }
 </ul>

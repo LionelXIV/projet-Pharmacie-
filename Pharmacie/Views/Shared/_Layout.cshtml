@@ -31,11 +31,11 @@
 <body class="d-flex flex-column min-vh-100">
     <a class="skip-link visually-hidden-focusable" href="#main-content">Aller au contenu</a>
     <header>
-        <nav class="navbar navbar-expand-lg navbar-light app-navbar">
-            <div class="container">
-                <a class="navbar-brand d-flex align-items-center gap-2 py-2" asp-area="" asp-controller="Home" asp-action="Index">
+        <nav class="navbar navbar-expand-xl navbar-light app-navbar">
+            <div class="container-fluid app-navbar-container px-2 px-sm-3">
+                <a class="navbar-brand d-flex align-items-center gap-2 py-2 flex-shrink-0" asp-area="" asp-controller="Home" asp-action="Index">
                     <span class="brand-mark" aria-hidden="true">
-                        <svg class="brand-mark-svg" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" role="img">
+                        <svg class="brand-mark-svg" width="36" height="36" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" role="img">
                             <title>Pharmacie</title>
                             <rect x="2" y="2" width="40" height="40" rx="11" fill="#15803d"/>
                             <path d="M20 11h4v9h9v4h-9v9h-4v-9h-9v-4h9v-9z" fill="#fff"/>
@@ -49,18 +49,18 @@
                 <button class="navbar-toggler border-0 app-navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Ouvrir ou fermer le menu">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="collapse navbar-collapse" id="mainNav">
-                    <ul class="navbar-nav flex-grow-1 justify-content-center mt-3 mt-lg-0 align-items-lg-center">
+                <div class="collapse navbar-collapse app-navbar-collapse" id="mainNav">
+                    <ul class="navbar-nav app-navbar-nav flex-grow-1 justify-content-center mt-3 mt-xl-0 align-items-xl-center">
                         <li class="nav-item">
-                            <a class="nav-link app-nav-link @(isHome ? "active" : null)" asp-area="" asp-controller="Home" asp-action="Index" aria-current="@(isHome ? "page" : null)"><i class="bi bi-house-door d-lg-none me-1" aria-hidden="true"></i>Accueil</a>
+                            <a class="nav-link app-nav-link @(isHome ? "active" : null)" asp-area="" asp-controller="Home" asp-action="Index" aria-current="@(isHome ? "page" : null)"><i class="bi bi-house-door d-xl-none me-1" aria-hidden="true"></i>Accueil</a>
                         </li>
                         @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessDashboard(User))
                         {
                             <li class="nav-item">
-                                <a class="nav-link app-nav-link fw-semibold @(isDashboard ? "active" : null)" asp-controller="Dashboard" asp-action="Index" aria-current="@(isDashboard ? "page" : null)"><i class="bi bi-speedometer2 me-1" aria-hidden="true"></i>Tableau de bord</a>
+                                <a class="nav-link app-nav-link fw-semibold @(isDashboard ? "active" : null)" asp-controller="Dashboard" asp-action="Index" aria-current="@(isDashboard ? "page" : null)"><i class="bi bi-speedometer2 app-nav-ic me-1" aria-hidden="true"></i>Tableau de bord</a>
                             </li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link app-nav-link dropdown-toggle @(isReports ? "active" : null)" href="#" id="navReports" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-clipboard2-data me-1" aria-hidden="true"></i>Rapports</a>
+                                <a class="nav-link app-nav-link dropdown-toggle @(isReports ? "active" : null)" href="#" id="navReports" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-clipboard2-data app-nav-ic me-1" aria-hidden="true"></i>Rapports</a>
                                 <ul class="dropdown-menu shadow-sm border-0 app-dropdown-menu" aria-labelledby="navReports">
                                     <li><a class="dropdown-item" asp-controller="Reports" asp-action="Index"><i class="bi bi-columns-gap me-2 text-muted" aria-hidden="true"></i>Vue d’ensemble</a></li>
                                     <li><hr class="dropdown-divider" /></li>
@@ -73,7 +73,7 @@
                             </li>
                         }
                         <li class="nav-item dropdown">
-                            <a class="nav-link app-nav-link dropdown-toggle @(isCatalog ? "active" : null)" href="#" id="navStock" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-capsule-pill me-1" aria-hidden="true"></i>Catalogue &amp; stock</a>
+                            <a class="nav-link app-nav-link dropdown-toggle @(isCatalog ? "active" : null)" href="#" id="navStock" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Catalogue, lots et mouvements"><i class="bi bi-capsule-pill app-nav-ic me-1" aria-hidden="true"></i><span class="app-nav-compact">Catalogue</span><span class="d-none d-xxl-inline">&nbsp;&amp; stock</span></a>
                             <ul class="dropdown-menu shadow-sm border-0 app-dropdown-menu" aria-labelledby="navStock">
                                 <li><a class="dropdown-item" asp-controller="Products" asp-action="Index"><i class="bi bi-capsule me-2 text-muted" aria-hidden="true"></i>Produits</a></li>
                                 <li><a class="dropdown-item" asp-controller="Batches" asp-action="Index"><i class="bi bi-layers me-2 text-muted" aria-hidden="true"></i>Lots</a></li>
@@ -81,7 +81,7 @@
                             </ul>
                         </li>
                         <li class="nav-item dropdown">
-                            <a class="nav-link app-nav-link dropdown-toggle @(isPurchasing ? "active" : null)" href="#" id="navPurchasing" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-truck-flatbed me-1" aria-hidden="true"></i>Achats</a>
+                            <a class="nav-link app-nav-link dropdown-toggle @(isPurchasing ? "active" : null)" href="#" id="navPurchasing" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-truck-flatbed app-nav-ic me-1" aria-hidden="true"></i>Achats</a>
                             <ul class="dropdown-menu shadow-sm border-0 app-dropdown-menu" aria-labelledby="navPurchasing">
                                 <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="Index"><i class="bi bi-bag-check me-2 text-muted" aria-hidden="true"></i>Commandes</a></li>
                                 <li><hr class="dropdown-divider" /></li>
@@ -90,12 +90,12 @@
                             </ul>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link app-nav-link @(isSales ? "active" : null)" asp-controller="Sales" asp-action="Index" aria-current="@(isSales ? "page" : null)"><i class="bi bi-cash-register me-1" aria-hidden="true"></i>Ventes</a>
+                            <a class="nav-link app-nav-link @(isSales ? "active" : null)" asp-controller="Sales" asp-action="Index" aria-current="@(isSales ? "page" : null)"><i class="bi bi-cash-register app-nav-ic me-1" aria-hidden="true"></i>Ventes</a>
                         </li>
                         @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessPatientsRead(User))
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link app-nav-link dropdown-toggle @(isPatients ? "active" : null)" href="#" id="navPatients" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-people-fill me-1" aria-hidden="true"></i>Patients</a>
+                                <a class="nav-link app-nav-link dropdown-toggle @(isPatients ? "active" : null)" href="#" id="navPatients" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-people-fill app-nav-ic me-1" aria-hidden="true"></i>Patients</a>
                                 <ul class="dropdown-menu shadow-sm border-0 app-dropdown-menu" aria-labelledby="navPatients">
                                     <li><a class="dropdown-item" asp-controller="Patients" asp-action="Index"><i class="bi bi-person-lines-fill me-2 text-muted" aria-hidden="true"></i>Portefeuille</a></li>
                                     <li><a class="dropdown-item" asp-controller="PatientRemindersAlerts" asp-action="Index"><i class="bi bi-alarm me-2 text-muted" aria-hidden="true"></i>Rappels à traiter</a></li>
@@ -103,12 +103,12 @@
                             </li>
                         }
                         <li class="nav-item">
-                            <a class="nav-link app-nav-link @(isAlerts ? "active" : null)" asp-controller="Alerts" asp-action="Index" aria-current="@(isAlerts ? "page" : null)"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Alertes</a>
+                            <a class="nav-link app-nav-link @(isAlerts ? "active" : null)" asp-controller="Alerts" asp-action="Index" aria-current="@(isAlerts ? "page" : null)"><i class="bi bi-exclamation-triangle app-nav-ic me-1" aria-hidden="true"></i>Alertes</a>
                         </li>
                         @if (User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur))
                         {
                             <li class="nav-item">
-                                <a class="nav-link app-nav-link @(isAdminUsers ? "active" : null)" asp-controller="AdminUsers" asp-action="Index" aria-current="@(isAdminUsers ? "page" : null)"><i class="bi bi-person-gear me-1" aria-hidden="true"></i>Utilisateurs</a>
+                                <a class="nav-link app-nav-link @(isAdminUsers ? "active" : null)" asp-controller="AdminUsers" asp-action="Index" aria-current="@(isAdminUsers ? "page" : null)"><i class="bi bi-person-gear app-nav-ic me-1" aria-hidden="true"></i>Utilisateurs</a>
                             </li>
                         }
                     </ul>
