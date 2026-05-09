@@ -76,6 +76,12 @@ using (var scope = app.Services.CreateScope())
     {
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
         await IdentitySeed.SeedDevAdminIfMissingAsync(userManager);
+
+        var inventory = scope.ServiceProvider.GetRequiredService<InventoryService>();
+        var purchase = scope.ServiceProvider.GetRequiredService<PurchaseService>();
+        var saleSvc = scope.ServiceProvider.GetRequiredService<SaleService>();
+        var adminUser = await userManager.FindByEmailAsync(IdentitySeed.DevAdminEmail);
+        await DemoDataSeed.SeedIfNeededAsync(db, inventory, purchase, saleSvc, adminUser?.Id);
     }
 }
 
