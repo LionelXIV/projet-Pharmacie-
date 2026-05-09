@@ -1,0 +1,51 @@
+@model Supplier
+@{
+    ViewData["Title"] = "Modifier le fournisseur";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Modifier le fournisseur</h1>
+    <nav class="app-breadcrumb mt-2 mb-0 d-inline-block" aria-label="Navigation">
+        <a asp-action="Index">Fournisseurs</a>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                <i class="bi bi-building text-primary fs-5" aria-hidden="true"></i>
+                <span class="fw-semibold">@Model.Name</span>
+            </div>
+            <div class="card-body p-3 p-md-4">
+                <form asp-action="Edit">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <input type="hidden" asp-for="Id" />
+                    <div class="mb-3">
+                        <label asp-for="Name" class="form-label"></label>
+                        <input asp-for="Name" class="form-control" />
+                        <span asp-validation-for="Name" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Contact" class="form-label"></label>
+                        <input asp-for="Contact" class="form-control" />
+                        <span asp-validation-for="Contact" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Phone" class="form-label"></label>
+                        <input asp-for="Phone" class="form-control" />
+                        <span asp-validation-for="Phone" class="text-danger"></span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Enregistrer</button>
+                        <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

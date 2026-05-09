@@ -1,0 +1,52 @@
+# Bases locales SQLite (le projet utilise SQL Server ; ne pas versionner les .db locaux)
+*.db
+*.db-shm
+*.db-wal
+
+# Build
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider
+.vs/
+*.user
+*.userosscache
+*.suo
+*.cache
+*.DotSettings.user
+_ReSharper*/
+*.rsuser
+
+# NuGet
+*.nupkg
+**/packages/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Local secrets (ne pas versionner les mots de passe)
+**/appsettings.*.local.json
+secrets.json
+
+# Tests / couverture
+TestResults/
+*.trx
+coverage.*
+
+# Documents hors code (rapports cours, specs PDF, etc.)
+*.pdf
+*.docx
+*.odt
+~$*.docx
+~$*.doc
+
+# Script de génération de rapport (hors application)
+tools/
+
+# Fichiers de travail / prompts (ne pas publier)
+prompt_cursor_pharmacie.md
+Pharmacie/design-system/

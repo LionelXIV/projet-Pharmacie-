@@ -1,0 +1,20 @@
+@model Patient
+@{
+    ViewData["Title"] = "Supprimer patient";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Supprimer le patient</h1>
+    <p class="page-lead mb-0 text-danger">Cette action supprime aussi les ordonnances et rappels liés.</p>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+        <p><strong>@Model.FullName</strong> — @Model.Phone</p>
+        <form asp-action="Delete" method="post">
+            <input type="hidden" asp-for="Id" />
+            <button type="submit" class="btn btn-danger">Confirmer la suppression</button>
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Annuler</a>
+        </form>
+    </div>
+</div>

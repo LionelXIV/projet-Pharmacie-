@@ -1,0 +1,60 @@
+@model IReadOnlyList<ReportExpiredLotRowViewModel>
+@{
+    ViewData["Title"] = "Rapport — Produits expirés";
+}
+
+<nav class="app-breadcrumb mb-3" aria-label="Fil d’Ariane">
+    <ol class="breadcrumb mb-0 py-1">
+        <li class="breadcrumb-item"><a asp-action="Index">Rapports</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Produits expirés</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <h1 class="page-title">Produits expirés (lots encore en stock)</h1>
+    <p class="page-lead mb-0">Lots avec quantité &gt; 0 et date de péremption <strong>strictement avant aujourd’hui</strong>.</p>
+</div>
+
+<div class="mb-3">
+    <a class="btn btn-outline-secondary btn-sm" asp-action="ExpiredProductsCsv" role="button">
+        <i class="bi bi-download me-1" aria-hidden="true"></i>Exporter CSV
+    </a>
+</div>
+
+<div class="table-card mb-3">
+    <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Produit</th>
+                <th>Lot</th>
+                <th class="text-end">Qté restante</th>
+                <th>Date d’expiration</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model)
+            {
+                <tr class="table-danger">
+                    <td>@r.ProductName</td>
+                    <td>@r.LotNumber</td>
+                    <td class="text-end">@r.QuantityRemaining</td>
+                    <td>@r.ExpirationDate.ToString("yyyy-MM-dd")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+    @if (Model.Count > 0)
+    {
+        <div class="table-card-caption">@Model.Count lot(s) expiré(s) avec stock restant.</div>
+    }
+</div>
+@if (Model.Count == 0)
+{
+    <div class="app-empty-state app-empty-state--compact my-3" role="status">
+        <i class="bi bi-calendar-x" aria-hidden="true"></i>
+        <p class="app-empty-state-title mb-1">Aucun lot expiré en stock</p>
+        <p class="mb-0 small">Aucun lot expiré avec quantité restante.</p>
+    </div>
+}

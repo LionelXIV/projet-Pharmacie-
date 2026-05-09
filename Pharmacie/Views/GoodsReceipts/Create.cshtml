@@ -1,0 +1,94 @@
+@model ReceptionFormViewModel
+@{
+    ViewData["Title"] = "Réception de commande";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Réception — commande #@Model.PurchaseOrderId</h1>
+    <p class="page-lead mb-0">Quantité reçue par ligne (0 si aucune réception sur la ligne). Si quantité &gt; 0 : <strong>n° de lot</strong> et <strong>date d’expiration</strong> obligatoires.</p>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-warning">@TempData["Error"]</div>
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+        <i class="bi bi-box-arrow-in-down text-primary fs-5" aria-hidden="true"></i>
+        <span class="fw-semibold">Saisie de la réception</span>
+    </div>
+    <div class="card-body p-3 p-md-4">
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="PurchaseOrderId" />
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label asp-for="ReceivedAt" class="form-label"></label>
+                    <input asp-for="ReceivedAt" class="form-control" type="datetime-local" />
+                </div>
+                <div class="col-md-8">
+                    <label asp-for="Notes" class="form-label"></label>
+                    <input asp-for="Notes" class="form-control" placeholder="Optionnel" />
+                </div>
+            </div>
+
+            <p class="app-scroll-hint d-md-none mb-2" role="note">Tableau large : faites défiler horizontalement sur mobile.</p>
+            <div class="table-card mb-3">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th>Commandée</th>
+                                <th>Déjà reçue</th>
+                                <th>Reste</th>
+                                <th>Qté cette réception</th>
+                                <th>N° lot</th>
+                                <th>Expiration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (var i = 0; i < Model.Lines.Count; i++)
+                            {
+                                <tr>
+                                    <td>
+                                        @Model.Lines[i].ProductName
+                                        <input type="hidden" asp-for="Lines[i].PurchaseOrderLineId" />
+                                        <input type="hidden" asp-for="Lines[i].ProductName" />
+                                        <input type="hidden" asp-for="Lines[i].QuantityOrdered" />
+                                        <input type="hidden" asp-for="Lines[i].QuantityReceivedBefore" />
+                                    </td>
+                                    <td>@Model.Lines[i].QuantityOrdered</td>
+                                    <td>@Model.Lines[i].QuantityReceivedBefore</td>
+                                    <td>@Model.Lines[i].Remaining</td>
+                                    <td style="width:6rem">
+                                        <input asp-for="Lines[i].QuantityReceived" class="form-control form-control-sm" type="number" min="0" />
+                                    </td>
+                                    <td style="width:8rem">
+                                        <input asp-for="Lines[i].LotNumber" class="form-control form-control-sm" />
+                                    </td>
+                                    <td style="width:10rem">
+                                        <input asp-for="Lines[i].ExpirationDate" class="form-control form-control-sm" type="date" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Valider la réception</button>
+                <a class="btn btn-outline-secondary" asp-controller="PurchaseOrders" asp-action="Details" asp-route-id="@Model.PurchaseOrderId">Retour</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

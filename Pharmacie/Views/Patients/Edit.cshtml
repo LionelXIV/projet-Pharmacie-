@@ -1,0 +1,24 @@
+@model Patient
+@{
+    ViewData["Title"] = "Modifier patient";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Modifier — @Model.FullName</h1>
+</div>
+
+<form asp-action="Edit" method="post" class="card border-0 shadow-sm">
+    <input type="hidden" asp-for="Id" />
+    <div class="card-body p-3 p-md-4">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <partial name="_PatientFormFields" model="Model" />
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Annuler</a>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

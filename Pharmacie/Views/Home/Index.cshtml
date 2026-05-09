@@ -1,0 +1,98 @@
+@{
+    ViewData["Title"] = "Accueil";
+}
+
+@if (User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessDashboard(User))
+{
+    <div class="card border-0 shadow-sm mb-4 app-dashboard-cta">
+        <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-3 py-3 px-3 px-md-4">
+            <div class="d-flex align-items-start gap-3">
+                <span class="app-dashboard-cta-icon rounded-3 d-flex align-items-center justify-content-center flex-shrink-0" aria-hidden="true">
+                    <i class="bi bi-speedometer2 fs-4"></i>
+                </span>
+                <div>
+                    <h2 class="h5 mb-1 fw-semibold">Tableau de bord</h2>
+                    <p class="text-muted small mb-0">Vue d’ensemble : stocks, alertes et activité récente.</p>
+                </div>
+            </div>
+            <a class="btn btn-primary btn-lg px-4 flex-shrink-0" asp-controller="Dashboard" asp-action="Index">
+                <i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>Ouvrir
+            </a>
+        </div>
+    </div>
+}
+
+<section class="hero-section text-center px-1">
+    <h1 class="hero-title mb-3">Gestion d’officine</h1>
+    <p class="hero-lead mx-auto mb-0">
+        Suivi des stocks, des lots, des achats et des ventes.
+    </p>
+</section>
+
+<div class="row g-3 g-md-4 mb-2">
+    <div class="col-md-6 col-xl-4">
+        <div class="card app-home-card border-0 shadow-sm">
+            <div class="card-body position-relative">
+                <div class="app-home-card-icon" aria-hidden="true"><i class="bi bi-capsule-pill"></i></div>
+                <h3>Produits</h3>
+                <p>Catalogue, catégories et fournisseurs.</p>
+                <a class="stretched-link text-decoration-none" asp-controller="Products" asp-action="Index">Ouvrir le catalogue</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+        <div class="card app-home-card border-0 shadow-sm">
+            <div class="card-body position-relative">
+                <div class="app-home-card-icon" aria-hidden="true"><i class="bi bi-layers"></i></div>
+                <h3>Lots</h3>
+                <p>Numéros de lot et dates de péremption.</p>
+                <a class="stretched-link text-decoration-none" asp-controller="Batches" asp-action="Index">Voir les lots</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+        <div class="card app-home-card border-0 shadow-sm">
+            <div class="card-body position-relative">
+                <div class="app-home-card-icon" aria-hidden="true"><i class="bi bi-truck"></i></div>
+                <h3>Achats</h3>
+                <p>Commandes et réceptions fournisseurs.</p>
+                <a class="stretched-link text-decoration-none" asp-controller="PurchaseOrders" asp-action="Index">Commandes</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+        <div class="card app-home-card border-0 shadow-sm">
+            <div class="card-body position-relative">
+                <div class="app-home-card-icon" aria-hidden="true"><i class="bi bi-cash-register"></i></div>
+                <h3>Ventes</h3>
+                <p>Enregistrement des ventes et mise à jour du stock.</p>
+                <a class="stretched-link text-decoration-none" asp-controller="Sales" asp-action="Index">Ventes</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+        <div class="card app-home-card border-0 shadow-sm">
+            <div class="card-body position-relative">
+                <div class="app-home-card-icon" aria-hidden="true"><i class="bi bi-exclamation-triangle"></i></div>
+                <h3>Alertes</h3>
+                <p>Seuils de stock et dates de péremption.</p>
+                <a class="stretched-link text-decoration-none" asp-controller="Alerts" asp-action="Index">Consulter</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+        <div class="card app-home-card border-0 shadow-sm">
+            <div class="card-body position-relative">
+                <div class="app-home-card-icon" aria-hidden="true"><i class="bi bi-arrow-left-right"></i></div>
+                <h3>Mouvements</h3>
+                <p>Entrées, sorties et ajustements de stock.</p>
+                <a class="stretched-link text-decoration-none" asp-controller="StockMovements" asp-action="Index">Historique</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (User?.Identity?.IsAuthenticated != true)
+{
+    <p class="text-center text-muted small mb-0">Connectez-vous pour accéder aux modules.</p>
+}

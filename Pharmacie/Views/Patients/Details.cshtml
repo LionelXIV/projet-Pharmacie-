@@ -1,0 +1,175 @@
+@model Patient
+@{
+    ViewData["Title"] = "Fiche patient — " + Model.FullName;
+    var canManage = ViewBag.CanManage as bool? == true;
+    var rx = Model.Prescriptions.OrderByDescending(x => x.PrescribedAt).ToList();
+    var reminders = Model.TreatmentReminders.OrderBy(x => x.ReminderDate).ToList();
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">@Model.FullName</h1>
+            <p class="page-lead mb-0">
+                <span class="text-nowrap">@Model.Phone</span>
+                @if (!string.IsNullOrEmpty(Model.Email))
+                {
+                    <span class="text-muted mx-2">·</span><span>@Model.Email</span>
+                }
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Liste</a>
+            <div class="btn-group" role="group" aria-label="Exports CSV">
+                <a class="btn btn-outline-primary btn-sm" asp-action="DetailsCsv" asp-route-id="@Model.Id" title="Une ligne : coordonnées et synthèse santé">Fiche CSV</a>
+                <a class="btn btn-outline-primary btn-sm" asp-action="PrescriptionsCsv" asp-route-patientId="@Model.Id">Ordonnances CSV</a>
+                <a class="btn btn-outline-primary btn-sm" asp-action="RemindersCsv" asp-route-patientId="@Model.Id">Rappels CSV</a>
+            </div>
+            @if (canManage)
+            {
+                <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">Modifier</a>
+                <a class="btn btn-outline-danger btn-sm" asp-action="Delete" asp-route-id="@Model.Id">Supprimer</a>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2 fw-semibold">Coordonnées</div>
+            <div class="card-body small">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Adresse</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Address) ? "—" : Model.Address)</dd>
+                    <dt class="col-sm-4">Naissance</dt>
+                    <dd class="col-sm-8">@(Model.DateOfBirth?.ToString("yyyy-MM-dd") ?? "—")</dd>
+                    <dt class="col-sm-4">Statut</dt>
+                    <dd class="col-sm-8">@(Model.IsActive ? "Actif" : "Inactif")</dd>
+                    <dt class="col-sm-4">Notes</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Notes) ? "—" : Model.Notes)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2 fw-semibold">Santé (synthèse)</div>
+            <div class="card-body small">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Allergies</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Allergies) ? "—" : Model.Allergies)</dd>
+                    <dt class="col-sm-4">Chronique</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.ChronicCondition) ? "—" : Model.ChronicCondition)</dd>
+                    <dt class="col-sm-4">Traitement</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.UsualTreatment) ? "—" : Model.UsualTreatment)</dd>
+                    <dt class="col-sm-4">Médecin</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.TreatingDoctor) ? "—" : Model.TreatingDoctor)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="h5 mb-2">Ordonnances</h2>
+@if (canManage)
+{
+    <p class="mb-2"><a class="btn btn-sm btn-primary" asp-controller="PatientPrescriptions" asp-action="Create" asp-route-patientId="@Model.Id">Nouvelle ordonnance</a></p>
+}
+<div class="table-card mb-4">
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Médecin</th>
+                    <th>Statut</th>
+                    <th>Renouv.</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var o in rx)
+                {
+                    <tr>
+                        <td>@o.PrescribedAt.ToString("yyyy-MM-dd")</td>
+                        <td>@o.DoctorName</td>
+                        <td>@PatientUiLabels.PrescriptionStatusLabel(o.Status)</td>
+                        <td>@(o.RenewalDate?.ToString("yyyy-MM-dd") ?? "—")</td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" data-bs-toggle="collapse" data-bs-target="#rx-@o.Id">Voir</button>
+                            @if (canManage)
+                            {
+                                <a class="btn btn-sm btn-outline-primary py-0" asp-controller="PatientPrescriptions" asp-action="Edit" asp-route-id="@o.Id">Modifier</a>
+                                <form asp-controller="PatientPrescriptions" asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Supprimer cette ordonnance ?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@o.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0">Supprimer</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="rx-@o.Id">
+                        <td colspan="5" class="small text-muted bg-light">@o.Content</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (rx.Count == 0)
+    {
+        <div class="table-card-caption">Aucune ordonnance enregistrée.</div>
+    }
+</div>
+
+<h2 class="h5 mb-2">Rappels</h2>
+@if (canManage)
+{
+    <p class="mb-2"><a class="btn btn-sm btn-primary" asp-controller="PatientReminders" asp-action="Create" asp-route-patientId="@Model.Id">Nouveau rappel</a></p>
+}
+<div class="table-card mb-3">
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Message</th>
+                    <th>Statut</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in reminders)
+                {
+                    <tr class="@(!r.IsDone && r.ReminderDate <= DateTime.Today ? "table-warning" : null)">
+                        <td>@r.ReminderDate.ToString("yyyy-MM-dd")</td>
+                        <td>@PatientUiLabels.ReminderType(r.ReminderType)</td>
+                        <td class="small">@r.Message</td>
+                        <td>@(r.IsDone ? "Fait" : "À faire")</td>
+                        <td class="text-end text-nowrap">
+                            @if (canManage && !r.IsDone)
+                            {
+                                <form asp-controller="PatientReminders" asp-action="MarkDone" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="btn btn-sm btn-success py-0">Marquer fait</button>
+                                </form>
+                                <a class="btn btn-sm btn-outline-primary py-0" asp-controller="PatientReminders" asp-action="Edit" asp-route-id="@r.Id">Modifier</a>
+                                <form asp-controller="PatientReminders" asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Supprimer ce rappel ?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0">Supprimer</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (reminders.Count == 0)
+    {
+        <div class="table-card-caption">Aucun rappel.</div>
+    }
+</div>

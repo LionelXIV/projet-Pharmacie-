@@ -1,0 +1,113 @@
+@model ProductBatch
+@using Pharmacie.Services
+@{
+    ViewData["Title"] = "Détail du lot";
+    var movements = ViewBag.Movements as IEnumerable<StockMovement> ?? Enumerable.Empty<StockMovement>();
+    var movementList = movements.ToList();
+    var userLabels = ViewBag.UserLabels as Dictionary<string, string> ?? new Dictionary<string, string>();
+}
+
+<div class="page-header">
+    <h1 class="page-title">Détail du lot</h1>
+    <nav class="app-breadcrumb mt-2 mb-0 d-inline-block" aria-label="Navigation">
+        <a asp-action="Index"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Lots</a>
+        <span class="text-muted mx-2">·</span>
+        <span class="text-muted">@Model.LotNumber</span>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-lg-9">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                <i class="bi bi-layers text-primary fs-5" aria-hidden="true"></i>
+                <span class="fw-semibold">Informations</span>
+            </div>
+            <div class="card-body p-3 p-md-4">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Produit</dt>
+                    <dd class="col-sm-9">@Model.Product?.CommercialName</dd>
+                    <dt class="col-sm-3">@Html.DisplayNameFor(m => m.LotNumber)</dt>
+                    <dd class="col-sm-9">@Html.DisplayFor(m => m.LotNumber)</dd>
+                    <dt class="col-sm-3">@Html.DisplayNameFor(m => m.ExpirationDate)</dt>
+                    <dd class="col-sm-9">@Model.ExpirationDate.ToString("yyyy-MM-dd")</dd>
+                    <dt class="col-sm-3">@Html.DisplayNameFor(m => m.Quantity)</dt>
+                    <dd class="col-sm-9">@Html.DisplayFor(m => m.Quantity)</dd>
+                </dl>
+            </div>
+        </div>
+
+        <h2 class="h5 mb-3">Mouvements sur ce lot</h2>
+        @if (movementList.Count == 0)
+        {
+            <div class="app-empty-state app-empty-state--compact mb-3" role="status">
+                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                <p class="app-empty-state-title mb-1">Aucun mouvement</p>
+                <p class="mb-0 small">Les entrées, sorties et ajustements apparaîtront ici.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-card mb-3">
+                <p class="app-scroll-hint d-md-none mb-0 rounded-0 rounded-top" role="note">Défilement horizontal possible.</p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Qté / variation</th>
+                                <th>Responsable</th>
+                                <th>Vente</th>
+                                <th>Motif</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var m in movementList)
+                            {
+                                <tr>
+                                    <td>@m.OccurredAt.ToString("g")</td>
+                                    <td>@(m.Type switch
+                                    {
+                                        StockMovementType.Entree => "Entrée",
+                                        StockMovementType.Sortie => "Sortie",
+                                        StockMovementType.Ajustement => "Ajustement",
+                                        _ => m.Type.ToString()
+                                    })</td>
+                                    <td>
+                                        @switch (m.Type)
+                                        {
+                                            case StockMovementType.Entree:
+                                                <span>+@m.Quantity</span>
+                                                break;
+                                            case StockMovementType.Sortie:
+                                                <span>-@m.Quantity</span>
+                                                break;
+                                            default:
+                                                <span>@(m.Quantity > 0 ? "+" : "")@m.Quantity</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td class="small">@UserDisplayResolver.Resolve(userLabels, m.UserId)</td>
+                                    <td class="small text-nowrap">
+                                        @if (m.SaleId is int sid)
+                                        {
+                                            <a asp-controller="Sales" asp-action="Details" asp-route-id="@sid">#@sid</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td class="small">@m.Reason</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <a class="btn btn-outline-secondary" asp-action="Index">Retour aux lots</a>
+    </div>
+</div>

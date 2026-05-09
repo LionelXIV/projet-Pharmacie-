@@ -1,0 +1,56 @@
+@model Patient
+<div class="row g-3">
+    <div class="col-md-6">
+        <label asp-for="FullName" class="form-label"></label>
+        <input asp-for="FullName" class="form-control" />
+        <span asp-validation-for="FullName" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Phone" class="form-label"></label>
+        <input asp-for="Phone" class="form-control" />
+        <span asp-validation-for="Phone" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="DateOfBirth" class="form-label"></label>
+        <input asp-for="DateOfBirth" class="form-control" type="date" />
+        <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <label asp-for="Address" class="form-label"></label>
+        <textarea asp-for="Address" class="form-control" rows="2"></textarea>
+        <span asp-validation-for="Address" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <label asp-for="Notes" class="form-label"></label>
+        <textarea asp-for="Notes" class="form-control" rows="2"></textarea>
+        <span asp-validation-for="Notes" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <div class="form-check">
+            <input asp-for="IsActive" class="form-check-input" />
+            <label asp-for="IsActive" class="form-check-label"></label>
+        </div>
+    </div>
+    <div class="col-12"><hr class="my-1" /></div>
+    <div class="col-md-6">
+        <label asp-for="Allergies" class="form-label"></label>
+        <textarea asp-for="Allergies" class="form-control" rows="2"></textarea>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="ChronicCondition" class="form-label"></label>
+        <textarea asp-for="ChronicCondition" class="form-control" rows="2"></textarea>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="UsualTreatment" class="form-label"></label>
+        <textarea asp-for="UsualTreatment" class="form-control" rows="2"></textarea>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="TreatingDoctor" class="form-label"></label>
+        <input asp-for="TreatingDoctor" class="form-control" />
+    </div>
+</div>

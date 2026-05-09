@@ -1,0 +1,83 @@
+@model Product
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+@if (Model.Id != 0)
+{
+    <input type="hidden" asp-for="Id" />
+}
+
+<h6 class="form-section-title">Identification</h6>
+<div class="mb-3">
+    <label asp-for="CommercialName" class="form-label"></label>
+    <input asp-for="CommercialName" class="form-control" />
+    <span asp-validation-for="CommercialName" class="text-danger"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="GenericName" class="form-label"></label>
+    <input asp-for="GenericName" class="form-control" />
+    <span asp-validation-for="GenericName" class="text-danger"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="CategoryId" class="form-label"></label>
+    <select asp-for="CategoryId" class="form-select" asp-items="@((SelectList)ViewData["CategoryId"]!)">
+        <option value="">— Choisir une catégorie —</option>
+    </select>
+    <span asp-validation-for="CategoryId" class="text-danger"></span>
+</div>
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="Form" class="form-label"></label>
+        <input asp-for="Form" class="form-control" />
+        <span asp-validation-for="Form" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="Dosage" class="form-label"></label>
+        <input asp-for="Dosage" class="form-control" />
+        <span asp-validation-for="Dosage" class="text-danger"></span>
+    </div>
+</div>
+<div class="mb-3">
+    <label asp-for="SupplierId" class="form-label"></label>
+    <select asp-for="SupplierId" class="form-select" asp-items="@((SelectList)ViewData["SupplierId"]!)">
+        <option value="">— Choisir un fournisseur —</option>
+    </select>
+    <span asp-validation-for="SupplierId" class="text-danger"></span>
+</div>
+
+<h6 class="form-section-title">Tarification</h6>
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="PurchasePrice" class="form-label"></label>
+        <input asp-for="PurchasePrice" class="form-control" type="number" step="0.01" min="0" />
+        <span asp-validation-for="PurchasePrice" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="SalePrice" class="form-label"></label>
+        <input asp-for="SalePrice" class="form-control" type="number" step="0.01" min="0" />
+        <span asp-validation-for="SalePrice" class="text-danger"></span>
+    </div>
+</div>
+
+<h6 class="form-section-title">Stock &amp; emplacement</h6>
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="StockQuantity" class="form-label"></label>
+        <input asp-for="StockQuantity" class="form-control" type="number" min="0" />
+        <span asp-validation-for="StockQuantity" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="AlertThreshold" class="form-label"></label>
+        <input asp-for="AlertThreshold" class="form-control" type="number" min="0" />
+        <span asp-validation-for="AlertThreshold" class="text-danger"></span>
+    </div>
+</div>
+<div class="mb-3">
+    <label asp-for="Location" class="form-label"></label>
+    <input asp-for="Location" class="form-control" />
+    <span asp-validation-for="Location" class="text-danger"></span>
+</div>
+
+<h6 class="form-section-title">Statut</h6>
+<div class="mb-0 form-check">
+    <input asp-for="IsActive" class="form-check-input" />
+    <label asp-for="IsActive" class="form-check-label"></label>
+</div>

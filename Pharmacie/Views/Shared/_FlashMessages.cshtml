@@ -1,0 +1,40 @@
+@if (TempData["Message"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show app-flash app-flash--success" role="status">
+        <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill app-flash-icon flex-shrink-0" aria-hidden="true"></i>
+            <div class="app-flash-body flex-grow-1">@TempData["Message"]</div>
+            <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert" aria-label="Fermer"></button>
+        </div>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show app-flash app-flash--danger" role="alert">
+        <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-exclamation-octagon-fill app-flash-icon flex-shrink-0" aria-hidden="true"></i>
+            <div class="app-flash-body flex-grow-1">@TempData["Error"]</div>
+            <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert" aria-label="Fermer"></button>
+        </div>
+    </div>
+}
+@if (TempData["Warning"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show app-flash app-flash--warning" role="alert">
+        <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-exclamation-triangle-fill app-flash-icon flex-shrink-0" aria-hidden="true"></i>
+            <div class="app-flash-body flex-grow-1">@TempData["Warning"]</div>
+            <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert" aria-label="Fermer"></button>
+        </div>
+    </div>
+}
+@if (TempData["Info"] != null)
+{
+    <div class="alert alert-info alert-dismissible fade show app-flash app-flash--info" role="status">
+        <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-info-circle-fill app-flash-icon flex-shrink-0" aria-hidden="true"></i>
+            <div class="app-flash-body flex-grow-1">@TempData["Info"]</div>
+            <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert" aria-label="Fermer"></button>
+        </div>
+    </div>
+}

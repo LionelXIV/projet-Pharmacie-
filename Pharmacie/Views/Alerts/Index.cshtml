@@ -1,0 +1,111 @@
+@model AlertsIndexViewModel
+@{
+    ViewData["Title"] = "Alertes";
+    var today = Model.Today;
+}
+
+<div class="page-header">
+    <h1 class="page-title">Alertes</h1>
+    <p class="page-lead mb-0">Produits sous le seuil d’alerte et lots proches ou après la date de péremption (fenêtre <strong>@AlertsIndexViewModel.ExpirationHorizonDays</strong> jours).</p>
+</div>
+
+<h2 class="h5 mb-3 d-flex align-items-center gap-2"><i class="bi bi-exclamation-triangle text-warning" aria-hidden="true"></i>Stock bas</h2>
+@if (Model.LowStockProducts.Count == 0)
+{
+    <div class="app-empty-state app-empty-state--compact mb-4" role="status">
+        <i class="bi bi-check-circle text-success" aria-hidden="true"></i>
+        <p class="app-empty-state-title mb-1">Stock bas — rien à signaler</p>
+        <p class="mb-0 small">Aucun produit actif sous son seuil d’alerte.</p>
+    </div>
+}
+else
+{
+    <div class="table-card mb-5">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th class="text-end">Stock</th>
+                        <th class="text-end">Seuil</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.LowStockProducts)
+                    {
+                        <tr class="@(p.StockQuantity == 0 ? "table-danger" : "table-warning")">
+                            <td>@p.CommercialName</td>
+                            <td class="text-end">@p.StockQuantity</td>
+                            <td class="text-end">@p.AlertThreshold</td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-primary py-0" asp-controller="Products" asp-action="Edit" asp-route-id="@p.Id">Fiche</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="table-card-caption">@Model.LowStockProducts.Count produit(s) concerné(s).</div>
+    </div>
+}
+
+<h2 class="h5 mb-3 d-flex align-items-center gap-2"><i class="bi bi-hourglass-split text-danger" aria-hidden="true"></i>Péremption des lots</h2>
+@if (Model.BatchesNearingExpiration.Count == 0)
+{
+    <div class="app-empty-state app-empty-state--compact mb-3" role="status">
+        <i class="bi bi-calendar-check" aria-hidden="true"></i>
+        <p class="app-empty-state-title mb-1">Péremption — RAS</p>
+        <p class="mb-0 small">Aucun lot avec stock dans la fenêtre de péremption.</p>
+    </div>
+}
+else
+{
+    <div class="table-card mb-3">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Statut</th>
+                        <th>Produit</th>
+                        <th>Lot</th>
+                        <th>Expiration</th>
+                        <th class="text-end">Qté</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.BatchesNearingExpiration)
+                    {
+                        var exp = b.ExpirationDate.Date;
+                        var days = (exp - today).Days;
+                        string badgeClass;
+                        string label;
+                        if (days < 0)
+                        {
+                            badgeClass = "bg-danger";
+                            label = $"Expiré ({-days} j.)";
+                        }
+                        else if (days <= 30)
+                        {
+                            badgeClass = "bg-warning text-dark";
+                            label = days == 0 ? "Expire aujourd'hui" : $"≤ 30 j. ({days} j.)";
+                        }
+                        else
+                        {
+                            badgeClass = "bg-info text-dark";
+                            label = $"{days} j.";
+                        }
+                        <tr>
+                            <td><span class="badge @badgeClass">@label</span></td>
+                            <td>@b.Product?.CommercialName</td>
+                            <td>@b.LotNumber</td>
+                            <td>@exp.ToString("yyyy-MM-dd")</td>
+                            <td class="text-end">@b.Quantity</td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-secondary py-0" asp-controller="Batches" asp-action="Details" asp-route-id="@b.Id">Lot</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="table-card-caption">@Model.BatchesNearingExpiration.Count lot(s) dans la fenêtre.</div>
+    </div>
+}

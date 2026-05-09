@@ -1,0 +1,70 @@
+@model AdminUserEditViewModel
+@{
+    ViewData["Title"] = "Modifier un utilisateur";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Modifier un utilisateur</h1>
+    <nav class="app-breadcrumb mt-2 mb-0 d-inline-block" aria-label="Navigation">
+        <a asp-action="Index"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Utilisateurs</a>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
+                <i class="bi bi-person-gear text-primary fs-5" aria-hidden="true"></i>
+                <span class="fw-semibold">Profil et sécurité</span>
+            </div>
+            <div class="card-body p-3 p-md-4">
+                <form asp-action="Edit" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label"></label>
+                        <input asp-for="Email" class="form-control" readonly />
+                        <span class="form-text">L’email ne peut pas être modifié ici.</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Role" class="form-label"></label>
+                        <select asp-for="Role" class="form-select" asp-items="ViewBag.Role"></select>
+                        <span asp-validation-for="Role" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input asp-for="AccountLocked" class="form-check-input" />
+                        <label asp-for="AccountLocked" class="form-check-label"></label>
+                        <span asp-validation-for="AccountLocked" class="text-danger d-block"></span>
+                    </div>
+
+                    <p class="form-section-title">Réinitialisation du mot de passe</p>
+                    <p class="text-muted small">Laisser vide pour ne pas changer.</p>
+
+                    <div class="mb-3">
+                        <label asp-for="NewPassword" class="form-label"></label>
+                        <input asp-for="NewPassword" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="NewPassword" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ConfirmNewPassword" class="form-label"></label>
+                        <input asp-for="ConfirmNewPassword" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Enregistrer</button>
+                        <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

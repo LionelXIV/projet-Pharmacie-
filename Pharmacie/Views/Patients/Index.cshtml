@@ -1,0 +1,119 @@
+@model IReadOnlyList<Patient>
+@{
+    ViewData["Title"] = "Patients";
+    var canManage = ViewBag.CanManage as bool? == true;
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Portefeuille patients</h1>
+            <p class="page-lead mb-0">Coordonnées, informations de santé, ordonnances et rappels.</p>
+        </div>
+        @if (canManage)
+        {
+            <a class="btn btn-primary flex-shrink-0" asp-action="Create"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Nouveau patient</a>
+        }
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small mb-0" for="q">Recherche (nom, téléphone, courriel)</label>
+                <input type="search" name="q" id="q" value="@ViewBag.Query" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-0" for="active">État</label>
+                @{
+                    var act = ViewBag.Active as string;
+                }
+                <select name="active" id="active" class="form-select form-select-sm">
+                    @if (string.IsNullOrEmpty(act))
+                    {
+                        <option value="" selected>Tous</option>
+                    }
+                    else
+                    {
+                        <option value="">Tous</option>
+                    }
+                    @if (act == "1")
+                    {
+                        <option value="1" selected>Actifs</option>
+                    }
+                    else
+                    {
+                        <option value="1">Actifs</option>
+                    }
+                    @if (act == "0")
+                    {
+                        <option value="0" selected>Inactifs</option>
+                    }
+                    else
+                    {
+                        <option value="0">Inactifs</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Réinitialiser</a>
+                <a class="btn btn-outline-primary btn-sm" asp-action="IndexCsv" asp-route-q="@ViewBag.Query" asp-route-active="@ViewBag.Active" title="Mêmes filtres que ci-dessus">
+                    <i class="bi bi-download me-1" aria-hidden="true"></i>Exporter CSV
+                </a>
+            </div>
+        </form>
+        <p class="small text-muted mb-0 mt-2">
+            Exports globaux (tous les patients) :
+            <a asp-action="PrescriptionsCsv">ordonnances</a>,
+            <a asp-action="RemindersCsv">rappels</a>.
+        </p>
+    </div>
+</div>
+
+<div class="table-card mb-3">
+    <div class="table-responsive">
+        <table class="table table-sm table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Téléphone</th>
+                    <th>Courriel</th>
+                    <th>Actif</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model)
+                {
+                    <tr>
+                        <td>@p.FullName</td>
+                        <td class="text-nowrap">@p.Phone</td>
+                        <td class="small">@(p.Email ?? "—")</td>
+                        <td>@(p.IsActive ? "Oui" : "Non")</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-primary py-0" asp-action="Details" asp-route-id="@p.Id">Fiche</a>
+                            @if (canManage)
+                            {
+                                <a class="btn btn-sm btn-outline-secondary py-0" asp-action="Edit" asp-route-id="@p.Id">Modifier</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.Count > 0)
+    {
+        <div class="table-card-caption">@Model.Count patient(s).</div>
+    }
+</div>
+@if (Model.Count == 0)
+{
+    <div class="app-empty-state my-3" role="status">
+        <i class="bi bi-person-x" aria-hidden="true"></i>
+        <p class="app-empty-state-title mb-1">Aucun patient</p>
+        <p class="mb-0 small">Ajustez les filtres ou créez une fiche.</p>
+    </div>
+}

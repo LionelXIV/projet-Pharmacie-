@@ -1,0 +1,34 @@
+@model Category
+@{
+    ViewData["Title"] = "Supprimer la catégorie";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Supprimer la catégorie</h1>
+    <p class="page-lead mb-0">Confirmez uniquement si aucun produit ne dépend de cette catégorie.</p>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-warning">@TempData["Error"]</div>
+}
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3 p-md-4">
+                <dl class="row mb-4">
+                    <dt class="col-sm-3">@Html.DisplayNameFor(m => m.Name)</dt>
+                    <dd class="col-sm-9">@Html.DisplayFor(m => m.Name)</dd>
+                </dl>
+                <form asp-action="Delete">
+                    <input type="hidden" asp-for="Id" />
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer</button>
+                        <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

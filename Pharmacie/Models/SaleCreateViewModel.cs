@@ -1,0 +1,26 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace Pharmacie.Models;
+
+public class SaleCreateViewModel
+{
+    [Display(Name = "Date de vente")]
+    [DataType(DataType.DateTime)]
+    public DateTime SoldAt { get; set; } = DateTime.Now;
+
+    [StringLength(500)]
+    [Display(Name = "Notes")]
+    public string? Notes { get; set; }
+
+    public List<SaleLineSlotViewModel> Lines { get; set; } = new();
+}
+
+public class SaleLineSlotViewModel
+{
+    [Display(Name = "Produit")]
+    public int ProductId { get; set; }
+
+    [Display(Name = "Quantité")]
+    [Range(0, int.MaxValue)]
+    public int Quantity { get; set; }
+}

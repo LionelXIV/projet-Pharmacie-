@@ -1,0 +1,130 @@
+@model PurchaseOrderIndexPageViewModel
+@{
+    ViewData["Title"] = "Commandes fournisseurs";
+    string StatusLabel(PurchaseOrderStatus s) => s switch
+    {
+        PurchaseOrderStatus.Brouillon => "Brouillon",
+        PurchaseOrderStatus.Envoyee => "Envoyée",
+        PurchaseOrderStatus.PartiellementRecue => "Partiellement reçue",
+        PurchaseOrderStatus.Recue => "Reçue",
+        PurchaseOrderStatus.Annulee => "Annulée",
+        _ => s.ToString()
+    };
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Commandes fournisseurs</h1>
+            <p class="page-lead mb-0">Suivi des commandes et accès aux réceptions depuis le détail.</p>
+        </div>
+        <a class="btn btn-primary flex-shrink-0" asp-action="Create"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nouvelle commande</a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3 p-md-4">
+        <h2 class="h6 text-uppercase text-muted mb-3">Filtres</h2>
+        <p class="small text-muted mb-3">
+            <strong>Fournisseur</strong> : commandes passées chez ce fournisseur uniquement. <strong>Statut</strong> : étape du cycle de vie (brouillon, envoyée, partiellement reçue, reçue, annulée).
+        </p>
+        <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            <div class="col-md-5 col-lg-4">
+                <label class="form-label small mb-0" for="SupplierId">Fournisseur</label>
+                <select name="SupplierId" id="SupplierId" class="form-select form-select-sm">
+                    @if ((Model.Filter.SupplierId ?? 0) > 0)
+                    {
+                        <option value="">Tous</option>
+                    }
+                    else
+                    {
+                        <option value="" selected>Tous</option>
+                    }
+                    @foreach (var s in Model.SupplierLookup)
+                    {
+                        if (Model.Filter.SupplierId == s.Id)
+                        {
+                            <option value="@s.Id" selected>@s.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-5 col-lg-3">
+                <label class="form-label small mb-0" for="Status">Statut</label>
+                <select name="Status" id="Status" class="form-select form-select-sm">
+                    @if (Model.Filter.Status == null)
+                    {
+                        <option value="" selected>Tous</option>
+                    }
+                    else
+                    {
+                        <option value="">Tous</option>
+                    }
+                    @foreach (var st in new[] { PurchaseOrderStatus.Brouillon, PurchaseOrderStatus.Envoyee, PurchaseOrderStatus.PartiellementRecue, PurchaseOrderStatus.Recue, PurchaseOrderStatus.Annulee })
+                    {
+                        var v = (int)st;
+                        var label = StatusLabel(st);
+                        if (Model.Filter.Status == st)
+                        {
+                            <option value="@v" selected>@label</option>
+                        }
+                        else
+                        {
+                            <option value="@v">@label</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-lg-auto d-flex flex-wrap gap-2 pt-1 pt-lg-0">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Filtrer</button>
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Réinitialiser</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="table-card mb-3">
+    <div class="table-responsive">
+        <table class="table table-striped table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Fournisseur</th>
+                    <th>Date</th>
+                    <th>Statut</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Orders)
+                {
+                    <tr>
+                        <td>@item.Id</td>
+                        <td>@item.Supplier?.Name</td>
+                        <td>@item.OrderDate.ToString("yyyy-MM-dd")</td>
+                        <td><span class="badge bg-light text-dark border">@StatusLabel(item.Status)</span></td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary py-0" asp-action="Details" asp-route-id="@item.Id">Détails</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.Orders.Count > 0)
+    {
+        <div class="table-card-caption">@Model.Orders.Count commande(s) listée(s).</div>
+    }
+</div>
+@if (Model.Orders.Count == 0)
+{
+    <div class="app-empty-state my-3" role="status">
+        <i class="bi bi-truck" aria-hidden="true"></i>
+        <p class="app-empty-state-title mb-1">Aucune commande</p>
+        <p class="mb-0 small">Aucun résultat pour ces critères.</p>
+    </div>
+}

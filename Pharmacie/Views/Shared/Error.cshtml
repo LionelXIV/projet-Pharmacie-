@@ -1,0 +1,31 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Erreur";
+}
+
+<div class="page-header">
+    <h1 class="page-title text-danger">Une erreur s’est produite</h1>
+    <p class="page-lead mb-0">La requête n’a pas pu être traitée correctement.</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm border-danger border-opacity-25">
+            <div class="card-body p-3 p-md-4">
+                @if (Model.ShowRequestId)
+                {
+                    <p class="mb-3">
+                        <strong>Identifiant de requête :</strong> <code>@Model.RequestId</code>
+                    </p>
+                }
+                <p class="text-muted small mb-0">
+                    En environnement <strong>Développement</strong>, des détails supplémentaires peuvent s’afficher dans le navigateur ou la console du serveur.
+                    Pour le débogage local, définissez la variable d’environnement <code>ASPNETCORE_ENVIRONMENT</code> sur <code>Development</code>, puis redémarrez l’application.
+                </p>
+            </div>
+        </div>
+        <p class="mt-3 mb-0">
+            <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Index">Retour à l’accueil</a>
+        </p>
+    </div>
+</div>

@@ -1,0 +1,40 @@
+@model IEnumerable<Category>
+@{
+    ViewData["Title"] = "Catégories";
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Catégories</h1>
+            <p class="page-lead mb-0">Référentiel utilisé pour classer les produits.</p>
+        </div>
+        <a class="btn btn-primary flex-shrink-0" asp-action="Create"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nouvelle catégorie</a>
+    </div>
+</div>
+
+<div class="table-card mb-3">
+    <div class="table-responsive">
+        <table class="table table-striped table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>@Html.DisplayNameFor(m => m.Name)</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@Html.DisplayFor(m => item.Name)</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary py-0" asp-action="Details" asp-route-id="@item.Id">Détails</a>
+                            <a class="btn btn-sm btn-outline-primary py-0" asp-action="Edit" asp-route-id="@item.Id">Modifier</a>
+                            <a class="btn btn-sm btn-outline-danger py-0" asp-action="Delete" asp-route-id="@item.Id">Supprimer</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,269 @@
+@model DashboardViewModel
+@using Pharmacie.Models
+@{
+    ViewData["Title"] = "Tableau de bord";
+    string MovementLabel(StockMovementType t) => t switch
+    {
+        StockMovementType.Entree => "Entrée",
+        StockMovementType.Sortie => "Sortie",
+        StockMovementType.Ajustement => "Ajustement",
+        _ => t.ToString()
+    };
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Tableau de bord</h1>
+            <p class="page-lead mb-0">
+                <strong>@Model.Today.ToString("dddd d MMMM yyyy", new System.Globalization.CultureInfo("fr-FR"))</strong>
+                · Péremption des lots sur <strong>@Model.ExpirationHorizonDays</strong> jours (même fenêtre que les alertes).
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-cta btn-sm" asp-controller="Reports" asp-action="Index"><i class="bi bi-clipboard2-data me-1" aria-hidden="true"></i>Rapports</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="Alerts" asp-action="Index"><i class="bi bi-bell me-1" aria-hidden="true"></i>Alertes</a>
+        </div>
+    </div>
+</div>
+
+<h2 class="app-dash-section-title">Indicateurs clés</h2>
+<div class="row g-3 mb-2">
+    <div class="col-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-muted small text-uppercase">Produits (total)</div>
+                    <i class="bi bi-capsule app-kpi-icon fs-4" aria-hidden="true"></i>
+                </div>
+                <div class="display-6 fw-semibold text-body">@Model.TotalProducts</div>
+                <a class="small stretched-link text-decoration-none" asp-controller="Products" asp-action="Index">Catalogue</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 border-warning-subtle app-kpi-card app-kpi-card--accent-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-muted small text-uppercase">Stock faible</div>
+                    <i class="bi bi-exclamation-triangle app-kpi-icon fs-4" aria-hidden="true"></i>
+                </div>
+                <div class="display-6 fw-semibold text-warning-emphasis">@Model.LowStockProductsCount</div>
+                <span class="small text-muted">Sous le seuil</span>
+                <a class="small d-block mt-1" asp-controller="Alerts" asp-action="Index">Voir alertes</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 border-danger-subtle app-kpi-card app-kpi-card--accent-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-muted small text-uppercase">Rupture</div>
+                    <i class="bi bi-x-octagon app-kpi-icon fs-4" aria-hidden="true"></i>
+                </div>
+                <div class="display-6 fw-semibold text-danger">@Model.OutOfStockProductsCount</div>
+                <span class="small text-muted">Stock nul</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-muted small text-uppercase">Lots à péremption proche</div>
+                    <i class="bi bi-hourglass-split app-kpi-icon fs-4" aria-hidden="true"></i>
+                </div>
+                <div class="display-6 fw-semibold text-info-emphasis">@Model.NearExpiryLotsCount</div>
+                <span class="small text-muted">Lots non expirés</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="app-dash-section-title mt-4">Approvisionnement &amp; ventes</h2>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-muted small text-uppercase">Lots expirés (stock)</div>
+                    <i class="bi bi-calendar-x app-kpi-icon fs-5" aria-hidden="true"></i>
+                </div>
+                <div class="fs-2 fw-semibold text-danger">@Model.ExpiredLotsCount</div>
+                <a class="small" asp-controller="Batches" asp-action="Index">Lots</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-muted small text-uppercase">Commandes en cours</div>
+                    <i class="bi bi-truck app-kpi-icon fs-5" aria-hidden="true"></i>
+                </div>
+                <div class="fs-2 fw-semibold">@Model.PendingPurchaseOrdersCount</div>
+                <span class="small text-muted">En cours</span>
+                <a class="small d-block" asp-controller="PurchaseOrders" asp-action="Index">Commandes</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4 col-xl-6">
+        <div class="card border-0 shadow-sm h-100 bg-light app-kpi-card app-kpi-card--accent-sales">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-muted small text-uppercase">Ventes du jour</div>
+                    <i class="bi bi-cart-check app-kpi-icon fs-5" aria-hidden="true"></i>
+                </div>
+                <div class="d-flex flex-wrap align-items-baseline gap-3">
+                    <span class="fs-2 fw-semibold">@Model.SalesTodayCount <span class="fs-6 fw-normal text-muted">vente(s)</span></span>
+                    <span class="fs-4 fw-semibold text-success">@Model.SalesTodayTotal.ToString("0.00") €</span>
+                </div>
+                <a class="small" asp-controller="Sales" asp-action="Index">Historique ventes</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.ShowPatientDashboardWidget)
+{
+    <h2 class="app-dash-section-title mt-2">Patients</h2>
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 app-kpi-card border-primary-subtle">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div class="text-muted small text-uppercase">Rappels patients à traiter</div>
+                        <i class="bi bi-alarm app-kpi-icon fs-5" aria-hidden="true"></i>
+                    </div>
+                    <div class="fs-2 fw-semibold text-primary-emphasis">@Model.PatientRemindersDueCount</div>
+                    <span class="small text-muted">À la date du jour ou en retard.</span>
+                    <a class="small d-block mt-1" asp-controller="PatientRemindersAlerts" asp-action="Index">Voir la liste</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<h2 class="app-dash-section-title">Activité récente</h2>
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm table-card app-activity-panel">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <span class="fw-semibold"><i class="bi bi-arrow-left-right me-2 text-muted" aria-hidden="true"></i>Derniers mouvements de stock</span>
+                <a class="btn btn-sm btn-outline-primary" asp-controller="StockMovements" asp-action="Index">Tout voir</a>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.RecentMovements.Count == 0)
+                {
+                    <div class="app-empty-state app-empty-state--compact border-0 rounded-0 m-3" role="status">
+                        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                        <p class="app-empty-state-title mb-1">Aucun mouvement</p>
+                        <p class="mb-0 small">Les entrées, sorties et ajustements s’afficheront ici.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Produit</th>
+                                    <th>Lot</th>
+                                    <th class="text-end">Qté</th>
+                                    <th>Resp.</th>
+                                    <th>Vte</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var m in Model.RecentMovements)
+                                {
+                                    <tr>
+                                        <td class="text-nowrap small">@m.OccurredAt.ToString("g")</td>
+                                        <td><span class="badge bg-secondary-subtle text-dark">@MovementLabel(m.Type)</span></td>
+                                        <td>@m.ProductName</td>
+                                        <td class="small">@m.LotLabel</td>
+                                        <td class="text-end">
+                                            @switch (m.Type)
+                                            {
+                                                case StockMovementType.Entree:
+                                                    <span class="text-success">+@m.Quantity</span>
+                                                    break;
+                                                case StockMovementType.Sortie:
+                                                    <span class="text-danger">-@m.Quantity</span>
+                                                    break;
+                                                default:
+                                                    <span>@(m.Quantity > 0 ? "+" : "")@m.Quantity</span>
+                                                    break;
+                                            }
+                                        </td>
+                                        <td class="small text-muted">@m.ResponsibleDisplay</td>
+                                        <td class="small text-nowrap">
+                                            @if (m.SaleId is int sid)
+                                            {
+                                                <a asp-controller="Sales" asp-action="Details" asp-route-id="@sid">#@sid</a>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm table-card app-activity-panel">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <span class="fw-semibold"><i class="bi bi-receipt me-2 text-muted" aria-hidden="true"></i>Dernières ventes</span>
+                <a class="btn btn-sm btn-outline-primary" asp-controller="Sales" asp-action="Index">Tout voir</a>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.RecentSales.Count == 0)
+                {
+                    <div class="app-empty-state app-empty-state--compact border-0 rounded-0 m-3" role="status">
+                        <i class="bi bi-receipt" aria-hidden="true"></i>
+                        <p class="app-empty-state-title mb-1">Aucune vente</p>
+                        <p class="mb-0 small">Les dernières ventes validées apparaîtront ici.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th class="text-end">Lignes</th>
+                                    <th class="text-end">Total</th>
+                                    <th>Enreg.</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var s in Model.RecentSales)
+                                {
+                                    <tr>
+                                        <td>@s.Id</td>
+                                        <td class="text-nowrap small">@s.SoldAt.ToString("g")</td>
+                                        <td class="text-end">@s.LineCount</td>
+                                        <td class="text-end fw-medium">@s.Total.ToString("0.00") €</td>
+                                        <td class="small text-muted">@s.RecordedByDisplay</td>
+                                        <td class="text-end"><a asp-controller="Sales" asp-action="Details" asp-route-id="@s.Id">Détail</a></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
