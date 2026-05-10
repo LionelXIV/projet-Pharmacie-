@@ -4,13 +4,29 @@
 <ul class="navbar-nav app-nav-user border-top pt-3 pt-xl-0 mt-3 mt-xl-0 align-items-xl-center flex-shrink-0">
 @if (SignInManager.IsSignedIn(User))
 {
-    <li class="nav-item">
-        <a class="nav-link app-nav-link app-nav-user-link text-truncate" asp-area="Identity" asp-page="/Account/Manage/Index" title="Compte"><i class="bi bi-person-circle app-nav-ic me-1" aria-hidden="true"></i><span class="align-middle">@User.Identity?.Name</span></a>
-    </li>
-    <li class="nav-item">
-        <form class="d-inline w-100" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
-            <button type="submit" class="nav-link app-nav-link btn btn-link w-100 text-start text-xl-end"><i class="bi bi-box-arrow-right app-nav-ic me-1" aria-hidden="true"></i>Déconnexion</button>
-        </form>
+    <li class="nav-item dropdown">
+        <a class="nav-link app-nav-link app-nav-user-toggle dropdown-toggle d-flex align-items-center justify-content-center"
+           href="#" id="navUserMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true"
+           title="Compte (@User.Identity?.Name)">
+            <i class="bi bi-person-circle" aria-hidden="true"></i>
+            <span class="visually-hidden">Menu compte (@User.Identity?.Name)</span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end shadow border-0 app-dropdown-menu app-nav-user-menu py-1" aria-labelledby="navUserMenu">
+            <li>
+                <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/Index">
+                    <i class="bi bi-gear me-2 text-muted" aria-hidden="true"></i>Mon compte
+                </a>
+            </li>
+            <li><hr class="dropdown-divider my-1" /></li>
+            <li>
+                <form asp-area="Identity" asp-page="/Account/Logout" method="post" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })" class="m-0">
+                    <button type="submit" class="dropdown-item d-flex align-items-center gap-2">
+                        <i class="bi bi-box-arrow-right text-muted" aria-hidden="true"></i>
+                        <span>Déconnexion</span>
+                    </button>
+                </form>
+            </li>
+        </ul>
     </li>
 }
 else

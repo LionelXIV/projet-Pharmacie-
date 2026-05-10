@@ -125,7 +125,7 @@ summary {
     flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-end;
-    column-gap: 0.35rem;
+    column-gap: 0.5rem;
     min-width: 0;
     flex: 1 1 auto;
   }
@@ -133,9 +133,13 @@ summary {
   .app-navbar-nav {
     flex-wrap: nowrap;
     justify-content: flex-end !important;
-    column-gap: 0.05rem;
+    column-gap: 0.125rem;
     min-width: 0;
     flex: 1 1 auto;
+  }
+
+  .app-navbar-nav .nav-item {
+    flex: 0 0 auto;
   }
 }
 
@@ -195,15 +199,16 @@ summary {
   color: var(--pharm-ink) !important;
   font-weight: 500;
   font-size: 0.875rem;
-  padding: 0.4rem 0.5rem !important;
+  padding: 0.45rem 0.55rem !important;
   border-radius: 0.375rem;
   transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
 }
 
 @media (min-width: 1200px) {
   .app-nav-link {
     font-size: 0.8125rem;
-    padding: 0.35rem 0.45rem !important;
+    padding: 0.4rem 0.5rem !important;
   }
 }
 
@@ -233,8 +238,49 @@ summary {
   border-top-color: var(--pharm-green-dark);
 }
 
-.app-nav-user .app-nav-user-link {
-  max-width: 12rem;
+/* Icône compte seule : pas de chevron, zone claire et alignée */
+.app-nav-user-toggle.dropdown-toggle::after {
+  display: none !important;
+}
+
+.app-nav-user-toggle {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  border-radius: 999px !important;
+}
+
+.app-nav-user-toggle .bi-person-circle {
+  font-size: 1.45rem;
+  line-height: 1;
+  color: var(--pharm-ink);
+}
+
+.app-nav-user-toggle:hover .bi-person-circle,
+.app-nav-user-toggle:focus .bi-person-circle {
+  color: var(--pharm-green-dark);
+}
+
+.app-nav-user-menu {
+  min-width: 11.5rem;
+  margin-top: 0.35rem !important;
+}
+
+.app-nav-user-menu .dropdown-item {
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+}
+
+.app-nav-user-menu button.dropdown-item {
+  width: 100%;
+  text-align: start;
+  border: 0;
+  background: transparent;
+}
+
+.app-nav-user-menu button.dropdown-item:hover,
+.app-nav-user-menu button.dropdown-item:focus {
+  background-color: var(--pharm-green-soft);
+  color: var(--pharm-green-dark);
 }
 
 @media (min-width: 1200px) {
