@@ -60,4 +60,25 @@ public static class AppRoles
         || user.IsInRole(GestionnaireStock);
 
     public static bool CanAccessReports(ClaimsPrincipal user) => CanAccessDashboard(user);
+
+    public static bool CanAccessSales(ClaimsPrincipal user) =>
+        user.IsInRole(Administrateur)
+        || user.IsInRole(Pharmacien)
+        || user.IsInRole(Assistant)
+        || user.IsInRole(GestionnaireStock)
+        || user.IsInRole(Caissier);
+
+    public static bool CanAccessPurchasing(ClaimsPrincipal user) =>
+        user.IsInRole(Administrateur)
+        || user.IsInRole(Pharmacien)
+        || user.IsInRole(GestionnaireStock);
+
+    public static bool CanAccessCatalog(ClaimsPrincipal user) =>
+        user.IsInRole(Administrateur)
+        || user.IsInRole(Pharmacien)
+        || user.IsInRole(GestionnaireStock);
+
+    /// <summary>Au moins une entrée du menu « Achats &amp; ventes » est visible.</summary>
+    public static bool CanSeeCommerceMenu(ClaimsPrincipal user) =>
+        CanAccessSales(user) || CanAccessPurchasing(user) || CanAccessCatalog(user);
 }

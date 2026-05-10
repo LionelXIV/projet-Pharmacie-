@@ -24,6 +24,7 @@
     var isCatalog = IsCtrlAny("Products", "Batches", "StockMovements");
     var isPurchasing = IsCtrlAny("PurchaseOrders", "Categories", "Suppliers", "GoodsReceipts");
     var isSales = IsCtrl("Sales");
+    var isCommerce = isSales || isPurchasing;
     var isPatients = IsCtrlAny("Patients", "PatientPrescriptions", "PatientReminders", "PatientRemindersAlerts");
     var isAlerts = IsCtrl("Alerts");
     var isAdminUsers = IsCtrl("AdminUsers");
@@ -80,18 +81,34 @@
                                 <li><a class="dropdown-item" asp-controller="StockMovements" asp-action="Index"><i class="bi bi-arrow-down-up me-2 text-muted" aria-hidden="true"></i>Mouvements</a></li>
                             </ul>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link app-nav-link dropdown-toggle @(isPurchasing ? "active" : null)" href="#" id="navPurchasing" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-truck-flatbed app-nav-ic me-1" aria-hidden="true"></i>Achats</a>
-                            <ul class="dropdown-menu shadow-sm border-0 app-dropdown-menu" aria-labelledby="navPurchasing">
-                                <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="Index"><i class="bi bi-bag-check me-2 text-muted" aria-hidden="true"></i>Commandes</a></li>
-                                <li><hr class="dropdown-divider" /></li>
-                                <li><a class="dropdown-item" asp-controller="Categories" asp-action="Index"><i class="bi bi-bookmark me-2 text-muted" aria-hidden="true"></i>Catégories</a></li>
-                                <li><a class="dropdown-item" asp-controller="Suppliers" asp-action="Index"><i class="bi bi-building me-2 text-muted" aria-hidden="true"></i>Fournisseurs</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link app-nav-link @(isSales ? "active" : null)" asp-controller="Sales" asp-action="Index" aria-current="@(isSales ? "page" : null)"><i class="bi bi-cash-register app-nav-ic me-1" aria-hidden="true"></i>Ventes</a>
-                        </li>
+                        @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanSeeCommerceMenu(User))
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link app-nav-link dropdown-toggle @(isCommerce ? "active" : null)" href="#" id="navCommerce" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Ventes au comptoir et approvisionnement"><i class="bi bi-shop app-nav-ic me-1" aria-hidden="true"></i>Achats &amp; ventes</a>
+                                <ul class="dropdown-menu shadow-sm border-0 app-dropdown-menu" aria-labelledby="navCommerce">
+                                    @if (AppRoles.CanAccessSales(User))
+                                    {
+                                        <li><a class="dropdown-item" asp-controller="Sales" asp-action="Index"><i class="bi bi-cash-register me-2 text-muted" aria-hidden="true"></i>Ventes</a></li>
+                                    }
+                                    @if (AppRoles.CanAccessPurchasing(User) || AppRoles.CanAccessCatalog(User))
+                                    {
+                                        @if (AppRoles.CanAccessSales(User))
+                                        {
+                                            <li><hr class="dropdown-divider" /></li>
+                                        }
+                                        @if (AppRoles.CanAccessPurchasing(User))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="PurchaseOrders" asp-action="Index"><i class="bi bi-bag-check me-2 text-muted" aria-hidden="true"></i>Commandes fournisseurs</a></li>
+                                        }
+                                        @if (AppRoles.CanAccessCatalog(User))
+                                        {
+                                            <li><a class="dropdown-item" asp-controller="Categories" asp-action="Index"><i class="bi bi-bookmark me-2 text-muted" aria-hidden="true"></i>Catégories</a></li>
+                                            <li><a class="dropdown-item" asp-controller="Suppliers" asp-action="Index"><i class="bi bi-building me-2 text-muted" aria-hidden="true"></i>Fournisseurs</a></li>
+                                        }
+                                    }
+                                </ul>
+                            </li>
+                        }
                         @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessPatientsRead(User))
                         {
                             <li class="nav-item dropdown">
@@ -112,7 +129,9 @@
                             </li>
                         }
                     </ul>
-                    <partial name="_LoginPartial" />
+                    <div class="app-navbar-user-slot flex-shrink-0 ms-xl-1">
+                        <partial name="_LoginPartial" />
+                    </div>
                 </div>
             </div>
         </nav>

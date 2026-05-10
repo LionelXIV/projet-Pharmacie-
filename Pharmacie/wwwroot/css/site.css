@@ -122,21 +122,20 @@ summary {
 @media (min-width: 1200px) {
   .app-navbar-collapse {
     display: flex !important;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-end;
-    column-gap: 0.25rem;
-    row-gap: 0.2rem;
+    column-gap: 0.35rem;
     min-width: 0;
     flex: 1 1 auto;
   }
 
   .app-navbar-nav {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end !important;
-    row-gap: 0.15rem;
     column-gap: 0.05rem;
     min-width: 0;
+    flex: 1 1 auto;
   }
 }
 
@@ -239,11 +238,14 @@ summary {
 }
 
 @media (min-width: 1200px) {
-  .app-nav-user {
+  .app-navbar-user-slot {
     border-left: 1px solid var(--pharm-green-line);
+    padding-left: 0.65rem;
+    margin-left: 0.15rem;
+  }
+
+  .app-nav-user {
     border-top: none !important;
-    padding-left: 0.65rem !important;
-    margin-left: 0.25rem !important;
     margin-top: 0 !important;
     padding-top: 0 !important;
   }
