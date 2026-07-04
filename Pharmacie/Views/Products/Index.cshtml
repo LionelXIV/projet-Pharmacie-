@@ -218,7 +218,7 @@
                         </td>
                         <td>@item.Category?.Name</td>
                         <td>@item.Supplier?.Name</td>
-                        <td class="text-end text-nowrap">@item.SalePrice.ToString("0.00") €</td>
+                        <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(item.SalePrice)</td>
                         <td class="text-end">
                             @if (outOfStock)
                             {

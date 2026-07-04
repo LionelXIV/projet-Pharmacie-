@@ -132,9 +132,9 @@ public class SalesController : Controller
             ReportCsvFormatter.Escape("Ligne"),
             ReportCsvFormatter.Escape("N° produit"),
             ReportCsvFormatter.Escape("Produit"),
-            ReportCsvFormatter.Escape("Prix unit. (EUR)"),
+            ReportCsvFormatter.Escape("Prix unit. (FCFA)"),
             ReportCsvFormatter.Escape("Qté"),
-            ReportCsvFormatter.Escape("Sous-total (EUR)")));
+            ReportCsvFormatter.Escape("Sous-total (FCFA)")));
 
         var lineNo = 1;
         foreach (var l in sale.Lines.OrderBy(x => x.Id))
@@ -144,9 +144,9 @@ public class SalesController : Controller
                 ReportCsvFormatter.IntInvariant(lineNo++),
                 ReportCsvFormatter.IntInvariant(l.ProductId),
                 ReportCsvFormatter.Escape(l.Product?.CommercialName ?? ""),
-                ReportCsvFormatter.DecimalInvariant(l.UnitPrice),
+                ReportCsvFormatter.FcfaCsvAmount(l.UnitPrice),
                 ReportCsvFormatter.IntInvariant(l.Quantity),
-                ReportCsvFormatter.DecimalInvariant(sub)));
+                ReportCsvFormatter.FcfaCsvAmount(sub)));
         }
 
         var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());

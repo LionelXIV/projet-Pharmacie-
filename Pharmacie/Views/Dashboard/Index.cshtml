@@ -113,7 +113,7 @@
                     <i class="bi bi-cart-check app-kpi-icon fs-5 text-success" aria-hidden="true"></i>
                 </div>
                 <div class="fs-3 fw-bold lh-1 mb-1">@Model.SalesTodayCount</div>
-                <span class="small text-muted d-block">@Model.SalesTodayTotal.ToString("0.00") € de CA</span>
+                <span class="small text-muted d-block">@ReportCsvFormatter.FormatFcfa(Model.SalesTodayTotal) de CA</span>
                 <a class="small d-block mt-2" asp-controller="Sales" asp-action="Index">Historique</a>
             </div>
         </div>
@@ -276,7 +276,7 @@
                                         <td>@s.Id</td>
                                         <td class="text-nowrap small">@s.SoldAt.ToString("g")</td>
                                         <td class="text-end">@s.LineCount</td>
-                                        <td class="text-end fw-medium">@s.Total.ToString("0.00") €</td>
+                                        <td class="text-end fw-medium">@ReportCsvFormatter.FormatFcfa(s.Total)</td>
                                         <td class="small text-muted">@s.RecordedByDisplay</td>
                                         <td class="text-end"><a asp-controller="Sales" asp-action="Details" asp-route-id="@s.Id">Détail</a></td>
                                     </tr>
@@ -326,7 +326,7 @@
                 y: {
                   beginAtZero: true,
                   ticks: {
-                    callback: function (value) { return value + ' €'; }
+                    callback: function (value) { return value.toLocaleString('fr-FR') + ' FCFA'; }
                   }
                 }
               }

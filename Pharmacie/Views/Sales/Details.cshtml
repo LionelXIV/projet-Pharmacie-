@@ -44,16 +44,16 @@
                                 var sub = line.Quantity * line.UnitPrice;
                                 <tr>
                                     <td>@line.Product?.CommercialName</td>
-                                    <td class="text-end">@line.UnitPrice.ToString("0.00") €</td>
+                                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(line.UnitPrice)</td>
                                     <td class="text-end">@line.Quantity</td>
-                                    <td class="text-end">@sub.ToString("0.00") €</td>
+                                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(sub)</td>
                                 </tr>
                             }
                         </tbody>
                         <tfoot>
                             <tr>
                                 <th colspan="3" class="text-end">Total</th>
-                                <th class="text-end">@total.ToString("0.00") €</th>
+                                <th class="text-end">@ReportCsvFormatter.FormatFcfa(total)</th>
                             </tr>
                         </tfoot>
                     </table>

@@ -7,6 +7,7 @@ namespace Pharmacie.Reporting;
 public static class ReportCsvFormatter
 {
     private static readonly UTF8Encoding Utf8WithBom = new(encoderShouldEmitUTF8Identifier: true);
+    private static readonly CultureInfo FrFcfa = CultureInfo.GetCultureInfo("fr-FR");
 
     public static string Escape(string? value)
     {
@@ -19,6 +20,14 @@ public static class ReportCsvFormatter
     }
 
     public static string DecimalInvariant(decimal d) => d.ToString("0.00", CultureInfo.InvariantCulture);
+
+    /// <summary>Affichage UI : « 1 234 FCFA » (entier, sans décimales).</summary>
+    public static string FormatFcfa(decimal amount) =>
+        amount.ToString("N0", FrFcfa) + " FCFA";
+
+    /// <summary>Montant entier pour colonnes monétaires en export CSV.</summary>
+    public static string FcfaCsvAmount(decimal amount) =>
+        amount.ToString("N0", CultureInfo.InvariantCulture);
 
     public static string IntInvariant(int n) => n.ToString(CultureInfo.InvariantCulture);
 

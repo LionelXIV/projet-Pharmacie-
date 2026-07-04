@@ -32,9 +32,9 @@
                     <dt class="col-sm-3">@Html.DisplayNameFor(m => m.Supplier)</dt>
                     <dd class="col-sm-9">@Model.Supplier?.Name</dd>
                     <dt class="col-sm-3">@Html.DisplayNameFor(m => m.PurchasePrice)</dt>
-                    <dd class="col-sm-9">@Html.DisplayFor(m => m.PurchasePrice)</dd>
+                    <dd class="col-sm-9">@ReportCsvFormatter.FormatFcfa(Model.PurchasePrice)</dd>
                     <dt class="col-sm-3">@Html.DisplayNameFor(m => m.SalePrice)</dt>
-                    <dd class="col-sm-9">@Html.DisplayFor(m => m.SalePrice)</dd>
+                    <dd class="col-sm-9">@ReportCsvFormatter.FormatFcfa(Model.SalePrice)</dd>
                     <dt class="col-sm-3">@Html.DisplayNameFor(m => m.StockQuantity)</dt>
                     <dd class="col-sm-9">@Html.DisplayFor(m => m.StockQuantity)</dd>
                     <dt class="col-sm-3">@Html.DisplayNameFor(m => m.AlertThreshold)</dt>

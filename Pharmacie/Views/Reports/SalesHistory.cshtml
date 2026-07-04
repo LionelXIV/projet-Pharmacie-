@@ -41,7 +41,7 @@
                     <td class="text-nowrap">@r.SoldAt.ToString("g")</td>
                     <td class="text-end">@r.SaleId</td>
                     <td class="text-end">@r.LineCount</td>
-                    <td class="text-end fw-medium">@r.Total.ToString("0.00") €</td>
+                    <td class="text-end fw-medium">@ReportCsvFormatter.FormatFcfa(r.Total)</td>
                     <td class="text-end"><a asp-controller="Sales" asp-action="Details" asp-route-id="@r.SaleId">Détail</a></td>
                 </tr>
             }

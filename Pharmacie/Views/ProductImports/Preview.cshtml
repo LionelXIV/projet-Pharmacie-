@@ -177,8 +177,8 @@
                         <td class="text-nowrap"><code class="small">@(line.RawCip ?? "—")</code></td>
                         <td class="small">@(string.IsNullOrWhiteSpace(line.RawLibelle) ? "—" : line.RawLibelle)</td>
                         <td class="text-end">@(line.RawQtefact?.ToString() ?? "—")</td>
-                        <td class="text-end">@(line.RawPxFab?.ToString("0.00") ?? "—")</td>
-                        <td class="text-end">@(line.RawPph?.ToString("0.00") ?? "—")</td>
+                        <td class="text-end">@(line.RawPxFab.HasValue ? ReportCsvFormatter.FormatFcfa(line.RawPxFab.Value) : "—")</td>
+                        <td class="text-end">@(line.RawPph.HasValue ? ReportCsvFormatter.FormatFcfa(line.RawPph.Value) : "—")</td>
                         <td><span class="badge @badgeClass">@actionLabel</span></td>
                         <td class="text-nowrap small">@(line.MatchedProductId.HasValue ? $"#{line.MatchedProductId}" : "—")</td>
                         <td class="text-center">@line.AnomalyCount</td>

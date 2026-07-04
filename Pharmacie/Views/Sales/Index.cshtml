@@ -98,7 +98,7 @@
                             <span class="badge text-bg-secondary-subtle text-secondary-emphasis border">@lineCount</span>
                         </td>
                         <td class="text-end">
-                            <span class="fw-bold text-success-emphasis fs-6">@total.ToString("0.00") €</span>
+                            <span class="fw-bold text-success-emphasis fs-6">@ReportCsvFormatter.FormatFcfa(total)</span>
                         </td>
                         <td class="small">
                             <i class="bi bi-person-circle me-1 text-muted" aria-hidden="true"></i>@UserDisplayResolver.Resolve(userLabels, s.UserId)

@@ -139,7 +139,7 @@ public class ReportsController : Controller
             ReportCsvFormatter.Escape("Date vente"),
             ReportCsvFormatter.Escape("N° vente"),
             ReportCsvFormatter.Escape("Nombre de lignes"),
-            ReportCsvFormatter.Escape("Total (EUR)")));
+            ReportCsvFormatter.Escape("Total (FCFA)")));
 
         foreach (var r in rows)
         {
@@ -147,7 +147,7 @@ public class ReportsController : Controller
                 ReportCsvFormatter.Escape(r.SoldAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                 ReportCsvFormatter.IntInvariant(r.SaleId),
                 ReportCsvFormatter.IntInvariant(r.LineCount),
-                ReportCsvFormatter.DecimalInvariant(r.Total)));
+                ReportCsvFormatter.FcfaCsvAmount(r.Total)));
         }
 
         var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
