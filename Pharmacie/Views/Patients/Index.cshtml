@@ -180,6 +180,12 @@
                 }
             </tbody>
         </table>
+        <div class="d-flex justify-content-between align-items-center mt-2 px-3 pb-3">
+            <small class="text-muted">
+                @ViewBag.TotalCount patient(s) au total
+            </small>
+            <partial name="_Pagination" />
+        </div>
     </div>
     @if (Model.Count > 0)
     {

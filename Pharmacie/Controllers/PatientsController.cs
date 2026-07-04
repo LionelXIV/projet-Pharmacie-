@@ -20,12 +20,26 @@ public class PatientsController : Controller
         _db = db;
     }
 
-    public async Task<IActionResult> Index([FromQuery] string? q, [FromQuery] string? active)
+    public async Task<IActionResult> Index([FromQuery] string? q, [FromQuery] string? active, int page = 1)
     {
-        var query = FilteredPatientsQuery(q, active);
-        var list = await query.OrderBy(p => p.FullName).ToListAsync();
+        const int pageSize = 50;
+        if (page < 1)
+            page = 1;
 
-        var patientIds = list.Select(p => p.Id).ToList();
+        var query = FilteredPatientsQuery(q, active);
+
+        int total = await query.CountAsync();
+        var totalPages = total == 0 ? 1 : (int)Math.Ceiling(total / (double)pageSize);
+        if (page > totalPages)
+            page = totalPages;
+
+        var patients = await query
+            .OrderBy(p => p.FullName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var patientIds = patients.Select(p => p.Id).ToList();
 
         var withActivePrescription = await _db.PatientPrescriptions
             .AsNoTracking()
@@ -48,7 +62,19 @@ public class PatientsController : Controller
         ViewBag.Query = q;
         ViewBag.Active = active;
         ViewBag.CanManage = AppRoles.CanManagePatients(User);
-        return View(list);
+
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = total;
+
+        var paginationRoutes = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(q))
+            paginationRoutes["q"] = q.Trim();
+        if (!string.IsNullOrWhiteSpace(active))
+            paginationRoutes["active"] = active;
+        ViewBag.PaginationRoutes = paginationRoutes;
+
+        return View(patients);
     }
 
     public async Task<IActionResult> Details(int? id)

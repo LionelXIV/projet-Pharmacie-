@@ -10,7 +10,8 @@
         PurchaseOrderStatus.Annulee => "Annulée",
         _ => s.ToString()
     };
-    var canReceive = Model.Status != PurchaseOrderStatus.Annulee
+    var canReceive = Model.Status != PurchaseOrderStatus.Brouillon
+        && Model.Status != PurchaseOrderStatus.Annulee
         && Model.Status != PurchaseOrderStatus.Recue
         && Model.Lines.Any(l => l.QuantityOrdered > l.QuantityReceived);
     var canCancel = Model.Status != PurchaseOrderStatus.Annulee

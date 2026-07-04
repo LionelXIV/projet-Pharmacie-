@@ -31,6 +31,7 @@ public class DashboardController : Controller
         var vm = new DashboardViewModel
         {
             Today = today,
+            ExpirationHorizonDays = horizon,
             TotalProducts = await _db.Products.CountAsync(),
             LowStockProductsCount = await _db.Products.CountAsync(p =>
                 p.IsActive && p.StockQuantity <= p.AlertThreshold),

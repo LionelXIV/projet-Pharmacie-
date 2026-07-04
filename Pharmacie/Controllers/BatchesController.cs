@@ -83,6 +83,7 @@ public class BatchesController : Controller
             .AsNoTracking()
             .CountAsync(b => b.SourceImportLineId != null);
         ViewBag.ProvisionalOnly = provisionalOnly;
+        ViewBag.ExpirationHorizonDays = horizon;
 
         var products = await _context.Products
             .AsNoTracking()

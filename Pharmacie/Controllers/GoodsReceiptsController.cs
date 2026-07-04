@@ -29,6 +29,16 @@ public class GoodsReceiptsController : Controller
             .FirstOrDefaultAsync(o => o.Id == purchaseOrderId);
         if (order == null)
             return NotFound();
+        if (order.Status == PurchaseOrderStatus.Brouillon)
+        {
+            TempData["Error"] =
+                "Impossible de réceptionner une commande en brouillon. " +
+                "Envoyez-la d'abord au fournisseur via la page de détail.";
+            return RedirectToAction(
+                nameof(PurchaseOrdersController.Details),
+                "PurchaseOrders",
+                new { id = order.Id });
+        }
         if (order.Status == PurchaseOrderStatus.Annulee || order.Status == PurchaseOrderStatus.Recue)
         {
             TempData["Error"] = "Réception impossible pour cette commande.";
@@ -53,6 +63,21 @@ public class GoodsReceiptsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(ReceptionFormViewModel model)
     {
+        var order = await _context.PurchaseOrders
+            .FirstOrDefaultAsync(o => o.Id == model.PurchaseOrderId);
+
+        if (order == null)
+            return NotFound();
+
+        if (order.Status == PurchaseOrderStatus.Brouillon)
+        {
+            TempData["Error"] = "Impossible de réceptionner une commande en brouillon.";
+            return RedirectToAction(
+                nameof(PurchaseOrdersController.Details),
+                "PurchaseOrders",
+                new { id = model.PurchaseOrderId });
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var (ok, error) = await _purchase.RecordReceptionAsync(model.PurchaseOrderId, model, userId);
         if (ok)

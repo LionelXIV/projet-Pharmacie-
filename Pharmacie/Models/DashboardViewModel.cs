@@ -13,7 +13,7 @@ public class DashboardViewModel
     /// <summary>Produits actifs en rupture (quantité 0).</summary>
     public int OutOfStockProductsCount { get; set; }
 
-    /// <summary>Lots avec stock restant, non expirés, péremption dans la fenêtre (voir <see cref="AlertsIndexViewModel.ExpirationHorizonDays"/>).</summary>
+    /// <summary>Lots avec stock restant, non expirés, péremption dans la fenêtre (<c>Alerts:ExpirationHorizonDays</c>).</summary>
     public int NearExpiryLotsCount { get; set; }
 
     /// <summary>Lots avec stock restant déjà expirés.</summary>
@@ -30,7 +30,7 @@ public class DashboardViewModel
 
     public List<DashboardSaleRow> RecentSales { get; set; } = new();
 
-    public int ExpirationHorizonDays => AlertsIndexViewModel.ExpirationHorizonDays;
+    public int ExpirationHorizonDays { get; set; }
 
     /// <summary>Rappels patients à faire (date ≤ aujourd’hui), réservé aux rôles avec accès tableau de bord + module patients.</summary>
     public int PatientRemindersDueCount { get; set; }

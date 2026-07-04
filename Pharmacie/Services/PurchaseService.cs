@@ -101,6 +101,11 @@ public class PurchaseService
             .FirstOrDefaultAsync(o => o.Id == purchaseOrderId);
         if (order == null)
             return (false, "Commande introuvable.");
+        if (order.Status == PurchaseOrderStatus.Brouillon)
+            throw new InvalidOperationException(
+                $"La commande #{order.Id} est en brouillon " +
+                "et ne peut pas être réceptionnée. " +
+                "Envoyez-la d'abord au fournisseur.");
         if (order.Status == PurchaseOrderStatus.Annulee)
             return (false, "Commande annulée.");
         if (order.Status == PurchaseOrderStatus.Recue)
