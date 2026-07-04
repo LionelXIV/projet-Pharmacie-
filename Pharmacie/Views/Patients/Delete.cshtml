@@ -13,7 +13,7 @@
         <p><strong>@Model.FullName</strong> — @Model.Phone</p>
         <form asp-action="Delete" method="post">
             <input type="hidden" asp-for="Id" />
-            <button type="submit" class="btn btn-danger">Confirmer la suppression</button>
+            <button type="submit" class="btn btn-danger" data-confirm="Supprimer ce patient et ses informations associées ?">Confirmer la suppression</button>
             <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Annuler</a>
         </form>
     </div>

@@ -1,0 +1,116 @@
+@model ProductImportResultViewModel
+@{
+    ViewData["Title"] = "Résultat de l'import";
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Import confirmé</h1>
+            <p class="page-lead mb-0">
+                Lot n° <strong>@Model.ImportBatchId</strong> — @Model.FileName
+            </p>
+        </div>
+        <div class="flex-shrink-0 d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Upload">
+                <i class="bi bi-upload me-1" aria-hidden="true"></i>Nouvel import
+            </a>
+            <a class="btn btn-outline-primary btn-sm" asp-controller="Products" asp-action="Index">
+                <i class="bi bi-box-seam me-1" aria-hidden="true"></i>Voir le catalogue
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-success border-success-subtle mb-4" role="status">
+    <i class="bi bi-check-circle me-1" aria-hidden="true"></i>
+    L'import a été appliqué au catalogue et au stock. Les lots créés portent une date d'expiration provisoire à corriger manuellement.
+</div>
+
+<h2 class="app-dash-section-title">Informations du lot</h2>
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-xl-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Fichier</div>
+                <div class="fw-semibold">@Model.FileName</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Téléversé le</div>
+                <div class="fw-semibold">@Model.UploadedAt.ToString("g")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Confirmé le</div>
+                <div class="fw-semibold">@(Model.ConfirmedAt?.ToString("g") ?? "—")</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="app-dash-section-title">Bilan de l'import</h2>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 border-success-subtle">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Produits créés</div>
+                <div class="fs-2 fw-semibold text-success">@Model.ProductsCreatedCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-info">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Lots créés</div>
+                <div class="fs-2 fw-semibold text-info-emphasis">@Model.BatchesCreatedCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Prix de référence mis à jour</div>
+                <div class="fs-2 fw-semibold text-primary">@Model.ProductsUpdatedCount</div>
+                <div class="small text-muted">Produits existants (hors créations)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Lignes ignorées</div>
+                <div class="fs-2 fw-semibold text-secondary">@Model.IgnoredLinesCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Anomalies totales</div>
+                <div class="fs-2 fw-semibold text-body">@Model.TotalAnomaliesCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Anomalies résolues</div>
+                <div class="fs-2 fw-semibold text-body">@Model.ResolvedAnomaliesCount</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-warning border-warning-subtle" role="note">
+    <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>
+    <strong>Dates d'expiration provisoires</strong> — le fichier source ne contient pas de dates de péremption.
+    Les lots importés ont reçu une date fictive (+2 ans) uniquement pour permettre l'entrée en stock.
+    La pharmacie doit corriger ces dates manuellement après l'import initial.
+</div>

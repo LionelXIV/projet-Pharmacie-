@@ -4,6 +4,10 @@
     ViewData["Title"] = "Gestion des utilisateurs";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" crossorigin="anonymous" />
+}
+
 <div class="page-header">
     <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
         <div>
@@ -27,7 +31,7 @@ else
 {
     <div class="table-card mb-3">
         <div class="table-responsive">
-            <table class="table table-striped table-sm align-middle mb-0">
+            <table class="table table-striped table-sm align-middle mb-0 js-datatable">
                 <thead>
                     <tr>
                         <th>Email</th>
@@ -64,5 +68,28 @@ else
 }
 
 <p class="text-muted small mb-0">
-    L’inscription publique est désactivée : seuls les comptes créés ici (ou existants) peuvent se connecter.
+    L'inscription publique est désactivée : seuls les comptes créés ici (ou existants) peuvent se connecter.
 </p>
+
+@section Scripts {
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js" crossorigin="anonymous"></script>
+    <script>
+      $(function () {
+        $('.js-datatable').each(function () {
+          if ($.fn.DataTable.isDataTable(this)) {
+            return;
+          }
+
+          $(this).DataTable({
+            language: {
+              url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/fr-FR.json'
+            },
+            pageLength: 25,
+            lengthMenu: [10, 25, 50],
+            order: []
+          });
+        });
+      });
+    </script>
+}

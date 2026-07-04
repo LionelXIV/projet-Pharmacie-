@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Models;
@@ -25,6 +26,9 @@ public class ApplicationDbContext : IdentityDbContext
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<PatientPrescription> PatientPrescriptions => Set<PatientPrescription>();
     public DbSet<PatientTreatmentReminder> PatientTreatmentReminders => Set<PatientTreatmentReminder>();
+    public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+    public DbSet<ImportLine> ImportLines => Set<ImportLine>();
+    public DbSet<ImportAnomaly> ImportAnomalies => Set<ImportAnomaly>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -41,6 +45,13 @@ public class ApplicationDbContext : IdentityDbContext
                 .WithMany(s => s.Products)
                 .HasForeignKey(p => p.SupplierId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(p => p.ProductType)
+                .HasDefaultValue(ProductType.Inconnu);
+
+            entity.HasIndex(p => p.Cip)
+                .IsUnique()
+                .HasFilter("[Cip] IS NOT NULL AND [Cip] <> ''");
         });
 
         builder.Entity<ProductBatch>(entity =>
@@ -51,6 +62,11 @@ public class ApplicationDbContext : IdentityDbContext
                 .WithMany(p => p.Batches)
                 .HasForeignKey(b => b.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(b => b.SourceImportLine)
+                .WithMany()
+                .HasForeignKey(b => b.SourceImportLineId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<StockMovement>(entity =>
@@ -149,6 +165,57 @@ public class ApplicationDbContext : IdentityDbContext
                 .WithMany(p => p.TreatmentReminders)
                 .HasForeignKey(r => r.PatientId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ImportBatch>(entity =>
+        {
+            entity.ToTable("ImportBatches");
+            entity.HasMany(b => b.Lines)
+                .WithOne(l => l.ImportBatch)
+                .HasForeignKey(l => l.ImportBatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<IdentityUser>()
+                .WithMany()
+                .HasForeignKey(b => b.UploadedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne<IdentityUser>()
+                .WithMany()
+                .HasForeignKey(b => b.ConfirmedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<ImportLine>(entity =>
+        {
+            entity.ToTable("ImportLines");
+            entity.Property(l => l.RawPxFab).HasColumnType("decimal(18,2)");
+            entity.Property(l => l.RawPph).HasColumnType("decimal(18,2)");
+
+            entity.HasIndex(l => l.ImportBatchId);
+            entity.HasIndex(l => l.ResolvedAction);
+
+            entity.HasOne(l => l.MatchedProduct)
+                .WithMany()
+                .HasForeignKey(l => l.MatchedProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(l => l.CreatedBatch)
+                .WithMany()
+                .HasForeignKey(l => l.CreatedBatchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(l => l.Anomalies)
+                .WithOne(a => a.ImportLine)
+                .HasForeignKey(a => a.ImportLineId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ImportAnomaly>(entity =>
+        {
+            entity.ToTable("ImportAnomalies");
+            entity.Property(a => a.ResolvedByUser)
+                .HasDefaultValue(false);
         });
     }
 }

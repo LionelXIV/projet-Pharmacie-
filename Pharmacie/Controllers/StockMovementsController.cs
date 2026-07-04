@@ -13,6 +13,8 @@ namespace Pharmacie.Controllers;
 [Authorize(Roles = AppRoles.Inventory)]
 public class StockMovementsController : Controller
 {
+    private const int IndexPageSize = 50;
+
     private readonly ApplicationDbContext _context;
     private readonly InventoryService _inventory;
 
@@ -22,9 +24,12 @@ public class StockMovementsController : Controller
         _inventory = inventory;
     }
 
-    public async Task<IActionResult> Index([FromQuery] StockMovementListFilters? filter)
+    public async Task<IActionResult> Index([FromQuery] StockMovementListFilters? filter, int page = 1)
     {
         filter ??= new StockMovementListFilters();
+        if (page < 1)
+            page = 1;
+
         var q = _context.StockMovements
             .AsNoTracking()
             .Include(m => m.Product)
@@ -47,11 +52,21 @@ public class StockMovementsController : Controller
         if (!string.IsNullOrEmpty(filter.UserId))
             q = q.Where(m => m.UserId == filter.UserId);
 
+        var totalCount = await q.CountAsync();
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)IndexPageSize);
+        if (page > totalPages)
+            page = totalPages;
+
         var list = await q
             .OrderByDescending(m => m.OccurredAt)
             .ThenByDescending(m => m.Id)
+            .Skip((page - 1) * IndexPageSize)
+            .Take(IndexPageSize)
             .ToListAsync();
 
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
         ViewBag.UserLabels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, list.Select(m => m.UserId));
 
         var products = await _context.Products

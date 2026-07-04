@@ -21,7 +21,7 @@
                 <form asp-action="Delete">
                     <input type="hidden" asp-for="Id" />
                     <div class="d-flex flex-wrap gap-2">
-                        <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer</button>
+                        <button type="submit" class="btn btn-danger" data-confirm="Supprimer ce produit ? Cette action est impossible si le produit possède un historique de stock ou de ventes."><i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer</button>
                         <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>
                     </div>
                 </form>

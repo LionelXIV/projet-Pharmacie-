@@ -30,7 +30,12 @@ Desktop.ini
 
 # Local secrets (ne pas versionner les mots de passe)
 **/appsettings.*.local.json
+**/appsettings.Development.json
 secrets.json
+
+# Archives / exports locaux
+*.zip
+Pharmacie.zip
 
 # Tests / couverture
 TestResults/

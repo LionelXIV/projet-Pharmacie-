@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
@@ -112,14 +113,18 @@ public class CategoriesController : Controller
         if (category == null)
             return RedirectToAction(nameof(Index));
 
-        if (await _context.Products.AnyAsync(p => p.CategoryId == id))
+        _context.Categories.Remove(category);
+        try
         {
-            TempData["Error"] = "Impossible de supprimer cette catégorie : des produits y sont encore liés.";
-            return RedirectToAction(nameof(Delete), new { id });
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 547 })
+        {
+            TempData["Error"] =
+                "Impossible de supprimer cette catégorie car des produits y sont associés. Réaffectez ou supprimez ces produits d'abord.";
+            return RedirectToAction(nameof(Index));
         }
 
-        _context.Categories.Remove(category);
-        await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
     }
 

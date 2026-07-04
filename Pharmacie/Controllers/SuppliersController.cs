@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
@@ -137,14 +138,18 @@ public class SuppliersController : Controller
         if (supplier == null)
             return RedirectToAction(nameof(Index));
 
-        if (await _context.Products.AnyAsync(p => p.SupplierId == id))
+        _context.Suppliers.Remove(supplier);
+        try
         {
-            TempData["Error"] = "Impossible de supprimer ce fournisseur : des produits y sont encore liés.";
-            return RedirectToAction(nameof(Delete), new { id });
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 547 })
+        {
+            TempData["Error"] =
+                "Impossible de supprimer ce fournisseur car des produits y sont associés. Réaffectez ou supprimez ces produits d'abord.";
+            return RedirectToAction(nameof(Index));
         }
 
-        _context.Suppliers.Remove(supplier);
-        await _context.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
     }
 

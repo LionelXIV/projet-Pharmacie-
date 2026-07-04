@@ -119,11 +119,21 @@
             </div>
         }
 
+        @if (Model.Status == PurchaseOrderStatus.Brouillon)
+        {
+            <form asp-action="Send" asp-route-id="@Model.Id" method="post" class="mt-2 mb-3">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-primary" data-confirm="Confirmer l'envoi de cette commande ?">
+                    <i class="bi bi-send me-1" aria-hidden="true"></i>Envoyer
+                </button>
+            </form>
+        }
+
         @if (canCancel)
         {
-            <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" class="mt-2 mb-3" onsubmit="return confirm('Annuler cette commande ?');">
+            <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" class="mt-2 mb-3">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-outline-danger">Annuler la commande</button>
+                <button type="submit" class="btn btn-outline-danger" data-confirm="Annuler cette commande fournisseur ? Cette action est irréversible.">Annuler la commande</button>
             </form>
         }
     </div>

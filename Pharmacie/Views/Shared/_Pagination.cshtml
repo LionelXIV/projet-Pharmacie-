@@ -1,0 +1,91 @@
+@{
+    var current = (int)(ViewBag.CurrentPage ?? 1);
+    var total = (int)(ViewBag.TotalPages ?? 1);
+    var paginationAction = (ViewBag.PaginationAction as string) ?? "Index";
+
+    var routes = ViewBag.PaginationRoutes as Dictionary<string, string>
+                 ?? new Dictionary<string, string>();
+
+    var pages = new List<int?>();
+
+    if (total > 0)
+    {
+        pages.Add(1);
+
+        if (current - 1 > 2)
+        {
+            pages.Add(null);
+        }
+
+        for (var i = Math.Max(2, current - 1); i <= Math.Min(total - 1, current + 1); i++)
+        {
+            pages.Add(i);
+        }
+
+        if (current + 1 < total - 1)
+        {
+            pages.Add(null);
+        }
+
+        if (total > 1)
+        {
+            pages.Add(total);
+        }
+    }
+}
+
+@if (total > 1)
+{
+    <nav aria-label="Pagination" class="mt-3">
+        <ul class="pagination pagination-sm justify-content-end mb-0 flex-wrap">
+
+            @{
+                var prevRoutes = new Dictionary<string, string>(routes)
+                {
+                    ["page"] = Math.Max(1, current - 1).ToString()
+                };
+
+                var nextRoutes = new Dictionary<string, string>(routes)
+                {
+                    ["page"] = Math.Min(total, current + 1).ToString()
+                };
+            }
+
+            <li class="page-item @(current <= 1 ? "disabled" : "")">
+                <a class="page-link" asp-action="@paginationAction" asp-all-route-data="prevRoutes">
+                    <i class="bi bi-chevron-left" aria-hidden="true"></i> Préc.
+                </a>
+            </li>
+
+            @foreach (var p in pages)
+            {
+                if (p == null)
+                {
+                    <li class="page-item disabled">
+                        <span class="page-link">…</span>
+                    </li>
+                }
+                else
+                {
+                    var pageRoutes = new Dictionary<string, string>(routes)
+                    {
+                        ["page"] = p.Value.ToString()
+                    };
+
+                    <li class="page-item @(p.Value == current ? "active" : "")">
+                        <a class="page-link" asp-action="@paginationAction" asp-all-route-data="pageRoutes">
+                            @p
+                        </a>
+                    </li>
+                }
+            }
+
+            <li class="page-item @(current >= total ? "disabled" : "")">
+                <a class="page-link" asp-action="@paginationAction" asp-all-route-data="nextRoutes">
+                    Suiv. <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+}

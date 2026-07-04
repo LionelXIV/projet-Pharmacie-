@@ -101,10 +101,10 @@
                             @if (canManage)
                             {
                                 <a class="btn btn-sm btn-outline-primary py-0" asp-controller="PatientPrescriptions" asp-action="Edit" asp-route-id="@o.Id">Modifier</a>
-                                <form asp-controller="PatientPrescriptions" asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Supprimer cette ordonnance ?');">
+                                <form asp-controller="PatientPrescriptions" asp-action="Delete" method="post" class="d-inline">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@o.Id" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0">Supprimer</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0" data-confirm="Supprimer cette ordonnance ? Cette action est irréversible.">Supprimer</button>
                                 </form>
                             }
                         </td>
@@ -156,10 +156,10 @@
                                     <button type="submit" class="btn btn-sm btn-success py-0">Marquer fait</button>
                                 </form>
                                 <a class="btn btn-sm btn-outline-primary py-0" asp-controller="PatientReminders" asp-action="Edit" asp-route-id="@r.Id">Modifier</a>
-                                <form asp-controller="PatientReminders" asp-action="Delete" method="post" class="d-inline" onsubmit="return confirm('Supprimer ce rappel ?');">
+                                <form asp-controller="PatientReminders" asp-action="Delete" method="post" class="d-inline">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@r.Id" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0">Supprimer</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0" data-confirm="Supprimer ce rappel ?">Supprimer</button>
                                 </form>
                             }
                         </td>

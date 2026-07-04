@@ -80,7 +80,7 @@ public class PurchaseOrdersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(PurchaseOrderCreateViewModel model)
+    public async Task<IActionResult> Create(PurchaseOrderCreateViewModel model, string submitAction = "send")
     {
         var slots = model.Lines ?? new List<PurchaseOrderLineSlotViewModel>();
         var lines = slots
@@ -93,11 +93,13 @@ public class PurchaseOrdersController : Controller
 
         if (ModelState.IsValid)
         {
+            var asDraft = submitAction == "draft";
             var (ok, error) = await _purchase.CreateOrderAsync(
                 model.SupplierId,
                 model.OrderDate,
                 model.Notes,
-                lines);
+                lines,
+                asDraft);
             if (ok)
                 return RedirectToAction(nameof(Index));
 
@@ -111,6 +113,26 @@ public class PurchaseOrdersController : Controller
         await PopulateSuppliersAsync(model.SupplierId);
         await PopulateProductsAsync();
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Send(int id)
+    {
+        var order = await _context.PurchaseOrders.FindAsync(id);
+        if (order == null)
+            return NotFound();
+
+        if (order.Status != PurchaseOrderStatus.Brouillon)
+        {
+            TempData["Error"] = "Seules les commandes en brouillon peuvent être envoyées.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        order.Status = PurchaseOrderStatus.Envoyee;
+        await _context.SaveChangesAsync();
+        TempData["Success"] = "Commande envoyée au fournisseur.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpPost]

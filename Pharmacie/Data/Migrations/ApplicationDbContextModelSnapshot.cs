@@ -301,6 +301,142 @@ namespace Pharmacie.Data.Migrations
                     b.ToTable("GoodsReceiptLines");
                 });
 
+            modelBuilder.Entity("Pharmacie.Models.ImportAnomaly", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AnomalyType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("ImportLineId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("ResolvedByUser")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportLineId");
+
+                    b.ToTable("ImportAnomalies", (string)null);
+                });
+
+            modelBuilder.Entity("Pharmacie.Models.ImportBatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ConfirmedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalRows")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UploadedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConfirmedByUserId");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.ToTable("ImportBatches", (string)null);
+                });
+
+            modelBuilder.Entity("Pharmacie.Models.ImportLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CreatedBatchId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ImportBatchId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MatchedProductId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RawCip")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RawLibelle")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal?>("RawPph")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("RawPxFab")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("RawQtefact")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RawRefha")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ResolvedAction")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBatchId");
+
+                    b.HasIndex("ImportBatchId");
+
+                    b.HasIndex("MatchedProductId");
+
+                    b.HasIndex("ResolvedAction");
+
+                    b.ToTable("ImportLines", (string)null);
+                });
+
             modelBuilder.Entity("Pharmacie.Models.Patient", b =>
                 {
                     b.Property<int>("Id")
@@ -440,6 +576,10 @@ namespace Pharmacie.Data.Migrations
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Cip")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("CommercialName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -464,7 +604,22 @@ namespace Pharmacie.Data.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
+                    b.Property<int>("ProductType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<decimal>("PurchasePrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("ReferencePurchasePrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Refha")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("RegulatedSalePrice")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("SalePrice")
@@ -479,6 +634,10 @@ namespace Pharmacie.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("Cip")
+                        .IsUnique()
+                        .HasFilter("[Cip] IS NOT NULL AND [Cip] <> ''");
 
                     b.HasIndex("SupplierId");
 
@@ -507,9 +666,14 @@ namespace Pharmacie.Data.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SourceImportLineId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("SourceImportLineId");
 
                     b.ToTable("ProductBatches", (string)null);
                 });
@@ -776,6 +940,55 @@ namespace Pharmacie.Data.Migrations
                     b.Navigation("PurchaseOrderLine");
                 });
 
+            modelBuilder.Entity("Pharmacie.Models.ImportAnomaly", b =>
+                {
+                    b.HasOne("Pharmacie.Models.ImportLine", "ImportLine")
+                        .WithMany("Anomalies")
+                        .HasForeignKey("ImportLineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ImportLine");
+                });
+
+            modelBuilder.Entity("Pharmacie.Models.ImportBatch", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("ConfirmedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("Pharmacie.Models.ImportLine", b =>
+                {
+                    b.HasOne("Pharmacie.Models.ProductBatch", "CreatedBatch")
+                        .WithMany()
+                        .HasForeignKey("CreatedBatchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Pharmacie.Models.ImportBatch", "ImportBatch")
+                        .WithMany("Lines")
+                        .HasForeignKey("ImportBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Pharmacie.Models.Product", "MatchedProduct")
+                        .WithMany()
+                        .HasForeignKey("MatchedProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBatch");
+
+                    b.Navigation("ImportBatch");
+
+                    b.Navigation("MatchedProduct");
+                });
+
             modelBuilder.Entity("Pharmacie.Models.PatientPrescription", b =>
                 {
                     b.HasOne("Pharmacie.Models.Patient", "Patient")
@@ -825,7 +1038,14 @@ namespace Pharmacie.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Pharmacie.Models.ImportLine", "SourceImportLine")
+                        .WithMany()
+                        .HasForeignKey("SourceImportLineId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Product");
+
+                    b.Navigation("SourceImportLine");
                 });
 
             modelBuilder.Entity("Pharmacie.Models.PurchaseOrder", b =>
@@ -911,6 +1131,16 @@ namespace Pharmacie.Data.Migrations
             modelBuilder.Entity("Pharmacie.Models.GoodsReceipt", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Pharmacie.Models.ImportBatch", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Pharmacie.Models.ImportLine", b =>
+                {
+                    b.Navigation("Anomalies");
                 });
 
             modelBuilder.Entity("Pharmacie.Models.Patient", b =>

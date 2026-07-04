@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
@@ -13,6 +14,9 @@ namespace Pharmacie.Controllers;
 [Authorize(Roles = AppRoles.Catalog)]
 public class ProductsController : Controller
 {
+    private const int IndexPageSize = 50;
+    private const int ClassifyPageSize = 50;
+
     private readonly ApplicationDbContext _context;
 
     public ProductsController(ApplicationDbContext context)
@@ -20,12 +24,27 @@ public class ProductsController : Controller
         _context = context;
     }
 
-    public async Task<IActionResult> Index([FromQuery] ProductListFilters? filter)
+    public async Task<IActionResult> Index([FromQuery] ProductListFilters? filter, int page = 1)
     {
         filter ??= new ProductListFilters();
-        var list = await FilteredProductsQuery(filter)
+        if (page < 1)
+            page = 1;
+
+        var q = FilteredProductsQuery(filter);
+        var totalCount = await q.CountAsync();
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)IndexPageSize);
+        if (page > totalPages)
+            page = totalPages;
+
+        var list = await q
             .OrderBy(p => p.CommercialName)
+            .Skip((page - 1) * IndexPageSize)
+            .Take(IndexPageSize)
             .ToListAsync();
+
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
 
         var categories = await _context.Categories.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
         var suppliers = await _context.Suppliers.AsNoTracking().OrderBy(s => s.Name).ToListAsync();
@@ -36,6 +55,44 @@ public class ProductsController : Controller
             CategoryLookup = categories,
             SupplierLookup = suppliers
         });
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> Search(string? term)
+    {
+        if (User?.Identity?.IsAuthenticated != true)
+            return Challenge();
+
+        if (!AppRoles.CanAccessSales(User)
+            && !AppRoles.CanAccessPurchasing(User)
+            && !AppRoles.CanAccessCatalog(User))
+            return Forbid();
+
+        if (string.IsNullOrWhiteSpace(term) || term.Trim().Length < 2)
+            return Json(Array.Empty<object>());
+
+        var pattern = term.Trim();
+        var results = await _context.Products
+            .AsNoTracking()
+            .Where(p => p.IsActive
+                && (p.CommercialName.Contains(pattern)
+                    || (p.Cip != null && p.Cip.Contains(pattern))))
+            .OrderBy(p => p.CommercialName)
+            .Take(25)
+            .Select(p => new
+            {
+                value = p.Id,
+                text = (p.Cip != null && p.Cip != ""
+                    ? p.Cip + " — " + p.CommercialName
+                    : p.CommercialName) + " (stock: " + p.StockQuantity + ")",
+                salePrice = p.SalePrice,
+                purchasePrice = p.PurchasePrice,
+                stockQuantity = p.StockQuantity
+            })
+            .ToListAsync();
+
+        return Json(results);
     }
 
     public async Task<IActionResult> IndexCsv([FromQuery] ProductListFilters? filter)
@@ -108,11 +165,12 @@ public class ProductsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(
         [Bind(
-            "CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,StockQuantity,AlertThreshold,Location,IsActive")]
+            "CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive")]
         Product product)
     {
         if (ModelState.IsValid)
         {
+            product.StockQuantity = 0;
             _context.Add(product);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
@@ -139,7 +197,7 @@ public class ProductsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id,
         [Bind(
-            "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,StockQuantity,AlertThreshold,Location,IsActive")]
+            "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive")]
         Product product)
     {
         if (id != product.Id)
@@ -147,6 +205,14 @@ public class ProductsController : Controller
 
         if (ModelState.IsValid)
         {
+            var existing = await _context.Products.AsNoTracking()
+                .Select(p => new { p.Id, p.StockQuantity })
+                .FirstOrDefaultAsync(p => p.Id == id);
+            if (existing == null)
+                return NotFound();
+
+            product.StockQuantity = existing.StockQuantity;
+
             try
             {
                 _context.Update(product);
@@ -186,13 +252,144 @@ public class ProductsController : Controller
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var product = await _context.Products.FindAsync(id);
-        if (product != null)
+        if (product == null)
+            return RedirectToAction(nameof(Index));
+
+        _context.Products.Remove(product);
+        try
         {
-            _context.Products.Remove(product);
             await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 547 })
+        {
+            TempData["Error"] =
+                "Impossible de supprimer ce produit car il possède un historique de stock ou de ventes.";
+            return RedirectToAction(nameof(Index));
         }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    [Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
+    public async Task<IActionResult> Classify(string? term = null, int? filterType = null, int page = 1)
+    {
+        if (page < 1)
+            page = 1;
+
+        var q = _context.Products.AsNoTracking().AsQueryable();
+
+        if (filterType.HasValue && Enum.IsDefined(typeof(ProductType), filterType.Value))
+            q = q.Where(p => (int)p.ProductType == filterType.Value);
+
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            var pattern = term.Trim();
+            q = q.Where(p =>
+                p.CommercialName.Contains(pattern)
+                || (p.Cip != null && p.Cip.Contains(pattern)));
+        }
+
+        var unknownCount = await _context.Products
+            .AsNoTracking()
+            .CountAsync(p => p.ProductType == ProductType.Inconnu);
+
+        var totalCount = await q.CountAsync();
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)ClassifyPageSize);
+        if (page > totalPages)
+            page = totalPages;
+
+        var products = await q
+            .OrderBy(p => p.CommercialName)
+            .Skip((page - 1) * ClassifyPageSize)
+            .Take(ClassifyPageSize)
+            .Select(p => new ProductClassificationRowViewModel
+            {
+                Id = p.Id,
+                Cip = p.Cip,
+                CommercialName = p.CommercialName,
+                ProductType = p.ProductType,
+                SupplierName = p.Supplier != null ? p.Supplier.Name : null
+            })
+            .ToListAsync();
+
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+
+        var paginationRoutes = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(term))
+            paginationRoutes["term"] = term.Trim();
+        if (filterType.HasValue && Enum.IsDefined(typeof(ProductType), filterType.Value))
+            paginationRoutes["filterType"] = filterType.Value.ToString();
+        ViewBag.PaginationRoutes = paginationRoutes;
+        ViewBag.PaginationAction = "Classify";
+
+        var model = new ProductClassificationIndexViewModel
+        {
+            Products = products,
+            Term = term,
+            FilterType = filterType,
+            CurrentPage = page,
+            TotalPages = totalPages,
+            TotalCount = totalCount,
+            UnknownCount = unknownCount,
+            ProductTypes = BuildProductTypeFilterItems(filterType)
+        };
+
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
+    public async Task<IActionResult> ClassifyBulk(
+        List<int> productIds,
+        int newType,
+        string? returnTerm = null,
+        int? returnFilterType = null,
+        int returnPage = 1)
+    {
+        if (!Enum.IsDefined(typeof(ProductType), newType))
+        {
+            TempData["Error"] = "Type de produit invalide.";
+            return RedirectToAction(nameof(Classify), new
+            {
+                term = returnTerm,
+                filterType = returnFilterType,
+                page = returnPage
+            });
+        }
+
+        if (productIds == null || productIds.Count == 0)
+        {
+            TempData["Warning"] = "Aucun produit sélectionné.";
+            return RedirectToAction(nameof(Classify), new
+            {
+                term = returnTerm,
+                filterType = returnFilterType,
+                page = returnPage
+            });
+        }
+
+        var selectedType = (ProductType)newType;
+        var products = await _context.Products
+            .Where(p => productIds.Contains(p.Id))
+            .ToListAsync();
+
+        foreach (var product in products)
+            product.ProductType = selectedType;
+
+        await _context.SaveChangesAsync();
+
+        TempData["Success"] = $"{products.Count} produit(s) classifié(s) en {ProductTypeDisplayLabel(selectedType)}.";
+
+        return RedirectToAction(nameof(Classify), new
+        {
+            term = returnTerm,
+            filterType = returnFilterType,
+            page = returnPage
+        });
     }
 
     private async Task<bool> ProductExistsAsync(int id) =>
@@ -241,4 +438,26 @@ public class ProductsController : Controller
 
         return q;
     }
+
+    private static List<SelectListItem> BuildProductTypeFilterItems(int? selectedType)
+    {
+        var items = new List<SelectListItem>
+        {
+            new("Tous les types", "", selectedType == null)
+        };
+
+        foreach (ProductType type in Enum.GetValues<ProductType>())
+        {
+            items.Add(new SelectListItem(ProductTypeDisplayLabel(type), ((int)type).ToString(), selectedType == (int)type));
+        }
+
+        return items;
+    }
+
+    private static string ProductTypeDisplayLabel(ProductType type) => type switch
+    {
+        ProductType.Medicament => "Médicament",
+        ProductType.Parapharmacie => "Parapharmacie",
+        _ => "Inconnu"
+    };
 }

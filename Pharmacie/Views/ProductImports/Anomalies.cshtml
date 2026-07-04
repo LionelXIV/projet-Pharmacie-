@@ -1,0 +1,183 @@
+@model ProductImportAnomalyViewModel
+@using Pharmacie.Models
+@{
+    ViewData["Title"] = "Résolution des anomalies";
+
+    string AnomalyLabel(ImportAnomalyType type) => type switch
+    {
+        ImportAnomalyType.PphZeroOuInferieurAuPrixFab => "PPH zéro ou inférieur au prix fab.",
+        ImportAnomalyType.QuantiteNegative => "Quantité négative",
+        ImportAnomalyType.CipDupliqueDansLeFichier => "CIP dupliqué dans le fichier",
+        ImportAnomalyType.CipManquantOuInvalide => "CIP manquant ou invalide",
+        ImportAnomalyType.LibelleVide => "Libellé vide",
+        ImportAnomalyType.CipIdentiqueLibelleDifferent => "CIP identique, libellé différent",
+        _ => type.ToString()
+    };
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Anomalies bloquantes</h1>
+            <p class="page-lead mb-0">
+                Lot n° <strong>@Model.ImportBatchId</strong>
+                @if (!string.IsNullOrWhiteSpace(Model.FileName))
+                {
+                    <span>— @Model.FileName</span>
+                }
+            </p>
+        </div>
+        <div class="flex-shrink-0">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Preview" asp-route-id="@Model.ImportBatchId">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Retour à la prévisualisation
+            </a>
+        </div>
+    </div>
+</div>
+
+@if (Model.Lines.Count == 0)
+{
+    <div class="alert alert-success" role="status">
+        <i class="bi bi-check-circle me-1" aria-hidden="true"></i>
+        Aucune anomalie bloquante en attente pour ce lot.
+    </div>
+}
+else
+{
+    <p class="text-muted">
+        Pour chaque ligne, choisissez d'ignorer définitivement la ligne ou de forcer son import.
+        Si le PPH est nul, un prix de vente de remplacement est obligatoire pour forcer l'import.
+    </p>
+
+    <form asp-action="Anomalies" method="post" id="anomalies-form">
+        <input type="hidden" asp-for="ImportBatchId" />
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Ligne</th>
+                        <th scope="col">CIP</th>
+                        <th scope="col">Libellé</th>
+                        <th scope="col">Anomalies</th>
+                        <th scope="col" style="min-width: 14rem;">Décision</th>
+                        <th scope="col" style="min-width: 10rem;">PPH de remplacement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Lines.Count; i++)
+                    {
+                        var line = Model.Lines[i];
+                        <tr class="anomaly-row" data-requires-pph="@(line.RequiresReplacementPph ? "true" : "false")">
+                            <td>
+                                @line.RowNumber
+                                <input type="hidden" asp-for="Lines[i].ImportLineId" />
+                                <input type="hidden" asp-for="Lines[i].RowNumber" />
+                                <input type="hidden" asp-for="Lines[i].RequiresReplacementPph" />
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(line.RawCip) ? "—" : line.RawCip)</td>
+                            <td>@(string.IsNullOrWhiteSpace(line.RawLibelle) ? "—" : line.RawLibelle)</td>
+                            <td>
+                                <ul class="list-unstyled mb-0 small">
+                                    @foreach (var anomaly in line.BlockingAnomalies)
+                                    {
+                                        <li>
+                                            <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle">
+                                                @AnomalyLabel(anomaly.AnomalyType)
+                                            </span>
+                                            @if (!string.IsNullOrWhiteSpace(anomaly.Details))
+                                            {
+                                                <span class="text-muted">— @anomaly.Details</span>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column gap-1">
+                                    <div class="form-check">
+                                        <input class="form-check-input decision-radio"
+                                               type="radio"
+                                               asp-for="Lines[i].Decision"
+                                               value="@((int)UserDecision.Ignorer)"
+                                               id="decision-@i-ignorer" />
+                                        <label class="form-check-label" for="decision-@i-ignorer">Ignorer</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input decision-radio"
+                                               type="radio"
+                                               asp-for="Lines[i].Decision"
+                                               value="@((int)UserDecision.ForcerImport)"
+                                               id="decision-@i-forcer" />
+                                        <label class="form-check-label" for="decision-@i-forcer">Forcer l'import</label>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                @if (line.RequiresReplacementPph)
+                                {
+                                    <div class="replacement-pph-field">
+                                        <label class="form-label visually-hidden" asp-for="Lines[i].ReplacementPph">PPH</label>
+                                        <div class="input-group input-group-sm">
+                                            <input asp-for="Lines[i].ReplacementPph"
+                                                   class="form-control replacement-pph-input"
+                                                   type="number"
+                                                   step="0.01"
+                                                   min="0.01"
+                                                   placeholder="Ex. 12,50" />
+                                            <span class="input-group-text">€</span>
+                                        </div>
+                                        <span asp-validation-for="Lines[i].ReplacementPph" class="text-danger small"></span>
+                                        <div class="form-text replacement-pph-hint">Obligatoire si import forcé.</div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check2-circle me-1" aria-hidden="true"></i>Enregistrer les décisions
+            </button>
+        </div>
+    </form>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            function updatePphField(row) {
+                var requiresPph = row.dataset.requiresPph === 'true';
+                if (!requiresPph) return;
+
+                var forcerSelected = row.querySelector('input[value="@((int)UserDecision.ForcerImport)"]:checked');
+                var input = row.querySelector('.replacement-pph-input');
+                var hint = row.querySelector('.replacement-pph-hint');
+                if (!input) return;
+
+                var enabled = !!forcerSelected;
+                input.required = enabled;
+                input.disabled = !enabled;
+                if (hint) {
+                    hint.classList.toggle('text-danger', enabled);
+                    hint.classList.toggle('text-muted', !enabled);
+                }
+            }
+
+            document.querySelectorAll('.anomaly-row').forEach(function (row) {
+                row.querySelectorAll('.decision-radio').forEach(function (radio) {
+                    radio.addEventListener('change', function () { updatePphField(row); });
+                });
+                updatePphField(row);
+            });
+        })();
+    </script>
+}

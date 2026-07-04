@@ -13,6 +13,8 @@ namespace Pharmacie.Controllers;
 [Authorize(Roles = AppRoles.Inventory)]
 public class BatchesController : Controller
 {
+    private const int IndexPageSize = 50;
+
     private readonly ApplicationDbContext _context;
     private readonly InventoryService _inventory;
 
@@ -22,9 +24,12 @@ public class BatchesController : Controller
         _inventory = inventory;
     }
 
-    public async Task<IActionResult> Index([FromQuery] BatchListFilters? filter)
+    public async Task<IActionResult> Index([FromQuery] BatchListFilters? filter, int page = 1, bool provisionalOnly = false)
     {
         filter ??= new BatchListFilters();
+        if (page < 1)
+            page = 1;
+
         var today = DateTime.Today;
         var horizonEnd = today.AddDays(AlertsIndexViewModel.ExpirationHorizonDays);
 
@@ -54,10 +59,28 @@ public class BatchesController : Controller
             q = q.Where(b => b.Quantity > 0 && b.ExpirationDate.Date < today);
         }
 
+        if (provisionalOnly)
+            q = q.Where(b => b.SourceImportLineId != null);
+
+        var totalCount = await q.CountAsync();
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)IndexPageSize);
+        if (page > totalPages)
+            page = totalPages;
+
         var list = await q
             .OrderBy(b => b.ExpirationDate)
             .ThenBy(b => b.Product!.CommercialName)
+            .Skip((page - 1) * IndexPageSize)
+            .Take(IndexPageSize)
             .ToListAsync();
+
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
+        ViewBag.ProvisionalCount = await _context.ProductBatches
+            .AsNoTracking()
+            .CountAsync(b => b.SourceImportLineId != null);
+        ViewBag.ProvisionalOnly = provisionalOnly;
 
         var products = await _context.Products
             .AsNoTracking()

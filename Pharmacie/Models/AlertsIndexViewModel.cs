@@ -2,7 +2,11 @@ namespace Pharmacie.Models;
 
 public class AlertsIndexViewModel
 {
-    public const int ExpirationHorizonDays = 90;
+    /// <summary>Default horizon (appsettings <c>Alerts:ExpirationHorizonDays</c>) for Dashboard, Batches, Reports.</summary>
+    public static int ExpirationHorizonDays => 90;
+
+    /// <summary>Effective horizon for the Alerts/Index page (may differ via query string).</summary>
+    public int HorizonDays { get; set; } = ExpirationHorizonDays;
 
     public List<Product> LowStockProducts { get; set; } = new();
 

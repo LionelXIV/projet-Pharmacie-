@@ -25,5 +25,10 @@ public class ProductBatch
     [Range(0, int.MaxValue)]
     public int Quantity { get; set; }
 
+    [Display(Name = "Ligne d'import source")]
+    public int? SourceImportLineId { get; set; }
+
+    public ImportLine? SourceImportLine { get; set; }
+
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

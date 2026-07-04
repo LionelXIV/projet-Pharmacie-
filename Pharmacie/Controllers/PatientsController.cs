@@ -24,6 +24,27 @@ public class PatientsController : Controller
     {
         var query = FilteredPatientsQuery(q, active);
         var list = await query.OrderBy(p => p.FullName).ToListAsync();
+
+        var patientIds = list.Select(p => p.Id).ToList();
+
+        var withActivePrescription = await _db.PatientPrescriptions
+            .AsNoTracking()
+            .Where(pp => patientIds.Contains(pp.PatientId)
+                      && pp.Status == PrescriptionStatus.Active)
+            .Select(pp => pp.PatientId)
+            .Distinct()
+            .ToListAsync();
+
+        var pendingReminderCounts = await _db.PatientTreatmentReminders
+            .AsNoTracking()
+            .Where(r => patientIds.Contains(r.PatientId) && !r.IsDone)
+            .GroupBy(r => r.PatientId)
+            .Select(g => new { PatientId = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        ViewBag.ActivePrescriptions = withActivePrescription.ToHashSet();
+        ViewBag.PendingReminders = pendingReminderCounts
+            .ToDictionary(x => x.PatientId, x => x.Count);
         ViewBag.Query = q;
         ViewBag.Active = active;
         ViewBag.CanManage = AppRoles.CanManagePatients(User);

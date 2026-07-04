@@ -60,9 +60,21 @@
 <h6 class="form-section-title">Stock &amp; emplacement</h6>
 <div class="row">
     <div class="col-md-6 mb-3">
-        <label asp-for="StockQuantity" class="form-label"></label>
-        <input asp-for="StockQuantity" class="form-control" type="number" min="0" />
-        <span asp-validation-for="StockQuantity" class="text-danger"></span>
+        <label class="form-label">@Html.DisplayNameFor(m => m.StockQuantity)</label>
+        @if (Model.Id == 0)
+        {
+            <p class="form-control-plaintext mb-0">
+                0
+                <span class="text-muted small">(initialisé à zéro — alimenté par les lots et entrées de stock)</span>
+            </p>
+        }
+        else
+        {
+            <p class="form-control-plaintext mb-0">
+                @Model.StockQuantity
+                <span class="text-muted small">(lecture seule — géré par les lots et mouvements de stock)</span>
+            </p>
+        }
     </div>
     <div class="col-md-6 mb-3">
         <label asp-for="AlertThreshold" class="form-label"></label>

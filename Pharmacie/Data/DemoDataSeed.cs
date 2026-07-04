@@ -64,8 +64,10 @@ public static class DemoDataSeed
             ("Gel hydroalcoolique 75 ml", "éthanol 70 %", categories[4], suppliers[1].Item1, 2.10m, 5.99m, 10, "flacon", "75 ml", "Près caisse", true)
         };
 
+        var demoProductIndex = 0;
         foreach (var (com, gen, catName, supName, purch, sale, th, form, dos, loc, active) in products)
         {
+            demoProductIndex++;
             db.Products.Add(new Product
             {
                 CommercialName = com,
@@ -79,7 +81,8 @@ public static class DemoDataSeed
                 Form = form,
                 Dosage = dos,
                 Location = loc,
-                IsActive = active
+                IsActive = active,
+                Cip = $"DEMO{demoProductIndex:D4}"
             });
         }
 

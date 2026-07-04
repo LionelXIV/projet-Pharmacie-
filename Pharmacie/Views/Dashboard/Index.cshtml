@@ -28,121 +28,143 @@
 </div>
 
 <h2 class="app-dash-section-title">Indicateurs clés</h2>
-<div class="row g-3 mb-2">
-    <div class="col-6 col-xl-3">
+<div class="row row-cols-2 row-cols-md-3 row-cols-xl-6 g-3 mb-4">
+    <div class="col">
         <div class="card border-0 shadow-sm h-100 app-kpi-card">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="text-muted small text-uppercase">Produits (total)</div>
-                    <i class="bi bi-capsule app-kpi-icon fs-4" aria-hidden="true"></i>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Produits</span>
+                    <i class="bi bi-capsule app-kpi-icon fs-5 text-primary" aria-hidden="true"></i>
                 </div>
-                <div class="display-6 fw-semibold text-body">@Model.TotalProducts</div>
-                <a class="small stretched-link text-decoration-none" asp-controller="Products" asp-action="Index">Catalogue</a>
+                <div class="display-6 fw-bold text-body lh-1 mb-1">@Model.TotalProducts</div>
+                <span class="small text-muted">Catalogue total</span>
+                <a class="small d-block mt-2 stretched-link text-decoration-none" asp-controller="Products" asp-action="Index">Voir le catalogue</a>
             </div>
         </div>
     </div>
-    <div class="col-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100 border-warning-subtle app-kpi-card app-kpi-card--accent-warning">
+    <div class="col">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-warning">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="text-muted small text-uppercase">Stock faible</div>
-                    <i class="bi bi-exclamation-triangle app-kpi-icon fs-4" aria-hidden="true"></i>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Stock faible</span>
+                    <i class="bi bi-exclamation-triangle app-kpi-icon fs-5 text-warning" aria-hidden="true"></i>
                 </div>
-                <div class="display-6 fw-semibold text-warning-emphasis">@Model.LowStockProductsCount</div>
+                <div class="display-6 fw-bold text-warning-emphasis lh-1 mb-1">@Model.LowStockProductsCount</div>
                 <span class="small text-muted">Sous le seuil</span>
-                <a class="small d-block mt-1" asp-controller="Alerts" asp-action="Index">Voir alertes</a>
+                <a class="small d-block mt-2" asp-controller="Alerts" asp-action="Index">Voir alertes</a>
             </div>
         </div>
     </div>
-    <div class="col-6 col-xl-3">
-        <div class="card border-0 shadow-sm h-100 border-danger-subtle app-kpi-card app-kpi-card--accent-danger">
+    <div class="col">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-danger">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="text-muted small text-uppercase">Rupture</div>
-                    <i class="bi bi-x-octagon app-kpi-icon fs-4" aria-hidden="true"></i>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Rupture</span>
+                    <i class="bi bi-x-octagon app-kpi-icon fs-5 text-danger" aria-hidden="true"></i>
                 </div>
-                <div class="display-6 fw-semibold text-danger">@Model.OutOfStockProductsCount</div>
+                <div class="display-6 fw-bold text-danger lh-1 mb-1">@Model.OutOfStockProductsCount</div>
                 <span class="small text-muted">Stock nul</span>
             </div>
         </div>
     </div>
-    <div class="col-6 col-xl-3">
+    <div class="col">
         <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-info">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="text-muted small text-uppercase">Lots à péremption proche</div>
-                    <i class="bi bi-hourglass-split app-kpi-icon fs-4" aria-hidden="true"></i>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Péremption proche</span>
+                    <i class="bi bi-hourglass-split app-kpi-icon fs-5 text-info" aria-hidden="true"></i>
                 </div>
-                <div class="display-6 fw-semibold text-info-emphasis">@Model.NearExpiryLotsCount</div>
+                <div class="display-6 fw-bold text-info-emphasis lh-1 mb-1">@Model.NearExpiryLotsCount</div>
                 <span class="small text-muted">Lots non expirés</span>
             </div>
         </div>
     </div>
-</div>
-
-<h2 class="app-dash-section-title mt-4">Approvisionnement &amp; ventes</h2>
-<div class="row g-3 mb-4">
-    <div class="col-6 col-md-4 col-xl-3">
+    <div class="col">
         <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-danger">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="text-muted small text-uppercase">Lots expirés (stock)</div>
-                    <i class="bi bi-calendar-x app-kpi-icon fs-5" aria-hidden="true"></i>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Lots expirés</span>
+                    <i class="bi bi-calendar-x app-kpi-icon fs-5 text-danger" aria-hidden="true"></i>
                 </div>
-                <div class="fs-2 fw-semibold text-danger">@Model.ExpiredLotsCount</div>
-                <a class="small" asp-controller="Batches" asp-action="Index">Lots</a>
+                <div class="display-6 fw-bold text-danger lh-1 mb-1">@Model.ExpiredLotsCount</div>
+                <span class="small text-muted">Encore en stock</span>
+                <a class="small d-block mt-2" asp-controller="Batches" asp-action="Index">Voir les lots</a>
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-4 col-xl-3">
+    <div class="col">
         <div class="card border-0 shadow-sm h-100 app-kpi-card">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="text-muted small text-uppercase">Commandes en cours</div>
-                    <i class="bi bi-truck app-kpi-icon fs-5" aria-hidden="true"></i>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Commandes</span>
+                    <i class="bi bi-truck app-kpi-icon fs-5 text-secondary" aria-hidden="true"></i>
                 </div>
-                <div class="fs-2 fw-semibold">@Model.PendingPurchaseOrdersCount</div>
+                <div class="display-6 fw-bold lh-1 mb-1">@Model.PendingPurchaseOrdersCount</div>
                 <span class="small text-muted">En cours</span>
-                <a class="small d-block" asp-controller="PurchaseOrders" asp-action="Index">Commandes</a>
+                <a class="small d-block mt-2" asp-controller="PurchaseOrders" asp-action="Index">Commandes</a>
             </div>
         </div>
     </div>
-    <div class="col-12 col-md-4 col-xl-6">
-        <div class="card border-0 shadow-sm h-100 bg-light app-kpi-card app-kpi-card--accent-sales">
+    <div class="col">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-sales">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div class="text-muted small text-uppercase">Ventes du jour</div>
-                    <i class="bi bi-cart-check app-kpi-icon fs-5" aria-hidden="true"></i>
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <span class="text-muted small text-uppercase fw-semibold">Ventes du jour</span>
+                    <i class="bi bi-cart-check app-kpi-icon fs-5 text-success" aria-hidden="true"></i>
                 </div>
-                <div class="d-flex flex-wrap align-items-baseline gap-3">
-                    <span class="fs-2 fw-semibold">@Model.SalesTodayCount <span class="fs-6 fw-normal text-muted">vente(s)</span></span>
-                    <span class="fs-4 fw-semibold text-success">@Model.SalesTodayTotal.ToString("0.00") €</span>
+                <div class="fs-3 fw-bold lh-1 mb-1">@Model.SalesTodayCount</div>
+                <span class="small text-muted d-block">@Model.SalesTodayTotal.ToString("0.00") € de CA</span>
+                <a class="small d-block mt-2" asp-controller="Sales" asp-action="Index">Historique</a>
+            </div>
+        </div>
+    </div>
+    @if (Model.ShowPatientDashboardWidget)
+    {
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100 app-kpi-card border-primary-subtle">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <span class="text-muted small text-uppercase fw-semibold">Rappels patients</span>
+                        <i class="bi bi-alarm app-kpi-icon fs-5 text-primary" aria-hidden="true"></i>
+                    </div>
+                    <div class="display-6 fw-bold text-primary-emphasis lh-1 mb-1">@Model.PatientRemindersDueCount</div>
+                    <span class="small text-muted">À traiter aujourd'hui</span>
+                    <a class="small d-block mt-2" asp-controller="PatientRemindersAlerts" asp-action="Index">Voir la liste</a>
                 </div>
-                <a class="small" asp-controller="Sales" asp-action="Index">Historique ventes</a>
+            </div>
+        </div>
+    }
+</div>
+
+<h2 class="app-dash-section-title">Graphiques</h2>
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3">
+                <span class="fw-semibold"><i class="bi bi-graph-up me-2 text-primary" aria-hidden="true"></i>Ventes des 30 derniers jours</span>
+            </div>
+            <div class="card-body">
+                <div class="ph-chart-container" style="height: 280px;">
+                    <canvas id="salesChart" aria-label="Graphique des ventes sur 30 jours" role="img"></canvas>
+                </div>
+                <p class="small text-muted mb-0 mt-2">Chiffre d'affaires journalier (somme des lignes : quantité × prix unitaire).</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3">
+                <span class="fw-semibold"><i class="bi bi-pie-chart me-2 text-primary" aria-hidden="true"></i>Valeur du stock par catégorie</span>
+            </div>
+            <div class="card-body">
+                <div class="ph-chart-container" style="height: 280px;">
+                    <canvas id="stockChart" aria-label="Répartition de la valeur du stock par catégorie" role="img"></canvas>
+                </div>
+                <p class="small text-muted mb-0 mt-2">Estimation : stock × prix de vente (8 principales catégories).</p>
             </div>
         </div>
     </div>
 </div>
-
-@if (Model.ShowPatientDashboardWidget)
-{
-    <h2 class="app-dash-section-title mt-2">Patients</h2>
-    <div class="row g-3 mb-4">
-        <div class="col-12 col-md-6 col-xl-4">
-            <div class="card border-0 shadow-sm h-100 app-kpi-card border-primary-subtle">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start gap-2">
-                        <div class="text-muted small text-uppercase">Rappels patients à traiter</div>
-                        <i class="bi bi-alarm app-kpi-icon fs-5" aria-hidden="true"></i>
-                    </div>
-                    <div class="fs-2 fw-semibold text-primary-emphasis">@Model.PatientRemindersDueCount</div>
-                    <span class="small text-muted">À la date du jour ou en retard.</span>
-                    <a class="small d-block mt-1" asp-controller="PatientRemindersAlerts" asp-action="Index">Voir la liste</a>
-                </div>
-            </div>
-        </div>
-    </div>
-}
 
 <h2 class="app-dash-section-title">Activité récente</h2>
 <div class="row g-4">
@@ -158,7 +180,7 @@
                     <div class="app-empty-state app-empty-state--compact border-0 rounded-0 m-3" role="status">
                         <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
                         <p class="app-empty-state-title mb-1">Aucun mouvement</p>
-                        <p class="mb-0 small">Les entrées, sorties et ajustements s’afficheront ici.</p>
+                        <p class="mb-0 small">Les entrées, sorties et ajustements s'afficheront ici.</p>
                     </div>
                 }
                 else
@@ -267,3 +289,84 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        if (!window.Chart) return;
+
+        const salesData = @Html.Raw(ViewBag.SalesChartData ?? "[]");
+        const stockData = @Html.Raw(ViewBag.StockChartData ?? "[]");
+
+        const salesCanvas = document.getElementById('salesChart');
+        if (salesCanvas && salesData.length > 0) {
+          new Chart(salesCanvas, {
+            type: 'line',
+            data: {
+              labels: salesData.map(d => d.date),
+              datasets: [{
+                label: 'Ventes',
+                data: salesData.map(d => d.amount),
+                borderColor: '#2563EB',
+                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 3
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    callback: function (value) { return value + ' €'; }
+                  }
+                }
+              }
+            }
+          });
+        }
+
+        const stockCanvas = document.getElementById('stockChart');
+        if (stockCanvas && stockData.length > 0) {
+          new Chart(stockCanvas, {
+            type: 'doughnut',
+            data: {
+              labels: stockData.map(d => d.category),
+              datasets: [{
+                data: stockData.map(d => d.value),
+                backgroundColor: [
+                  '#2563EB',
+                  '#10B981',
+                  '#F59E0B',
+                  '#EF4444',
+                  '#8B5CF6',
+                  '#06B6D4',
+                  '#EC4899',
+                  '#64748B'
+                ]
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: '65%',
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: { boxWidth: 12, font: { size: 11 } }
+                }
+              }
+            }
+          });
+        }
+      });
+    </script>
+}

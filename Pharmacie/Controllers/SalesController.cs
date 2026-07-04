@@ -16,6 +16,8 @@ namespace Pharmacie.Controllers;
 [Authorize(Roles = AppRoles.Sales)]
 public class SalesController : Controller
 {
+    private const int IndexPageSize = 50;
+
     private readonly ApplicationDbContext _context;
     private readonly SaleService _sales;
 
@@ -25,9 +27,12 @@ public class SalesController : Controller
         _sales = sales;
     }
 
-    public async Task<IActionResult> Index([FromQuery] SaleListFilters? filter)
+    public async Task<IActionResult> Index([FromQuery] SaleListFilters? filter, int page = 1)
     {
         filter ??= new SaleListFilters();
+        if (page < 1)
+            page = 1;
+
         var q = _context.Sales
             .AsNoTracking()
             .Include(s => s.Lines)
@@ -48,11 +53,21 @@ public class SalesController : Controller
         if (!string.IsNullOrEmpty(filter.UserId))
             q = q.Where(s => s.UserId == filter.UserId);
 
+        var totalCount = await q.CountAsync();
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)IndexPageSize);
+        if (page > totalPages)
+            page = totalPages;
+
         var list = await q
             .OrderByDescending(s => s.SoldAt)
             .ThenByDescending(s => s.Id)
+            .Skip((page - 1) * IndexPageSize)
+            .Take(IndexPageSize)
             .ToListAsync();
 
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = totalCount;
         ViewBag.UserLabels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, list.Select(s => s.UserId));
         await PopulateSaleFilterUsersAsync(filter.UserId);
         return View(new SaleIndexPageViewModel { Filter = filter, Sales = list });

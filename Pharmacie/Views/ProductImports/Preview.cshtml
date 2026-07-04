@@ -1,0 +1,227 @@
+@model ProductImportPreviewViewModel
+@using Pharmacie.Models
+@{
+    ViewData["Title"] = "Prévisualisation import";
+    var s = Model.Summary;
+
+    (string Label, string BadgeClass) ActionBadge(ImportLineAction action) => action switch
+    {
+        ImportLineAction.CreationProduit => ("Création produit", "bg-success"),
+        ImportLineAction.MiseAJourPrix => ("Mise à jour prix", "bg-primary"),
+        ImportLineAction.NouveauLot => ("Nouveau lot", "bg-info text-dark"),
+        ImportLineAction.Ignoree => ("Ignorée", "bg-secondary"),
+        ImportLineAction.Anomalie => ("Anomalie", "bg-danger"),
+        _ => (action.ToString(), "bg-secondary")
+    };
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Prévisualisation de l'import</h1>
+            <p class="page-lead mb-0">Lot n° <strong>@Model.ImportBatchId</strong> — analyse sans modification du catalogue ni du stock.</p>
+        </div>
+        <div class="flex-shrink-0">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Upload">
+                <i class="bi bi-upload me-1" aria-hidden="true"></i>Nouvel import
+            </a>
+        </div>
+    </div>
+</div>
+
+<h2 class="app-dash-section-title">Synthèse</h2>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Total lignes</div>
+                <div class="display-6 fw-semibold text-body">@s.TotalRows</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 border-success-subtle app-kpi-card">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Créations produits</div>
+                <div class="fs-2 fw-semibold text-success">@s.CreationProduitCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Mises à jour prix</div>
+                <div class="fs-2 fw-semibold text-primary">@s.MiseAJourPrixCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card app-kpi-card--accent-info">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Nouveaux lots</div>
+                <div class="fs-2 fw-semibold text-info-emphasis">@s.NouveauLotCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 app-kpi-card">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Lignes ignorées</div>
+                <div class="fs-2 fw-semibold text-secondary">@s.IgnoreeCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 border-danger-subtle app-kpi-card app-kpi-card--accent-danger">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Lignes en anomalie</div>
+                <div class="fs-2 fw-semibold text-danger">@s.AnomalieCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 border-danger-subtle app-kpi-card app-kpi-card--accent-danger">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Anomalies bloquantes</div>
+                <div class="fs-2 fw-semibold text-danger">@s.BlockingAnomaliesCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="card border-0 shadow-sm h-100 border-warning-subtle app-kpi-card app-kpi-card--accent-warning">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Avertissements</div>
+                <div class="fs-2 fw-semibold text-warning-emphasis">@s.WarningAnomaliesCount</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-light border shadow-sm d-flex align-items-start gap-2 mb-4" role="note">
+    <i class="bi bi-exclamation-diamond text-muted fs-5 flex-shrink-0 mt-1" aria-hidden="true"></i>
+    <div>
+        @if (Model.UnresolvedBlockingAnomaliesCount > 0)
+        {
+            <strong>@Model.UnresolvedBlockingAnomaliesCount anomalie(s) bloquante(s) à traiter</strong>
+            <span>—</span>
+            <a asp-action="Anomalies" asp-route-id="@Model.ImportBatchId">Résoudre les anomalies</a>
+            <span class="d-block small text-muted mt-1">La confirmation de l'import sera disponible une fois toutes les anomalies bloquantes résolues.</span>
+        }
+        else if (Model.BatchStatus == ImportBatchStatus.Confirme)
+        {
+            <strong>Import confirmé</strong>
+            <span>—</span>
+            <a asp-action="Result" asp-route-id="@Model.ImportBatchId">Voir le récapitulatif</a>
+        }
+        else if (Model.CanConfirmImport)
+        {
+            <strong>Prêt pour confirmation</strong>
+            <span class="d-block small text-muted mt-1">Aucune anomalie bloquante en attente. Vous pouvez confirmer l'import dans le catalogue.</span>
+        }
+        else
+        {
+            <strong>Gestion des anomalies</strong>
+            <span>— lot non confirmable dans l'état actuel.</span>
+        }
+    </div>
+</div>
+
+@if (Model.CanConfirmImport)
+{
+    <div class="card border-success-subtle shadow-sm mb-4">
+        <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-3">
+            <div>
+                <h2 class="h6 mb-1 text-success-emphasis">Confirmer l'import</h2>
+                <p class="small text-muted mb-0">
+                    Cette action créera les produits et lots dans le catalogue et mettra à jour les prix de référence.
+                    Elle est irréversible pour ce lot.
+                </p>
+            </div>
+            <form asp-action="Confirm" asp-route-id="@Model.ImportBatchId" method="post" class="flex-shrink-0">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check2-all me-1" aria-hidden="true"></i>Confirmer l'import
+                </button>
+            </form>
+        </div>
+    </div>
+}
+
+<h2 class="h5 mb-2">Lignes du fichier</h2>
+<p class="small text-muted mb-2">Page @Model.CurrentPage sur @Model.TotalPages · @s.TotalRows ligne(s) au total</p>
+
+<div class="table-card mb-3">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Ligne</th>
+                    <th>CIP</th>
+                    <th>Libellé</th>
+                    <th class="text-end">Qté</th>
+                    <th class="text-end">PX_FAB</th>
+                    <th class="text-end">PPH</th>
+                    <th>Action</th>
+                    <th>Produit</th>
+                    <th class="text-center">Anom.</th>
+                    <th class="text-center">Bloqu.</th>
+                    <th class="text-center">Avert.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var line in Model.Lines)
+                {
+                    var (actionLabel, badgeClass) = ActionBadge(line.ResolvedAction);
+                    <tr>
+                        <td class="text-nowrap">@line.RowNumber</td>
+                        <td class="text-nowrap"><code class="small">@(line.RawCip ?? "—")</code></td>
+                        <td class="small">@(string.IsNullOrWhiteSpace(line.RawLibelle) ? "—" : line.RawLibelle)</td>
+                        <td class="text-end">@(line.RawQtefact?.ToString() ?? "—")</td>
+                        <td class="text-end">@(line.RawPxFab?.ToString("0.00") ?? "—")</td>
+                        <td class="text-end">@(line.RawPph?.ToString("0.00") ?? "—")</td>
+                        <td><span class="badge @badgeClass">@actionLabel</span></td>
+                        <td class="text-nowrap small">@(line.MatchedProductId.HasValue ? $"#{line.MatchedProductId}" : "—")</td>
+                        <td class="text-center">@line.AnomalyCount</td>
+                        <td class="text-center">@if (line.BlockingAnomalyCount > 0) { <span class="badge bg-danger">@line.BlockingAnomalyCount</span> } else { <span class="text-muted">0</span> }</td>
+                        <td class="text-center">@if (line.WarningCount > 0) { <span class="badge bg-warning text-dark">@line.WarningCount</span> } else { <span class="text-muted">0</span> }</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.Lines.Count == 0)
+    {
+        <div class="table-card-caption">Aucune ligne sur cette page.</div>
+    }
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Pagination des lignes d'import" class="mb-4">
+        <ul class="pagination pagination-sm justify-content-center mb-0">
+            <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : null)">
+                @if (Model.CurrentPage > 1)
+                {
+                    <a class="page-link" asp-action="Preview" asp-route-id="@Model.ImportBatchId" asp-route-page="@(Model.CurrentPage - 1)">Précédent</a>
+                }
+                else
+                {
+                    <span class="page-link">Précédent</span>
+                }
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">@Model.CurrentPage / @Model.TotalPages</span>
+            </li>
+            <li class="page-item @(Model.CurrentPage >= Model.TotalPages ? "disabled" : null)">
+                @if (Model.CurrentPage < Model.TotalPages)
+                {
+                    <a class="page-link" asp-action="Preview" asp-route-id="@Model.ImportBatchId" asp-route-page="@(Model.CurrentPage + 1)">Suivant</a>
+                }
+                else
+                {
+                    <span class="page-link">Suivant</span>
+                }
+            </li>
+        </ul>
+    </nav>
+}

@@ -63,6 +63,28 @@ public class Product
     [Display(Name = "Actif")]
     public bool IsActive { get; set; } = true;
 
+    /// <summary>Code identifiant de présentation (chaîne, zéros significatifs conservés).</summary>
+    [StringLength(20)]
+    [Display(Name = "CIP")]
+    public string? Cip { get; set; }
+
+    [StringLength(20)]
+    [Display(Name = "Référence HA")]
+    public string? Refha { get; set; }
+
+    [Display(Name = "Type de produit")]
+    public ProductType ProductType { get; set; } = ProductType.Inconnu;
+
+    [Column(TypeName = "decimal(18,2)")]
+    [Display(Name = "Prix d'achat de référence")]
+    [Range(0, 999_999_999.99)]
+    public decimal? ReferencePurchasePrice { get; set; }
+
+    [Column(TypeName = "decimal(18,2)")]
+    [Display(Name = "Prix de vente réglementé")]
+    [Range(0, 999_999_999.99)]
+    public decimal? RegulatedSalePrice { get; set; }
+
     public ICollection<ProductBatch> Batches { get; set; } = new List<ProductBatch>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

@@ -1,40 +1,90 @@
-@if (TempData["Message"] != null)
+@using System.Text.Json
+@{
+    var successMessage = TempData["Success"]?.ToString() ?? TempData["Message"]?.ToString();
+    var errorMessage = TempData["Error"]?.ToString();
+    var warningMessage = TempData["Warning"]?.ToString();
+    var infoMessage = TempData["Info"]?.ToString();
+    var flashQueue = new List<object>();
+    if (!string.IsNullOrEmpty(successMessage))
+        flashQueue.Add(new { type = "success", message = successMessage });
+    if (!string.IsNullOrEmpty(errorMessage))
+        flashQueue.Add(new { type = "error", message = errorMessage });
+    if (!string.IsNullOrEmpty(warningMessage))
+        flashQueue.Add(new { type = "warning", message = warningMessage });
+    if (!string.IsNullOrEmpty(infoMessage))
+        flashQueue.Add(new { type = "info", message = infoMessage });
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
 {
-    <div class="alert alert-success alert-dismissible fade show app-flash app-flash--success" role="status">
+    <div class="alert alert-success alert-dismissible fade show app-flash app-flash--success app-flash-bootstrap-fallback d-none" role="status">
         <div class="d-flex align-items-start gap-2">
             <i class="bi bi-check-circle-fill app-flash-icon flex-shrink-0" aria-hidden="true"></i>
-            <div class="app-flash-body flex-grow-1">@TempData["Message"]</div>
+            <div class="app-flash-body flex-grow-1">@successMessage</div>
             <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert" aria-label="Fermer"></button>
         </div>
     </div>
 }
-@if (TempData["Error"] != null)
+@if (!string.IsNullOrEmpty(errorMessage))
 {
-    <div class="alert alert-danger alert-dismissible fade show app-flash app-flash--danger" role="alert">
+    <div class="alert alert-danger alert-dismissible fade show app-flash app-flash--danger app-flash-bootstrap-fallback d-none" role="alert">
         <div class="d-flex align-items-start gap-2">
             <i class="bi bi-exclamation-octagon-fill app-flash-icon flex-shrink-0" aria-hidden="true"></i>
-            <div class="app-flash-body flex-grow-1">@TempData["Error"]</div>
+            <div class="app-flash-body flex-grow-1">@errorMessage</div>
             <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert" aria-label="Fermer"></button>
         </div>
     </div>
 }
-@if (TempData["Warning"] != null)
+@if (!string.IsNullOrEmpty(warningMessage))
 {
-    <div class="alert alert-warning alert-dismissible fade show app-flash app-flash--warning" role="alert">
+    <div class="alert alert-warning alert-dismissible fade show app-flash app-flash--warning app-flash-bootstrap-fallback d-none" role="alert">
         <div class="d-flex align-items-start gap-2">
             <i class="bi bi-exclamation-triangle-fill app-flash-icon flex-shrink-0" aria-hidden="true"></i>
-            <div class="app-flash-body flex-grow-1">@TempData["Warning"]</div>
+            <div class="app-flash-body flex-grow-1">@warningMessage</div>
             <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert" aria-label="Fermer"></button>
         </div>
     </div>
 }
-@if (TempData["Info"] != null)
+@if (!string.IsNullOrEmpty(infoMessage))
 {
-    <div class="alert alert-info alert-dismissible fade show app-flash app-flash--info" role="status">
+    <div class="alert alert-info alert-dismissible fade show app-flash app-flash--info app-flash-bootstrap-fallback d-none" role="status">
         <div class="d-flex align-items-start gap-2">
             <i class="bi bi-info-circle-fill app-flash-icon flex-shrink-0" aria-hidden="true"></i>
-            <div class="app-flash-body flex-grow-1">@TempData["Info"]</div>
+            <div class="app-flash-body flex-grow-1">@infoMessage</div>
             <button type="button" class="btn-close flex-shrink-0" data-bs-dismiss="alert" aria-label="Fermer"></button>
         </div>
     </div>
+}
+
+@if (flashQueue.Count > 0)
+{
+    <script>
+        window.__appFlashMessages = (window.__appFlashMessages || []).concat(@Html.Raw(JsonSerializer.Serialize(flashQueue)));
+        window.processAppFlashMessages = function () {
+            var flashes = window.__appFlashMessages || [];
+            var fallbacks = document.querySelectorAll('.app-flash-bootstrap-fallback');
+            if (!window.toastr) {
+                fallbacks.forEach(function (el) { el.classList.remove('d-none'); });
+                return;
+            }
+            flashes.forEach(function (flash) {
+                if (!flash || !flash.message) return;
+                switch (flash.type) {
+                    case 'success':
+                        toastr.success(flash.message);
+                        break;
+                    case 'error':
+                        toastr.error(flash.message);
+                        break;
+                    case 'warning':
+                        toastr.warning(flash.message);
+                        break;
+                    case 'info':
+                        toastr.info(flash.message);
+                        break;
+                }
+            });
+            window.__appFlashMessages = [];
+        };
+    </script>
 }

@@ -1,0 +1,171 @@
+@model ProductClassificationIndexViewModel
+@{
+    ViewData["Title"] = "Classification des produits";
+
+    string ProductTypeBadgeClass(ProductType type) => type switch
+    {
+        ProductType.Medicament => "text-bg-primary",
+        ProductType.Parapharmacie => "text-white",
+        _ => "text-bg-secondary"
+    };
+
+    string ProductTypeBadgeStyle(ProductType type) => type switch
+    {
+        ProductType.Parapharmacie => "background-color: var(--bs-purple);",
+        _ => ""
+    };
+
+    string ProductTypeLabel(ProductType type) => type switch
+    {
+        ProductType.Medicament => "Médicament",
+        ProductType.Parapharmacie => "Parapharmacie",
+        _ => "Inconnu"
+    };
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Classification des produits</h1>
+            <p class="page-lead mb-2">
+                Classez les produits importés comme <strong>Médicament</strong>, <strong>Parapharmacie</strong> ou <strong>Inconnu</strong>.
+            </p>
+            <span class="badge text-bg-warning">
+                <i class="bi bi-question-circle me-1" aria-hidden="true"></i>@Model.UnknownCount produit(s) non classifié(s)
+            </span>
+        </div>
+        <div class="flex-shrink-0">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Retour aux produits
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3 p-md-4">
+        <h2 class="h6 text-uppercase text-muted mb-3"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Filtres</h2>
+        <form method="get" asp-action="Classify" class="row g-2 align-items-end">
+            <div class="col-md-5 col-lg-4">
+                <label class="form-label small mb-0" for="term">Recherche (nom ou CIP)</label>
+                <input type="search" name="term" id="term" value="@Model.Term" class="form-control form-control-sm" autocomplete="off" />
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <label class="form-label small mb-0" for="filterType">Type actuel</label>
+                <select name="filterType" id="filterType" class="form-select form-select-sm" asp-items="Model.ProductTypes"></select>
+            </div>
+            <div class="col-auto d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-search me-1" aria-hidden="true"></i>Filtrer
+                </button>
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Classify">Réinitialiser</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form method="post" asp-action="ClassifyBulk">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="returnTerm" value="@Model.Term" />
+    <input type="hidden" name="returnFilterType" value="@Model.FilterType" />
+    <input type="hidden" name="returnPage" value="@Model.CurrentPage" />
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col" class="ps-3" style="width: 2.5rem;">
+                                <span class="visually-hidden">Sélection</span>
+                            </th>
+                            <th scope="col">CIP</th>
+                            <th scope="col">Libellé</th>
+                            <th scope="col">Fournisseur</th>
+                            <th scope="col">Type actuel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Products.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">Aucun produit ne correspond aux filtres.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in Model.Products)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <input type="checkbox" class="form-check-input product-select" name="productIds" value="@item.Id" />
+                                    </td>
+                                    <td class="font-monospace small text-muted">@(item.Cip ?? "—")</td>
+                                    <td>@item.CommercialName</td>
+                                    <td class="small text-muted">@(item.SupplierName ?? "—")</td>
+                                    <td>
+                                        <span class="badge @ProductTypeBadgeClass(item.ProductType)" style="@ProductTypeBadgeStyle(item.ProductType)">
+                                            @ProductTypeLabel(item.ProductType)
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @if (Model.Products.Count > 0)
+        {
+            <div class="card-footer bg-white border-top d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-3 p-3">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <label class="form-label small mb-0 text-nowrap" for="newType">Nouveau type :</label>
+                    <select name="newType" id="newType" class="form-select form-select-sm" style="width: auto; min-width: 10rem;">
+                        <option value="@((int)ProductType.Medicament)">Médicament</option>
+                        <option value="@((int)ProductType.Parapharmacie)">Parapharmacie</option>
+                        <option value="@((int)ProductType.Inconnu)">Inconnu</option>
+                    </select>
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="bi bi-tags me-1" aria-hidden="true"></i>Appliquer à la sélection
+                    </button>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="selectAllBtn">Tout sélectionner</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="deselectAllBtn">Tout désélectionner</button>
+                </div>
+            </div>
+        }
+    </div>
+</form>
+
+@if (Model.TotalCount > 0)
+{
+    <p class="small text-muted mt-2 mb-0 text-end">
+        @Model.TotalCount produit(s) — page @Model.CurrentPage / @Model.TotalPages
+    </p>
+}
+
+<partial name="_Pagination" />
+
+@section Scripts {
+    <script>
+        (function () {
+            var checkboxes = document.querySelectorAll('.product-select');
+            var selectAllBtn = document.getElementById('selectAllBtn');
+            var deselectAllBtn = document.getElementById('deselectAllBtn');
+
+            if (selectAllBtn) {
+                selectAllBtn.addEventListener('click', function () {
+                    checkboxes.forEach(function (cb) { cb.checked = true; });
+                });
+            }
+
+            if (deselectAllBtn) {
+                deselectAllBtn.addEventListener('click', function () {
+                    checkboxes.forEach(function (cb) { cb.checked = false; });
+                });
+            }
+        })();
+    </script>
+}

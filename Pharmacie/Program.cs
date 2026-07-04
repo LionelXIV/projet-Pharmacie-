@@ -34,6 +34,10 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<PurchaseService>();
 builder.Services.AddScoped<SaleService>();
+builder.Services.AddScoped<ExcelReaderService>();
+builder.Services.AddScoped<ImportValidationService>();
+builder.Services.AddScoped<ImportMatchingService>();
+builder.Services.AddScoped<ProductImportService>();
 
 var app = builder.Build();
 
@@ -72,15 +76,22 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     await IdentitySeed.SeedRolesAsync(roleManager);
 
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+    var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("Pharmacie.Data.IdentitySeed");
+    await IdentitySeed.SeedInitialAdminIfMissingAsync(
+        userManager, configuration, app.Environment, seedLogger);
+
     if (app.Environment.IsDevelopment())
     {
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-        await IdentitySeed.SeedDevAdminIfMissingAsync(userManager);
-
         var inventory = scope.ServiceProvider.GetRequiredService<InventoryService>();
         var purchase = scope.ServiceProvider.GetRequiredService<PurchaseService>();
         var saleSvc = scope.ServiceProvider.GetRequiredService<SaleService>();
-        var adminUser = await userManager.FindByEmailAsync(IdentitySeed.DevAdminEmail);
+        var adminEmail = configuration[IdentitySeed.AdminEmailConfigKey]?.Trim();
+        var adminUser = !string.IsNullOrEmpty(adminEmail)
+            ? await userManager.FindByEmailAsync(adminEmail)
+            : null;
         await DemoDataSeed.SeedIfNeededAsync(db, inventory, purchase, saleSvc, adminUser?.Id);
     }
 }

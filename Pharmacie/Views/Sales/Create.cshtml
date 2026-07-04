@@ -1,7 +1,6 @@
 @model SaleCreateViewModel
 @{
     ViewData["Title"] = "Nouvelle vente";
-    var productList = ViewData["ProductOptions"] as SelectList;
 }
 
 <div class="page-header">
@@ -49,8 +48,10 @@
                                     {
                                         <tr>
                                             <td>
-                                                <select asp-for="Lines[i].ProductId" class="form-select form-select-sm" asp-items="productList">
-                                                    <option value="0">—</option>
+                                                <select asp-for="Lines[i].ProductId"
+                                                        class="form-select form-select-sm tomselect-product"
+                                                        data-tomselect-product
+                                                        data-url="@Url.Action("Search", "Products")">
                                                 </select>
                                             </td>
                                             <td>
@@ -75,4 +76,67 @@
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        if (!window.TomSelect) return;
+
+        document.querySelectorAll('[data-tomselect-product]').forEach(function (el) {
+          if (el.tomselect) return;
+
+          new TomSelect(el, {
+            valueField: 'value',
+            labelField: 'text',
+            searchField: ['text'],
+            placeholder: 'Tapez au moins 2 caractères...',
+            maxOptions: 25,
+            preload: false,
+            create: false,
+            loadThrottle: 300,
+            load: function (query, callback) {
+              if (!query || query.length < 2) {
+                callback();
+                return;
+              }
+
+              const url = (el.dataset.url || '/Products/Search') + '?term=' + encodeURIComponent(query);
+
+              fetch(url)
+                .then(function (response) { return response.json(); })
+                .then(function (data) { callback(data); })
+                .catch(function () { callback(); });
+            },
+            onChange: function (value) {
+              if (!value) return;
+
+              const option = this.options[value];
+              if (!option) return;
+
+              const selectName = el.getAttribute('name');
+              if (!selectName) return;
+
+              const priceName = selectName.replace('ProductId', 'UnitPrice');
+              const priceInput = document.querySelector('[name="' + priceName + '"]');
+
+              if (priceInput && option.salePrice !== undefined && option.salePrice !== null) {
+                priceInput.value = option.salePrice;
+              }
+            },
+            render: {
+              option: function (data, escape) {
+                return '<div>' + escape(data.text) + '</div>';
+              },
+              item: function (data, escape) {
+                return '<div>' + escape(data.text) + '</div>';
+              },
+              no_results: function (data, escape) {
+                return '<div class="no-results">Aucun produit trouvé pour "' + escape(data.input) + '"</div>';
+              },
+              loading: function () {
+                return '<div class="loading">Recherche en cours...</div>';
+              }
+            }
+          });
+        });
+      });
+    </script>
 }

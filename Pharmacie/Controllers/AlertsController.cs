@@ -10,16 +10,21 @@ namespace Pharmacie.Controllers;
 public class AlertsController : Controller
 {
     private readonly ApplicationDbContext _context;
+    private readonly IConfiguration _configuration;
 
-    public AlertsController(ApplicationDbContext context)
+    public AlertsController(ApplicationDbContext context, IConfiguration configuration)
     {
         _context = context;
+        _configuration = configuration;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int? horizonDays = null)
     {
+        var defaultHorizon = _configuration.GetValue<int>("Alerts:ExpirationHorizonDays", 90);
+        var effectiveHorizon = Math.Clamp(horizonDays ?? defaultHorizon, 7, 365);
+
         var today = DateTime.Today;
-        var horizon = today.AddDays(AlertsIndexViewModel.ExpirationHorizonDays);
+        var horizon = today.AddDays(effectiveHorizon);
 
         var lowStock = await _context.Products
             .Where(p => p.IsActive && p.StockQuantity <= p.AlertThreshold)
@@ -35,11 +40,15 @@ public class AlertsController : Controller
             .ThenBy(b => b.LotNumber)
             .ToListAsync();
 
+        ViewBag.HorizonDays = effectiveHorizon;
+        ViewBag.DefaultHorizonDays = defaultHorizon;
+
         var vm = new AlertsIndexViewModel
         {
             LowStockProducts = lowStock,
             BatchesNearingExpiration = batches,
-            Today = today
+            Today = today,
+            HorizonDays = effectiveHorizon
         };
 
         return View(vm);

@@ -20,7 +20,8 @@ public class PurchaseService
         int supplierId,
         DateTime orderDate,
         string? notes,
-        IReadOnlyList<(int ProductId, int Quantity)> lines)
+        IReadOnlyList<(int ProductId, int Quantity)> lines,
+        bool asDraft = false)
     {
         var validLines = lines.Where(l => l.ProductId > 0 && l.Quantity > 0).ToList();
         if (validLines.Count == 0)
@@ -41,7 +42,7 @@ public class PurchaseService
             SupplierId = supplierId,
             OrderDate = orderDate.Date,
             Notes = notes,
-            Status = PurchaseOrderStatus.Envoyee
+            Status = asDraft ? PurchaseOrderStatus.Brouillon : PurchaseOrderStatus.Envoyee
         };
         foreach (var (productId, qty) in validLines)
         {

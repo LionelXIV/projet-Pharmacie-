@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -94,6 +96,49 @@ public class DashboardController : Controller
             vm.PatientRemindersDueCount = await _db.PatientTreatmentReminders.CountAsync(r =>
                 !r.IsDone && r.ReminderDate <= today);
         }
+
+        var chartStart = today.AddDays(-29);
+        var salesInRange = await _db.Sales
+            .AsNoTracking()
+            .Where(s => s.SoldAt.Date >= chartStart && s.SoldAt.Date <= today)
+            .Include(s => s.Lines)
+            .ToListAsync();
+
+        var salesByDay = salesInRange
+            .GroupBy(s => s.SoldAt.Date)
+            .ToDictionary(
+                g => g.Key,
+                g => g.SelectMany(s => s.Lines).Sum(l => l.Quantity * l.UnitPrice));
+
+        var salesChartData = Enumerable.Range(0, 30)
+            .Select(offset =>
+            {
+                var day = chartStart.AddDays(offset);
+                salesByDay.TryGetValue(day, out var amount);
+                return new
+                {
+                    date = day.ToString("dd/MM", CultureInfo.InvariantCulture),
+                    amount
+                };
+            })
+            .ToList();
+
+        ViewBag.SalesChartData = JsonSerializer.Serialize(salesChartData);
+
+        var stockChartData = await _db.Products
+            .AsNoTracking()
+            .Where(p => p.IsActive)
+            .GroupBy(p => p.Category != null ? p.Category!.Name : "Sans catégorie")
+            .Select(g => new
+            {
+                category = g.Key,
+                value = g.Sum(p => p.StockQuantity * p.SalePrice)
+            })
+            .OrderByDescending(x => x.value)
+            .Take(8)
+            .ToListAsync();
+
+        ViewBag.StockChartData = JsonSerializer.Serialize(stockChartData);
 
         return View(vm);
     }
