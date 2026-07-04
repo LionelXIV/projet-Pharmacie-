@@ -15,10 +15,12 @@ namespace Pharmacie.Controllers;
 public class ReportsController : Controller
 {
     private readonly ApplicationDbContext _db;
+    private readonly IConfiguration _configuration;
 
-    public ReportsController(ApplicationDbContext db)
+    public ReportsController(ApplicationDbContext db, IConfiguration configuration)
     {
         _db = db;
+        _configuration = configuration;
     }
 
     public IActionResult Index()
@@ -239,9 +241,9 @@ public class ReportsController : Controller
 
     private async Task<(List<ReportNearExpirationRowViewModel> Rows, int HorizonDays)> LoadNearExpirationRowsAsync()
     {
-        var horizonDays = AlertsIndexViewModel.ExpirationHorizonDays;
+        var horizon = _configuration.GetValue<int>("Alerts:ExpirationHorizonDays", 90);
         var today = DateTime.Today;
-        var horizonEnd = today.AddDays(horizonDays);
+        var horizonEnd = today.AddDays(horizon);
 
         var lots = await _db.ProductBatches
             .AsNoTracking()
@@ -268,7 +270,7 @@ public class ReportsController : Controller
             };
         }).ToList();
 
-        return (rows, horizonDays);
+        return (rows, horizon);
     }
 
     private async Task<List<ReportExpiredLotRowViewModel>> LoadExpiredProductsRowsAsync()

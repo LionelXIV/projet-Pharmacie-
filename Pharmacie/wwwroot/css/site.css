@@ -32,6 +32,12 @@
   --ph-radius-sm: 6px;
   --ph-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
   --ph-shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+
+  --bs-primary: var(--ph-primary);
+  --bs-primary-rgb: 37, 99, 235;
+  --bs-link-color: var(--ph-primary);
+  --bs-link-hover-color: var(--ph-primary-dark);
+  --bs-focus-ring-color: rgba(37, 99, 235, 0.45);
 }
 
 /* BASE */
@@ -40,9 +46,12 @@ body {
   background-color: var(--ph-bg);
   color: var(--ph-text);
   font-size: 0.9rem;
+  margin-bottom: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link {
+h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link,
+.hero-title, .page-title, .brand-title {
   font-family: var(--ph-font-ui);
 }
 
@@ -150,28 +159,8 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link {
 }
 
 /*
-  Thème Pharmacie — interface sobre, contrastes et focus visibles, reduced motion.
+  Utilitaires pages — thème Pharmacie (design system --ph-*).
 */
-:root {
-  --pharm-primary: #15803d;
-  --pharm-secondary: #22c55e;
-  --pharm-cta: #0369a1;
-  --pharm-bg-tint: #f0fdf4;
-  --pharm-text: #14532d;
-  --pharm-green: var(--pharm-primary);
-  --pharm-green-dark: #166534;
-  --pharm-green-soft: #dcfce7;
-  --pharm-green-line: #bbf7d0;
-  --pharm-ink: var(--pharm-text);
-  --pharm-muted: #2f4a3c;
-  --pharm-surface: #fafdfb;
-  --bs-primary: var(--pharm-primary);
-  --bs-primary-rgb: 21, 128, 61;
-  --bs-link-color: var(--pharm-primary);
-  --bs-link-hover-color: var(--pharm-green-dark);
-  --bs-focus-ring-color: rgba(3, 105, 161, 0.45);
-}
-
 html {
   font-size: 16px;
   position: relative;
@@ -184,35 +173,6 @@ html {
   }
 }
 
-body {
-  margin-bottom: 0;
-  font-family: 'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: var(--pharm-ink);
-  background-color: var(--pharm-surface);
-  background-image: linear-gradient(180deg, var(--pharm-bg-tint) 0%, var(--pharm-surface) 16rem);
-  background-repeat: no-repeat;
-  -webkit-font-smoothing: antialiased;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-.h1,
-.h2,
-.h3,
-.h4,
-.h5,
-.h6,
-.hero-title,
-.page-title,
-.brand-title,
-.navbar-brand {
-  font-family: 'Figtree', 'Noto Sans', system-ui, sans-serif;
-}
-
 .skip-link:focus,
 .skip-link:focus-visible {
   position: fixed;
@@ -223,16 +183,16 @@ h6,
   font-weight: 600;
   font-size: 0.9rem;
   color: #fff !important;
-  background: var(--pharm-cta);
+  background: var(--ph-info);
   border-radius: 0.5rem;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(3, 105, 161, 0.35);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
 
 .app-dropdown-menu {
-  border: 1px solid rgba(21, 128, 61, 0.14) !important;
+  border: 1px solid rgba(37, 99, 235, 0.14) !important;
 }
 
 a[href]:not([disabled]),
@@ -250,14 +210,14 @@ summary {
 }
 
 #main-content:focus-visible {
-  outline: 3px solid rgba(3, 105, 161, 0.55);
+  outline: 3px solid rgba(59, 130, 246, 0.55);
   outline-offset: 4px;
 }
 
 .app-navbar {
   background: #fff !important;
-  border-bottom: 1px solid var(--pharm-green-line) !important;
-  box-shadow: 0 1px 0 rgba(21, 128, 61, 0.07), 0 10px 28px rgba(20, 50, 40, 0.05);
+  border-bottom: 1px solid var(--ph-border) !important;
+  box-shadow: 0 1px 0 rgba(37, 99, 235, 0.07), 0 10px 28px rgba(15, 23, 42, 0.05);
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;
   max-width: 100%;
@@ -300,13 +260,13 @@ summary {
 }
 
 .app-navbar-toggler:focus {
-  box-shadow: 0 0 0 0.2rem rgba(3, 105, 161, 0.35);
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.35);
 }
 
 .app-navbar .navbar-brand {
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--pharm-ink) !important;
+  color: var(--ph-text) !important;
 }
 
 .brand-mark {
@@ -319,7 +279,7 @@ summary {
 .brand-mark svg,
 .brand-mark-svg {
   display: block;
-  filter: drop-shadow(0 1px 4px rgba(21, 128, 61, 0.2));
+  filter: drop-shadow(0 1px 4px rgba(37, 99, 235, 0.2));
 }
 
 .brand-text {
@@ -341,13 +301,13 @@ summary {
 .brand-subtitle {
   font-size: 0.7rem;
   font-weight: 500;
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .app-nav-link {
-  color: var(--pharm-ink) !important;
+  color: var(--ph-text) !important;
   font-weight: 500;
   font-size: 0.875rem;
   padding: 0.45rem 0.55rem !important;
@@ -365,12 +325,12 @@ summary {
 
 .app-nav-link:hover,
 .app-nav-link:focus {
-  color: var(--pharm-green) !important;
-  background-color: var(--pharm-green-soft);
+  color: var(--ph-primary) !important;
+  background-color: var(--ph-primary-light);
 }
 
 .app-nav-link:focus-visible {
-  outline: 3px solid rgba(3, 105, 161, 0.55);
+  outline: 3px solid rgba(59, 130, 246, 0.55);
   outline-offset: 2px;
 }
 
@@ -380,13 +340,13 @@ summary {
 }
 
 .app-navbar .nav-link.app-nav-link.active {
-  color: var(--pharm-green-dark) !important;
-  background-color: var(--pharm-green-soft);
+  color: var(--ph-primary-dark) !important;
+  background-color: var(--ph-primary-light);
   font-weight: 600;
 }
 
 .app-navbar .dropdown-toggle.app-nav-link.active::after {
-  border-top-color: var(--pharm-green-dark);
+  border-top-color: var(--ph-primary-dark);
 }
 
 /* Icône compte seule : pas de chevron, zone claire et alignée */
@@ -403,12 +363,12 @@ summary {
 .app-nav-user-toggle .bi-person-circle {
   font-size: 1.45rem;
   line-height: 1;
-  color: var(--pharm-ink);
+  color: var(--ph-text);
 }
 
 .app-nav-user-toggle:hover .bi-person-circle,
 .app-nav-user-toggle:focus .bi-person-circle {
-  color: var(--pharm-green-dark);
+  color: var(--ph-primary-dark);
 }
 
 .app-nav-user-menu {
@@ -430,13 +390,13 @@ summary {
 
 .app-nav-user-menu button.dropdown-item:hover,
 .app-nav-user-menu button.dropdown-item:focus {
-  background-color: var(--pharm-green-soft);
-  color: var(--pharm-green-dark);
+  background-color: var(--ph-primary-light);
+  color: var(--ph-primary-dark);
 }
 
 @media (min-width: 1200px) {
   .app-navbar-user-slot {
-    border-left: 1px solid var(--pharm-green-line);
+    border-left: 1px solid var(--ph-border);
     padding-left: 0.65rem;
     margin-left: 0.15rem;
   }
@@ -456,17 +416,17 @@ summary {
 main h1:not(.hero-title) {
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: var(--pharm-ink);
+  color: var(--ph-text);
   margin-bottom: 1rem;
 }
 
 .btn-primary {
-  --bs-btn-bg: var(--pharm-primary);
-  --bs-btn-border-color: var(--pharm-primary);
-  --bs-btn-hover-bg: var(--pharm-green-dark);
-  --bs-btn-hover-border-color: var(--pharm-green-dark);
-  --bs-btn-active-bg: var(--pharm-green-dark);
-  --bs-btn-active-border-color: var(--pharm-green-dark);
+  --bs-btn-bg: var(--ph-primary);
+  --bs-btn-border-color: var(--ph-primary);
+  --bs-btn-hover-bg: var(--ph-primary-dark);
+  --bs-btn-hover-border-color: var(--ph-primary-dark);
+  --bs-btn-active-bg: var(--ph-primary-dark);
+  --bs-btn-active-border-color: var(--ph-primary-dark);
   font-weight: 600;
   border-radius: 0.5rem;
   padding: 0.45rem 1rem;
@@ -475,26 +435,26 @@ main h1:not(.hero-title) {
 
 .btn-cta {
   --bs-btn-color: #fff;
-  --bs-btn-bg: var(--pharm-cta);
-  --bs-btn-border-color: var(--pharm-cta);
-  --bs-btn-hover-bg: #075985;
-  --bs-btn-hover-border-color: #075985;
-  --bs-btn-active-bg: #075985;
-  --bs-btn-active-border-color: #075985;
+  --bs-btn-bg: var(--ph-info);
+  --bs-btn-border-color: var(--ph-info);
+  --bs-btn-hover-bg: var(--ph-primary-dark);
+  --bs-btn-hover-border-color: var(--ph-primary-dark);
+  --bs-btn-active-bg: var(--ph-primary-dark);
+  --bs-btn-active-border-color: var(--ph-primary-dark);
   font-weight: 600;
   border-radius: 0.5rem;
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-outline-cta {
-  --bs-btn-color: var(--pharm-cta);
-  --bs-btn-border-color: rgba(3, 105, 161, 0.35);
-  --bs-btn-hover-bg: rgba(3, 105, 161, 0.08);
-  --bs-btn-hover-border-color: var(--pharm-cta);
-  --bs-btn-hover-color: #075985;
-  --bs-btn-active-bg: rgba(3, 105, 161, 0.12);
-  --bs-btn-active-border-color: #075985;
-  --bs-btn-active-color: #075985;
+  --bs-btn-color: var(--ph-info);
+  --bs-btn-border-color: rgba(59, 130, 246, 0.35);
+  --bs-btn-hover-bg: rgba(59, 130, 246, 0.08);
+  --bs-btn-hover-border-color: var(--ph-info);
+  --bs-btn-hover-color: var(--ph-primary-dark);
+  --bs-btn-active-bg: rgba(59, 130, 246, 0.12);
+  --bs-btn-active-border-color: var(--ph-primary-dark);
+  --bs-btn-active-color: var(--ph-primary-dark);
   font-weight: 600;
   border-radius: 0.5rem;
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -507,64 +467,64 @@ main h1:not(.hero-title) {
 }
 
 .btn-outline-primary {
-  --bs-btn-color: var(--pharm-green);
-  --bs-btn-border-color: var(--pharm-green-line);
-  --bs-btn-hover-bg: var(--pharm-green-soft);
-  --bs-btn-hover-border-color: var(--pharm-green);
-  --bs-btn-hover-color: var(--pharm-green-dark);
-  --bs-btn-active-bg: var(--pharm-green-soft);
-  --bs-btn-active-border-color: var(--pharm-green-dark);
-  --bs-btn-active-color: var(--pharm-green-dark);
+  --bs-btn-color: var(--ph-primary);
+  --bs-btn-border-color: var(--ph-border);
+  --bs-btn-hover-bg: var(--ph-primary-light);
+  --bs-btn-hover-border-color: var(--ph-primary);
+  --bs-btn-hover-color: var(--ph-primary-dark);
+  --bs-btn-active-bg: var(--ph-primary-light);
+  --bs-btn-active-border-color: var(--ph-primary-dark);
+  --bs-btn-active-color: var(--ph-primary-dark);
   font-weight: 500;
   border-radius: 0.5rem;
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .table {
-  --bs-table-hover-bg: var(--pharm-green-soft);
+  --bs-table-hover-bg: var(--ph-primary-light);
 }
 
 .table thead th {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   font-weight: 600;
-  border-bottom-color: var(--pharm-green-line) !important;
-  background: rgba(220, 252, 231, 0.55);
+  border-bottom-color: var(--ph-border) !important;
+  background: rgba(239, 246, 255, 0.55);
 }
 
 .form-control:focus,
 .form-select:focus {
-  border-color: var(--pharm-primary);
-  box-shadow: 0 0 0 0.2rem rgba(21, 128, 61, 0.18);
+  border-color: var(--ph-primary);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.18);
 }
 
 .btn:focus,
 .btn:active:focus,
 .btn-link.nav-link:focus,
 .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.25rem rgba(3, 105, 161, 0.4);
+  box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.25rem rgba(59, 130, 246, 0.4);
 }
 
 .app-footer {
   margin-top: auto;
   padding: 1.25rem 0;
   background: #fff;
-  border-top: 1px solid var(--pharm-green-line);
-  color: var(--pharm-muted);
+  border-top: 1px solid var(--ph-border);
+  color: var(--ph-text-muted);
   font-size: 0.875rem;
 }
 
 .app-footer a {
-  color: var(--pharm-green);
+  color: var(--ph-primary);
   text-decoration: none;
   font-weight: 500;
 }
 
 .app-footer a:hover {
   text-decoration: underline;
-  color: var(--pharm-green-dark);
+  color: var(--ph-primary-dark);
 }
 
 .hero-section {
@@ -580,13 +540,13 @@ main h1:not(.hero-title) {
 .hero-title {
   font-weight: 800;
   letter-spacing: -0.04em;
-  color: var(--pharm-ink);
+  color: var(--ph-text);
   line-height: 1.15;
   font-size: clamp(1.65rem, 5vw, 2.65rem);
 }
 
 .hero-lead {
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   font-size: clamp(0.95rem, 2.5vw, 1.1rem);
   max-width: 36rem;
   margin-left: auto;
@@ -596,7 +556,7 @@ main h1:not(.hero-title) {
 .app-home-card,
 .demo-card {
   height: 100%;
-  border: 1px solid rgba(21, 128, 61, 0.14);
+  border: 1px solid rgba(37, 99, 235, 0.14);
   border-radius: 0.75rem;
   background: #fff;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -606,8 +566,8 @@ main h1:not(.hero-title) {
 .app-home-card:hover,
 .demo-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(20, 50, 40, 0.08);
-  border-color: var(--pharm-green-line);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  border-color: var(--ph-border);
 }
 
 .app-home-card .card-body,
@@ -620,8 +580,8 @@ main h1:not(.hero-title) {
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 0.65rem;
-  background: var(--pharm-green-soft);
-  color: var(--pharm-green);
+  background: var(--ph-primary-light);
+  color: var(--ph-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -639,13 +599,13 @@ main h1:not(.hero-title) {
   font-size: 1.05rem;
   font-weight: 700;
   margin-bottom: 0.35rem;
-  color: var(--pharm-ink);
+  color: var(--ph-text);
 }
 
 .app-home-card p,
 .demo-card p {
   font-size: 0.875rem;
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   margin-bottom: 0.85rem;
   line-height: 1.45;
 }
@@ -658,8 +618,8 @@ main h1:not(.hero-title) {
 
 .app-tag-subtle,
 .badge-demo {
-  background: rgba(21, 128, 61, 0.08);
-  color: var(--pharm-green-dark);
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--ph-primary-dark);
   font-weight: 600;
   font-size: 0.7rem;
   padding: 0.35em 0.65em;
@@ -686,12 +646,12 @@ main h1:not(.hero-title) {
 }
 
 .dropdown-item:active {
-  background-color: var(--pharm-green);
+  background-color: var(--ph-primary);
 }
 
 .dropdown-item:hover {
-  background-color: var(--pharm-green-soft);
-  color: var(--pharm-ink);
+  background-color: var(--ph-primary-light);
+  color: var(--ph-text);
 }
 
 /* Navigation — icônes Bootstrap */
@@ -707,8 +667,8 @@ main h1:not(.hero-title) {
 /* Messages flash globaux */
 .app-flash-stack .app-flash {
   margin-bottom: 0;
-  border: 1px solid rgba(20, 50, 40, 0.08);
-  box-shadow: 0 4px 18px rgba(20, 50, 40, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
   border-radius: 0.65rem;
 }
 
@@ -740,23 +700,23 @@ main h1:not(.hero-title) {
 
 /* Accueil — CTA tableau de bord */
 .app-dashboard-cta {
-  background: linear-gradient(135deg, #fff 0%, var(--pharm-green-soft) 100%);
-  border: 1px solid var(--pharm-green-line) !important;
+  background: linear-gradient(135deg, #fff 0%, var(--ph-primary-light) 100%);
+  border: 1px solid var(--ph-border) !important;
 }
 
 .app-dashboard-cta-icon {
   width: 3rem;
   height: 3rem;
   background: #fff;
-  color: var(--pharm-green);
-  border: 1px solid var(--pharm-green-line);
+  color: var(--ph-primary);
+  border: 1px solid var(--ph-border);
 }
 
 /* Utilitaires pages */
 .page-header {
   margin-bottom: 1.5rem;
   padding: 0.5rem 0.65rem 0.85rem;
-  border-bottom: 1px solid var(--pharm-green-line);
+  border-bottom: 1px solid var(--ph-border);
   border-radius: 0.5rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(251, 252, 251, 0) 100%);
   margin-left: -0.35rem;
@@ -773,12 +733,12 @@ main h1:not(.hero-title) {
 .page-header .page-title {
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: var(--pharm-ink);
+  color: var(--ph-text);
   margin-bottom: 0.25rem;
 }
 
 .page-header .page-lead {
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   font-size: 0.95rem;
   margin-bottom: 0;
 }
@@ -786,8 +746,8 @@ main h1:not(.hero-title) {
 .table-card {
   background: #fff;
   border-radius: 0.75rem;
-  border: 1px solid rgba(21, 128, 61, 0.12);
-  box-shadow: 0 1px 0 rgba(21, 128, 61, 0.06), 0 6px 20px rgba(20, 50, 40, 0.05);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  box-shadow: 0 1px 0 rgba(37, 99, 235, 0.06), 0 6px 20px rgba(15, 23, 42, 0.05);
   overflow: hidden;
 }
 
@@ -813,20 +773,20 @@ main h1:not(.hero-title) {
     position: sticky;
     top: 0;
     z-index: 2;
-    box-shadow: 0 1px 0 var(--pharm-green-line);
+    box-shadow: 0 1px 0 var(--ph-border);
   }
 }
 
 .app-breadcrumb {
   padding: 0.5rem 0.85rem;
-  background: rgba(220, 252, 231, 0.5);
+  background: rgba(239, 246, 255, 0.5);
   border-radius: 0.5rem;
-  border: 1px solid var(--pharm-green-line);
+  border: 1px solid var(--ph-border);
   font-size: 0.875rem;
 }
 
 .app-kpi-icon {
-  color: var(--pharm-green);
+  color: var(--ph-primary);
   opacity: 0.85;
 }
 
@@ -835,11 +795,11 @@ main h1:not(.hero-title) {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   margin-top: 0.5rem;
   margin-bottom: 0.85rem;
   padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--pharm-green-line);
+  border-bottom: 1px solid var(--ph-border);
 }
 
 .form-section-title:first-of-type {
@@ -853,16 +813,16 @@ main h1:not(.hero-title) {
 }
 
 .report-hub-card .bi {
-  color: var(--pharm-green);
+  color: var(--ph-primary);
   font-size: 1.25rem;
 }
 
 .table-card-caption {
   font-size: 0.8rem;
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   padding: 0.5rem 1rem;
-  background: rgba(220, 252, 231, 0.4);
-  border-top: 1px solid var(--pharm-green-line);
+  background: rgba(239, 246, 255, 0.4);
+  border-top: 1px solid var(--ph-border);
 }
 
 /* Phase 3 — mobile, tableaux larges, états vides */
@@ -904,11 +864,11 @@ main h1:not(.hero-title) {
 
 .app-scroll-hint {
   font-size: 0.75rem;
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   text-align: center;
   padding: 0.35rem 0.5rem;
-  background: rgba(220, 252, 231, 0.55);
-  border: 1px dashed var(--pharm-green-line);
+  background: rgba(239, 246, 255, 0.55);
+  border: 1px dashed var(--ph-border);
   border-radius: 0.5rem;
   margin-bottom: 0;
 }
@@ -916,15 +876,15 @@ main h1:not(.hero-title) {
 .app-empty-state {
   text-align: center;
   padding: 2rem 1.15rem;
-  background: rgba(220, 252, 231, 0.4);
-  border: 1px dashed var(--pharm-green-line);
+  background: rgba(239, 246, 255, 0.4);
+  border: 1px dashed var(--ph-border);
   border-radius: 0.75rem;
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
 }
 
 .app-empty-state .bi {
   font-size: 2rem;
-  color: var(--pharm-green);
+  color: var(--ph-primary);
   opacity: 0.65;
   display: block;
   margin: 0 auto 0.65rem;
@@ -932,7 +892,7 @@ main h1:not(.hero-title) {
 
 .app-empty-state-title {
   font-weight: 700;
-  color: var(--pharm-ink);
+  color: var(--ph-text);
   margin-bottom: 0.35rem;
   font-size: 1rem;
 }
@@ -952,21 +912,21 @@ main h1:not(.hero-title) {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--pharm-muted);
+  color: var(--ph-text-muted);
   margin-bottom: 0.75rem;
   padding-left: 0.15rem;
 }
 
 .app-kpi-card {
   border-radius: 0.75rem;
-  border: 1px solid rgba(21, 128, 61, 0.12) !important;
-  box-shadow: 0 4px 20px rgba(20, 50, 40, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.12) !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .app-kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(20, 50, 40, 0.09);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.09);
 }
 
 .app-kpi-card .display-6 {
@@ -991,21 +951,21 @@ main h1:not(.hero-title) {
 }
 
 .app-kpi-card--accent-sales {
-  border-left: 4px solid var(--pharm-green) !important;
+  border-left: 4px solid var(--ph-primary) !important;
 }
 
 .app-activity-panel .card-header {
-  border-bottom: 1px solid rgba(21, 128, 61, 0.12);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.12);
 }
 
 .dropdown-item:focus-visible {
-  outline: 3px solid rgba(3, 105, 161, 0.45);
+  outline: 3px solid rgba(59, 130, 246, 0.45);
   outline-offset: -3px;
 }
 
 .table-card a:not(.btn),
 main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link) {
-  color: var(--pharm-cta);
+  color: var(--ph-info);
   font-weight: 500;
   text-decoration: none;
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
@@ -1013,7 +973,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link) {
 
 .table-card a:not(.btn):hover,
 main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
-  color: #075985;
+  color: var(--ph-primary-dark);
   text-decoration: underline;
 }
 

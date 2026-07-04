@@ -17,6 +17,12 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireAdministrator", policy =>
         policy.RequireRole(AppRoles.Administrateur));
+
+    options.AddPolicy("ProductSearch", policy =>
+        policy.RequireAssertion(context =>
+            AppRoles.CanAccessCatalog(context.User)
+            || AppRoles.CanAccessSales(context.User)
+            || AppRoles.CanAccessPurchasing(context.User)));
 });
 
 builder.Services.Configure<RazorPagesOptions>(options =>
@@ -27,6 +33,17 @@ builder.Services.Configure<RazorPagesOptions>(options =>
 builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = false;
+
+        options.Password.RequiredLength = 10;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Password.RequiredUniqueChars = 4;
+
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.AllowedForNewUsers = true;
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
@@ -52,6 +69,17 @@ else
 }
 
 app.UseHttpsRedirection();
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] =
+        "camera=(), microphone=(), geolocation=()";
+    await next();
+});
+
 app.UseRouting();
 
 app.UseAuthentication();

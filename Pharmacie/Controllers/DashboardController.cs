@@ -14,16 +14,19 @@ namespace Pharmacie.Controllers;
 public class DashboardController : Controller
 {
     private readonly ApplicationDbContext _db;
+    private readonly IConfiguration _configuration;
 
-    public DashboardController(ApplicationDbContext db)
+    public DashboardController(ApplicationDbContext db, IConfiguration configuration)
     {
         _db = db;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index()
     {
         var today = DateTime.Today;
-        var horizonEnd = today.AddDays(AlertsIndexViewModel.ExpirationHorizonDays);
+        var horizon = _configuration.GetValue<int>("Alerts:ExpirationHorizonDays", 90);
+        var horizonEnd = today.AddDays(horizon);
 
         var vm = new DashboardViewModel
         {

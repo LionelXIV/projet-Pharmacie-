@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
@@ -17,11 +16,13 @@ public class BatchesController : Controller
 
     private readonly ApplicationDbContext _context;
     private readonly InventoryService _inventory;
+    private readonly IConfiguration _configuration;
 
-    public BatchesController(ApplicationDbContext context, InventoryService inventory)
+    public BatchesController(ApplicationDbContext context, InventoryService inventory, IConfiguration configuration)
     {
         _context = context;
         _inventory = inventory;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index([FromQuery] BatchListFilters? filter, int page = 1, bool provisionalOnly = false)
@@ -31,7 +32,8 @@ public class BatchesController : Controller
             page = 1;
 
         var today = DateTime.Today;
-        var horizonEnd = today.AddDays(AlertsIndexViewModel.ExpirationHorizonDays);
+        var horizon = _configuration.GetValue<int>("Alerts:ExpirationHorizonDays", 90);
+        var horizonEnd = today.AddDays(horizon);
 
         var q = _context.ProductBatches
             .AsNoTracking()
@@ -118,9 +120,8 @@ public class BatchesController : Controller
         return View(batch);
     }
 
-    public async Task<IActionResult> Create()
+    public IActionResult Create()
     {
-        await PopulateProductsAsync();
         return View(new BatchCreateViewModel());
     }
 
@@ -144,17 +145,7 @@ public class BatchesController : Controller
             ModelState.AddModelError(string.Empty, error ?? "Enregistrement impossible.");
         }
 
-        await PopulateProductsAsync(model.ProductId);
         return View(model);
-    }
-
-    private async Task PopulateProductsAsync(int? selectedProductId = null)
-    {
-        var products = await _context.Products
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.CommercialName)
-            .ToListAsync();
-        ViewData["ProductId"] = new SelectList(products, "Id", "CommercialName", selectedProductId);
     }
 
 }

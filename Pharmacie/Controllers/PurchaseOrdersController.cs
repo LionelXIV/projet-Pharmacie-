@@ -21,30 +21,52 @@ public class PurchaseOrdersController : Controller
         _purchase = purchase;
     }
 
-    public async Task<IActionResult> Index([FromQuery] PurchaseOrderListFilters? filter)
+    public async Task<IActionResult> Index([FromQuery] PurchaseOrderListFilters? filter, int page = 1)
     {
         filter ??= new PurchaseOrderListFilters();
-        var q = _context.PurchaseOrders
+        const int pageSize = 50;
+        if (page < 1)
+            page = 1;
+
+        var query = _context.PurchaseOrders
             .AsNoTracking()
-            .Include(o => o.Supplier)
             .AsQueryable();
 
         if (filter.SupplierId > 0)
-            q = q.Where(o => o.SupplierId == filter.SupplierId);
+            query = query.Where(o => o.SupplierId == filter.SupplierId);
 
         if (filter.Status.HasValue)
-            q = q.Where(o => o.Status == filter.Status.Value);
+            query = query.Where(o => o.Status == filter.Status.Value);
 
-        var list = await q
+        int total = await query.CountAsync();
+        var totalPages = total == 0 ? 1 : (int)Math.Ceiling(total / (double)pageSize);
+        if (page > totalPages)
+            page = totalPages;
+
+        var orders = await query
             .OrderByDescending(o => o.OrderDate)
             .ThenByDescending(o => o.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Include(o => o.Supplier)
             .ToListAsync();
+
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = total;
+
+        var paginationRoutes = new Dictionary<string, string>();
+        if (filter.SupplierId > 0)
+            paginationRoutes["SupplierId"] = filter.SupplierId.Value.ToString();
+        if (filter.Status.HasValue)
+            paginationRoutes["Status"] = ((int)filter.Status.Value).ToString();
+        ViewBag.PaginationRoutes = paginationRoutes;
 
         var suppliers = await _context.Suppliers.AsNoTracking().OrderBy(s => s.Name).ToListAsync();
         return View(new PurchaseOrderIndexPageViewModel
         {
             Filter = filter,
-            Orders = list,
+            Orders = orders,
             SupplierLookup = suppliers
         });
     }
@@ -70,7 +92,6 @@ public class PurchaseOrdersController : Controller
     public async Task<IActionResult> Create()
     {
         await PopulateSuppliersAsync();
-        await PopulateProductsAsync();
         var vm = new PurchaseOrderCreateViewModel
         {
             Lines = Enumerable.Range(0, 8).Select(_ => new PurchaseOrderLineSlotViewModel()).ToList()
@@ -111,7 +132,6 @@ public class PurchaseOrdersController : Controller
             model.Lines.Add(new PurchaseOrderLineSlotViewModel());
 
         await PopulateSuppliersAsync(model.SupplierId);
-        await PopulateProductsAsync();
         return View(model);
     }
 
@@ -143,7 +163,7 @@ public class PurchaseOrdersController : Controller
         if (!ok)
             TempData["Error"] = error;
         else
-            TempData["Message"] = "Commande annulée.";
+            TempData["Success"] = "Commande annulée.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -151,15 +171,6 @@ public class PurchaseOrdersController : Controller
     {
         var suppliers = await _context.Suppliers.OrderBy(s => s.Name).ToListAsync();
         ViewData["SupplierId"] = new SelectList(suppliers, "Id", "Name", selectedId);
-    }
-
-    private async Task PopulateProductsAsync()
-    {
-        var products = await _context.Products
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.CommercialName)
-            .ToListAsync();
-        ViewData["ProductOptions"] = new SelectList(products, "Id", "CommercialName");
     }
 
 }

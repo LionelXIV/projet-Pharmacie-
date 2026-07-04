@@ -134,6 +134,10 @@
             </tbody>
         </table>
     </div>
+    <small class="text-muted">
+        @ViewBag.TotalCount commande(s) au total
+    </small>
+    <partial name="_Pagination" />
     @if (Model.Orders.Count > 0)
     {
         <div class="table-card-caption">@Model.Orders.Count commande(s) listée(s).</div>

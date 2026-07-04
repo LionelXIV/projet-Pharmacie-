@@ -1,6 +1,6 @@
 @using System.Text.Json
 @{
-    var successMessage = TempData["Success"]?.ToString() ?? TempData["Message"]?.ToString();
+    var successMessage = TempData["Success"]?.ToString();
     var errorMessage = TempData["Error"]?.ToString();
     var warningMessage = TempData["Warning"]?.ToString();
     var infoMessage = TempData["Info"]?.ToString();

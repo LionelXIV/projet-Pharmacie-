@@ -11,7 +11,7 @@ using Pharmacie.Reporting;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = AppRoles.Catalog)]
+[Authorize]
 public class ProductsController : Controller
 {
     private const int IndexPageSize = 50;
@@ -24,6 +24,7 @@ public class ProductsController : Controller
         _context = context;
     }
 
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Index([FromQuery] ProductListFilters? filter, int page = 1)
     {
         filter ??= new ProductListFilters();
@@ -58,17 +59,9 @@ public class ProductsController : Controller
     }
 
     [HttpGet]
-    [AllowAnonymous]
+    [Authorize(Policy = "ProductSearch")]
     public async Task<IActionResult> Search(string? term)
     {
-        if (User?.Identity?.IsAuthenticated != true)
-            return Challenge();
-
-        if (!AppRoles.CanAccessSales(User)
-            && !AppRoles.CanAccessPurchasing(User)
-            && !AppRoles.CanAccessCatalog(User))
-            return Forbid();
-
         if (string.IsNullOrWhiteSpace(term) || term.Trim().Length < 2)
             return Json(Array.Empty<object>());
 
@@ -95,6 +88,7 @@ public class ProductsController : Controller
         return Json(results);
     }
 
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> IndexCsv([FromQuery] ProductListFilters? filter)
     {
         filter ??= new ProductListFilters();
@@ -140,6 +134,7 @@ public class ProductsController : Controller
         return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("export-catalogue-produits"));
     }
 
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Details(int? id)
     {
         if (id == null)
@@ -155,6 +150,7 @@ public class ProductsController : Controller
         return View(product);
     }
 
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Create()
     {
         await PopulateLookupsAsync();
@@ -163,6 +159,7 @@ public class ProductsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Create(
         [Bind(
             "CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive")]
@@ -180,6 +177,7 @@ public class ProductsController : Controller
         return View(product);
     }
 
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Edit(int? id)
     {
         if (id == null)
@@ -195,6 +193,7 @@ public class ProductsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Edit(int id,
         [Bind(
             "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive")]
@@ -232,6 +231,7 @@ public class ProductsController : Controller
         return View(product);
     }
 
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Delete(int? id)
     {
         if (id == null)
@@ -249,6 +249,7 @@ public class ProductsController : Controller
 
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var product = await _context.Products.FindAsync(id);

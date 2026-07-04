@@ -57,7 +57,7 @@ public class GoodsReceiptsController : Controller
         var (ok, error) = await _purchase.RecordReceptionAsync(model.PurchaseOrderId, model, userId);
         if (ok)
         {
-            TempData["Message"] = "Réception enregistrée.";
+            TempData["Success"] = "Réception enregistrée.";
             return RedirectToAction(nameof(PurchaseOrdersController.Details), "PurchaseOrders",
                 new { id = model.PurchaseOrderId });
         }

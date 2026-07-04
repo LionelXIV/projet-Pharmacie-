@@ -153,9 +153,8 @@ public class SalesController : Controller
         return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName($"vente-{sale.Id}-lignes"));
     }
 
-    public async Task<IActionResult> Create()
+    public IActionResult Create()
     {
-        await PopulateProductsAsync();
         var vm = new SaleCreateViewModel
         {
             Lines = Enumerable.Range(0, 8).Select(_ => new SaleLineSlotViewModel()).ToList()
@@ -190,24 +189,12 @@ public class SalesController : Controller
             ModelState.AddModelError(string.Empty, error ?? "Vente impossible.");
         }
 
-        await PopulateProductsAsync();
         if (model.Lines == null || model.Lines.Count == 0)
         {
             model.Lines = Enumerable.Range(0, 8).Select(_ => new SaleLineSlotViewModel()).ToList();
         }
 
         return View(model);
-    }
-
-    private async Task PopulateProductsAsync()
-    {
-        var products = await _context.Products
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.CommercialName)
-            .Select(p => new { p.Id, Label = p.CommercialName + " — Stock " + p.StockQuantity + " — " + p.SalePrice.ToString("0.00") + " €" })
-            .ToListAsync();
-
-        ViewData["ProductOptions"] = new SelectList(products, "Id", "Label");
     }
 
     private async Task PopulateSaleFilterUsersAsync(string? selectedUserId)

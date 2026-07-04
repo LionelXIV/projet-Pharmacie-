@@ -67,7 +67,7 @@ public class AdminUsersController : Controller
                 var addRole = await _userManager.AddToRoleAsync(user, model.Role);
                 if (addRole.Succeeded)
                 {
-                    TempData["Message"] = $"Utilisateur « {user.Email} » créé avec le rôle {model.Role}.";
+                    TempData["Success"] = $"Utilisateur « {user.Email} » créé avec le rôle {model.Role}.";
                     return RedirectToAction(nameof(Index));
                 }
 
@@ -191,7 +191,7 @@ public class AdminUsersController : Controller
             }
         }
 
-        TempData["Message"] = $"Utilisateur « {user.Email} » mis à jour.";
+        TempData["Success"] = $"Utilisateur « {user.Email} » mis à jour.";
         return RedirectToAction(nameof(Index));
     }
 

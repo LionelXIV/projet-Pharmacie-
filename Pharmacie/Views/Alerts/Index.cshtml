@@ -100,6 +100,12 @@
                     </table>
                 </div>
                 <div class="card-footer bg-white border-top small text-muted">@Model.LowStockProducts.Count produit(s) concerné(s).</div>
+                {
+                    ViewBag.CurrentPage = ViewBag.StockCurrentPage;
+                    ViewBag.TotalPages = ViewBag.StockTotalPages;
+                    ViewBag.PaginationRoutes = ViewBag.PaginationRoutesStock;
+                }
+                <partial name="_Pagination" />
             }
         </div>
     </div>
@@ -182,6 +188,12 @@
                     </table>
                 </div>
                 <div class="card-footer bg-white border-top small text-muted">@Model.BatchesNearingExpiration.Count lot(s) dans la fenêtre.</div>
+                {
+                    ViewBag.CurrentPage = ViewBag.ExpirationCurrentPage;
+                    ViewBag.TotalPages = ViewBag.ExpirationTotalPages;
+                    ViewBag.PaginationRoutes = ViewBag.PaginationRoutesExpiration;
+                }
+                <partial name="_Pagination" />
             }
         </div>
     </div>

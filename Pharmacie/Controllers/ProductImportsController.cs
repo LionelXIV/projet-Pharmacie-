@@ -295,11 +295,11 @@ public class ProductImportsController : Controller
 
         if (remaining > 0)
         {
-            TempData["Message"] = $"{processedCount} ligne(s) traitée(s). Il reste {remaining} anomalie(s) bloquante(s) à résoudre.";
+            TempData["Warning"] = $"{processedCount} ligne(s) traitée(s). Il reste {remaining} anomalie(s) bloquante(s) à résoudre.";
             return RedirectToAction(nameof(Anomalies), new { id = model.ImportBatchId });
         }
 
-        TempData["Message"] = "Toutes les anomalies bloquantes ont été résolues. Vous pouvez consulter la prévisualisation mise à jour.";
+        TempData["Success"] = "Toutes les anomalies bloquantes ont été résolues. Vous pouvez consulter la prévisualisation mise à jour.";
         return RedirectToAction(nameof(Preview), new { id = model.ImportBatchId });
     }
 
