@@ -25,6 +25,8 @@ public class ReportsController : Controller
 
     public IActionResult Index()
     {
+        ViewBag.ExpirationHorizonDays =
+            _configuration.GetValue<int>("Alerts:ExpirationHorizonDays", 90);
         return View();
     }
 
