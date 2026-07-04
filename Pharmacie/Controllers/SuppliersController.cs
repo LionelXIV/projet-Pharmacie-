@@ -73,6 +73,7 @@ public class SuppliersController : Controller
         {
             _context.Add(supplier);
             await _context.SaveChangesAsync();
+            TempData["Success"] = "Fournisseur créé.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -112,6 +113,7 @@ public class SuppliersController : Controller
                 throw;
             }
 
+            TempData["Success"] = "Fournisseur mis à jour.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -150,6 +152,7 @@ public class SuppliersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        TempData["Success"] = "Fournisseur supprimé.";
         return RedirectToAction(nameof(Index));
     }
 

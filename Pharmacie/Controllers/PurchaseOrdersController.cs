@@ -122,7 +122,12 @@ public class PurchaseOrdersController : Controller
                 lines,
                 asDraft);
             if (ok)
+            {
+                TempData["Success"] = asDraft
+                    ? "Commande enregistrée en brouillon."
+                    : "Commande créée et envoyée au fournisseur.";
                 return RedirectToAction(nameof(Index));
+            }
 
             ModelState.AddModelError(string.Empty, error ?? "Enregistrement impossible.");
         }

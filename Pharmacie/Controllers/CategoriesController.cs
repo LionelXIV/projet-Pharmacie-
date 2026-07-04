@@ -48,6 +48,7 @@ public class CategoriesController : Controller
         {
             _context.Add(category);
             await _context.SaveChangesAsync();
+            TempData["Success"] = "Catégorie créée.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -87,6 +88,7 @@ public class CategoriesController : Controller
                 throw;
             }
 
+            TempData["Success"] = "Catégorie mise à jour.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -125,6 +127,7 @@ public class CategoriesController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        TempData["Success"] = "Catégorie supprimée.";
         return RedirectToAction(nameof(Index));
     }
 

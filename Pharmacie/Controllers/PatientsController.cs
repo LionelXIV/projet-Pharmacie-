@@ -261,6 +261,7 @@ public class PatientsController : Controller
         {
             _db.Patients.Add(patient);
             await _db.SaveChangesAsync();
+            TempData["Success"] = "Patient créé.";
             return RedirectToAction(nameof(Details), new { id = patient.Id });
         }
 
@@ -304,6 +305,7 @@ public class PatientsController : Controller
                 throw;
             }
 
+            TempData["Success"] = "Patient mis à jour.";
             return RedirectToAction(nameof(Details), new { id = patient.Id });
         }
 
@@ -333,6 +335,7 @@ public class PatientsController : Controller
         {
             _db.Patients.Remove(patient);
             await _db.SaveChangesAsync();
+            TempData["Success"] = "Patient supprimé.";
         }
 
         return RedirectToAction(nameof(Index));

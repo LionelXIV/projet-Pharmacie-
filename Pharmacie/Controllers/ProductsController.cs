@@ -170,6 +170,7 @@ public class ProductsController : Controller
             product.StockQuantity = 0;
             _context.Add(product);
             await _context.SaveChangesAsync();
+            TempData["Success"] = "Produit créé.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -224,6 +225,7 @@ public class ProductsController : Controller
                 throw;
             }
 
+            TempData["Success"] = "Produit mis à jour.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -268,6 +270,7 @@ public class ProductsController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        TempData["Success"] = "Produit supprimé.";
         return RedirectToAction(nameof(Index));
     }
 
