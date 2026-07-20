@@ -132,6 +132,9 @@
                             <a class="nav-link @(IsCtrl("PurchaseOrders") ? "active" : null)" asp-controller="PurchaseOrders" asp-action="Index" aria-current="@(IsCtrl("PurchaseOrders") ? "page" : null)">
                                 <i class="bi bi-bag-check" aria-hidden="true"></i>Commandes fournisseurs
                             </a>
+                            <a class="nav-link @(IsCtrl("GoodsReceipts") ? "active" : null)" asp-controller="GoodsReceipts" asp-action="Index" aria-current="@(IsCtrl("GoodsReceipts") ? "page" : null)">
+                                <i class="bi bi-box-seam" aria-hidden="true"></i>Bons de livraison
+                            </a>
                         }
                     </div>
                 }

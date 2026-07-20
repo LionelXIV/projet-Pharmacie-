@@ -21,6 +21,87 @@ public class GoodsReceiptsController : Controller
         _purchase = purchase;
     }
 
+    public async Task<IActionResult> Index(
+        string? searchNumber,
+        string? searchSupplier,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        int page = 1)
+    {
+        const int pageSize = 50;
+        if (page < 1)
+            page = 1;
+
+        var query = _context.GoodsReceipts
+            .AsNoTracking()
+            .Include(r => r.Lines)
+            .Include(r => r.PurchaseOrder!)
+            .ThenInclude(o => o.Supplier)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(searchNumber))
+        {
+            var term = searchNumber.Trim();
+            query = query.Where(r =>
+                r.Id.ToString().Contains(term)
+                || (r.Notes != null && r.Notes.Contains(term)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchSupplier))
+        {
+            var term = searchSupplier.Trim().ToLower();
+            query = query.Where(r =>
+                r.PurchaseOrder != null
+                && r.PurchaseOrder.Supplier != null
+                && r.PurchaseOrder.Supplier.Name.ToLower().Contains(term));
+        }
+
+        if (dateFrom.HasValue)
+        {
+            var from = dateFrom.Value.Date;
+            query = query.Where(r => r.ReceivedAt >= from);
+        }
+
+        if (dateTo.HasValue)
+        {
+            var toExclusive = dateTo.Value.Date.AddDays(1);
+            query = query.Where(r => r.ReceivedAt < toExclusive);
+        }
+
+        var total = await query.CountAsync();
+        var totalPages = total == 0 ? 1 : (int)Math.Ceiling(total / (double)pageSize);
+        if (page > totalPages)
+            page = totalPages;
+
+        var receipts = await query
+            .OrderByDescending(r => r.ReceivedAt)
+            .ThenByDescending(r => r.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        ViewBag.SearchNumber = searchNumber;
+        ViewBag.SearchSupplier = searchSupplier;
+        ViewBag.DateFrom = dateFrom?.ToString("yyyy-MM-dd");
+        ViewBag.DateTo = dateTo?.ToString("yyyy-MM-dd");
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalCount = total;
+
+        var paginationRoutes = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(searchNumber))
+            paginationRoutes["searchNumber"] = searchNumber.Trim();
+        if (!string.IsNullOrWhiteSpace(searchSupplier))
+            paginationRoutes["searchSupplier"] = searchSupplier.Trim();
+        if (dateFrom.HasValue)
+            paginationRoutes["dateFrom"] = dateFrom.Value.ToString("yyyy-MM-dd");
+        if (dateTo.HasValue)
+            paginationRoutes["dateTo"] = dateTo.Value.ToString("yyyy-MM-dd");
+        ViewBag.PaginationRoutes = paginationRoutes;
+
+        return View(receipts);
+    }
+
     public async Task<IActionResult> Create(int purchaseOrderId)
     {
         var order = await _context.PurchaseOrders

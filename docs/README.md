@@ -21,3 +21,4 @@ Chaque analyse / diagnostic / brief produit dans Cursor est enregistré ici pour
 | 2026-07-20 | [2026-07-20_fix-novalidate-validation-ventes.md](2026-07-20_fix-novalidate-validation-ventes.md) | Fix novalidate + ValidateNever ProductId + test manuel |
 | 2026-07-20 | [2026-07-20_feat-creation-rapide-produit.md](2026-07-20_feat-creation-rapide-produit.md) | Modale création rapide produit (PO + réception) |
 | 2026-07-20 | [2026-07-20_feat-moyen-paiement-ventes.md](2026-07-20_feat-moyen-paiement-ventes.md) | Moyen de paiement Espèces/Wave/Orange Money sur ventes + rapports |
+| 2026-07-20 | [2026-07-20_feat-filtres-goodsreceipts.md](2026-07-20_feat-filtres-goodsreceipts.md) | Filtres recherche BL (n°, fournisseur, dates) sur GoodsReceipts/Index |
