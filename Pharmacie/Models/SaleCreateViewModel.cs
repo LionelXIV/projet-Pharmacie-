@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
 namespace Pharmacie.Models;
 
@@ -18,6 +19,7 @@ public class SaleCreateViewModel
 public class SaleLineSlotViewModel
 {
     [Display(Name = "Produit")]
+    [ValidateNever]
     public int ProductId { get; set; }
 
     [Display(Name = "Quantité")]

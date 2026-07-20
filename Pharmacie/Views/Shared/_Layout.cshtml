@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] — Pharmacie</title>
+    <title>@ViewData["Title"] — Pharmacie Saint Jean Paul II</title>
     <link rel="icon" href="~/favicon.svg" type="image/svg+xml" asp-append-version="true" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -26,7 +26,7 @@
     bool IsCtrl(string name) => string.Equals(routeController, name, StringComparison.OrdinalIgnoreCase);
     bool IsAction(string name) => string.Equals(routeAction, name, StringComparison.OrdinalIgnoreCase);
     bool IsCtrlAny(params string[] names) => names.Any(n => string.Equals(routeController, n, StringComparison.OrdinalIgnoreCase));
-    var isHome = IsCtrl("Home");
+    var isHome = IsCtrl("Home") && IsAction("Index");
     var isDashboard = IsCtrl("Dashboard");
     var isReports = IsCtrl("Reports");
     var isCatalog = IsCtrlAny("Products", "Batches", "StockMovements", "ProductImports");
@@ -51,12 +51,12 @@
             <a class="ph-sidebar-brand text-decoration-none" asp-area="" asp-controller="Home" asp-action="Index">
                 <span class="brand-mark" aria-hidden="true">
                     <svg class="brand-mark-svg" width="32" height="32" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" role="img">
-                        <title>Pharmacie</title>
+                        <title>Pharmacie Saint Jean Paul II</title>
                         <rect x="2" y="2" width="40" height="40" rx="11" fill="#2563EB"/>
                         <path d="M20 11h4v9h9v4h-9v9h-4v-9h-9v-4h9v-9z" fill="#fff"/>
                     </svg>
                 </span>
-                <span>Pharmacie</span>
+                <span title="Pharmacie Saint Jean Paul II PNR">St Jean Paul II</span>
             </a>
 
             <nav class="ph-sidebar-nav">
@@ -223,7 +223,7 @@
 
             <footer class="app-footer">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-3 px-md-4 py-3">
-                    <span>&copy; 2026 — Pharmacie</span>
+                    <span>&copy; 2026 — Pharmacie Saint Jean Paul II</span>
                     <span><a asp-area="" asp-controller="Home" asp-action="Privacy">Confidentialité</a></span>
                 </div>
             </footer>
@@ -301,7 +301,7 @@
           return;
         }
 
-        flatpickr("input[type='date']:not([data-flatpickr-disabled])", {
+        flatpickr("input[type='date']:not([data-flatpickr-disabled]):not([data-flatpickr-ignore])", {
           locale: "fr",
           dateFormat: "Y-m-d",
           altInput: true,
@@ -309,7 +309,7 @@
           allowInput: true
         });
 
-        flatpickr("input[type='datetime-local']:not([data-flatpickr-disabled])", {
+        flatpickr("input[type='datetime-local']:not([data-flatpickr-disabled]):not([data-flatpickr-ignore])", {
           locale: "fr",
           dateFormat: "Y-m-dTH:i",
           altInput: true,
