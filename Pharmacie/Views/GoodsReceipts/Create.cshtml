@@ -3,9 +3,18 @@
     ViewData["Title"] = "Réception de commande";
 }
 
-<div class="page-header">
-    <h1 class="page-title">Réception — commande #@Model.PurchaseOrderId</h1>
-    <p class="page-lead mb-0">Quantité reçue par ligne (0 si aucune réception sur la ligne). Si quantité &gt; 0 : <strong>n° de lot</strong> et <strong>date d’expiration</strong> obligatoires.</p>
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+    <div>
+        <h1 class="page-title">Réception — commande #@Model.PurchaseOrderId</h1>
+        <p class="page-lead mb-0">Quantité reçue par ligne (0 si aucune réception sur la ligne). Si quantité &gt; 0 : <strong>n° de lot</strong> et <strong>date d’expiration</strong> obligatoires.</p>
+        <p class="small text-muted mb-0 mt-1">Produit absent du catalogue ? Créez-le ici, puis ajoutez-le à une commande fournisseur pour le recevoir.</p>
+    </div>
+    <button type="button"
+            class="btn btn-outline-success btn-sm"
+            title="Créer un nouveau produit"
+            onclick="openQuickProductModal(null)">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nouveau produit
+    </button>
 </div>
 
 @if (TempData["Error"] != null)
@@ -91,4 +100,5 @@
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <partial name="_QuickProductModal" />
 }

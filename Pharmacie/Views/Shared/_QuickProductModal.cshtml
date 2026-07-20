@@ -1,0 +1,140 @@
+@* Modale + script : création rapide produit (TomSelect optionnel). *@
+<div class="modal fade" id="quickProductModal" tabindex="-1" aria-labelledby="quickProductModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="quickProductModalLabel">Nouveau produit rapide</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label" for="qp-name">Nom du produit *</label>
+          <input type="text" id="qp-name" class="form-control"
+                 placeholder="Ex: DOLIPRANE 500MG BT16" autocomplete="off">
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="qp-purchase">Prix d'achat (FCFA)</label>
+          <input type="number" id="qp-purchase" class="form-control" min="0" step="1" value="0">
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="qp-sale">Prix de vente (FCFA) *</label>
+          <input type="number" id="qp-sale" class="form-control" min="1" step="1" value="0">
+        </div>
+        <div id="qp-error" class="text-danger d-none" role="alert"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-success" id="qp-save">
+          <i class="bi bi-check-lg" aria-hidden="true"></i> Créer et sélectionner
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  let _currentTomSelectInstance = null;
+
+  window.openQuickProductModal = function (btn) {
+    _currentTomSelectInstance = null;
+    if (btn) {
+      const cell = btn.closest('td') || btn.parentElement;
+      const select = cell ? cell.querySelector('select[data-tomselect-product]') : null;
+      if (select && select.tomselect) {
+        _currentTomSelectInstance = select.tomselect;
+      }
+    }
+
+    document.getElementById('qp-name').value = '';
+    document.getElementById('qp-purchase').value = '0';
+    document.getElementById('qp-sale').value = '0';
+    const errorDiv = document.getElementById('qp-error');
+    errorDiv.textContent = '';
+    errorDiv.classList.add('d-none');
+
+    const modalEl = document.getElementById('quickProductModal');
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    setTimeout(function () { document.getElementById('qp-name').focus(); }, 300);
+  };
+
+  document.getElementById('qp-save').addEventListener('click', async function () {
+    const name = document.getElementById('qp-name').value.trim();
+    const purchase = parseFloat(document.getElementById('qp-purchase').value) || 0;
+    const sale = parseFloat(document.getElementById('qp-sale').value) || 0;
+    const errorDiv = document.getElementById('qp-error');
+    const btn = this;
+
+    if (!name) {
+      errorDiv.textContent = 'Le nom du produit est obligatoire.';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+    if (sale <= 0) {
+      errorDiv.textContent = 'Le prix de vente doit être supérieur à 0.';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+
+    const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+    if (!tokenInput) {
+      errorDiv.textContent = 'Jeton de sécurité manquant. Rechargez la page.';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Création...';
+
+    try {
+      const body = new FormData();
+      body.append('Name', name);
+      body.append('PurchasePrice', String(purchase));
+      body.append('SalePrice', String(sale));
+      body.append('__RequestVerificationToken', tokenInput.value);
+
+      const response = await fetch('/Products/CreateQuick', {
+        method: 'POST',
+        body: body,
+        credentials: 'same-origin'
+      });
+
+      if (!response.ok) {
+        let msg = 'Erreur lors de la création. Réessayez.';
+        try {
+          const errJson = await response.json();
+          if (errJson && errJson.error) msg = errJson.error;
+        } catch (_) { /* ignore */ }
+        throw new Error(msg);
+      }
+
+      const product = await response.json();
+      const option = {
+        value: String(product.id),
+        text: product.text,
+        salePrice: product.salePrice,
+        purchasePrice: product.purchasePrice
+      };
+
+      if (_currentTomSelectInstance) {
+        _currentTomSelectInstance.addOption(option);
+        _currentTomSelectInstance.setValue(String(product.id), true);
+      }
+
+      bootstrap.Modal.getInstance(document.getElementById('quickProductModal')).hide();
+
+      if (window.toastr) {
+        toastr.success('Produit "' + product.text + '" créé' +
+          (_currentTomSelectInstance ? ' et sélectionné.' : '.'));
+      }
+    } catch (err) {
+      errorDiv.textContent = err && err.message ? err.message : 'Erreur lors de la création. Réessayez.';
+      errorDiv.classList.remove('d-none');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg" aria-hidden="true"></i> Créer et sélectionner';
+    }
+  });
+})();
+</script>

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
 using Pharmacie.Models;
+using Pharmacie.Models.Dto;
 using Pharmacie.Reporting;
 
 namespace Pharmacie.Controllers;
@@ -86,6 +87,68 @@ public class ProductsController : Controller
             .ToListAsync();
 
         return Json(results);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Catalog)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateQuick([FromForm] QuickProductDto dto)
+    {
+        var name = dto.Name?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { error = "Le nom du produit est obligatoire." });
+
+        if (dto.SalePrice <= 0)
+            return BadRequest(new { error = "Le prix de vente doit être supérieur à 0." });
+
+        if (dto.PurchasePrice < 0)
+            return BadRequest(new { error = "Le prix d'achat ne peut pas être négatif." });
+
+        var categoryId = await GetOrCreateCategoryIdAsync("À catégoriser");
+        var supplierId = await GetOrCreateSupplierIdAsync("Fournisseur non précisé");
+
+        var product = new Product
+        {
+            CommercialName = name,
+            PurchasePrice = dto.PurchasePrice,
+            SalePrice = dto.SalePrice,
+            CategoryId = categoryId,
+            SupplierId = supplierId,
+            ProductType = ProductType.Inconnu,
+            IsActive = true,
+            StockQuantity = 0,
+            AlertThreshold = 0
+        };
+
+        _context.Products.Add(product);
+        await _context.SaveChangesAsync();
+
+        var text = product.CommercialName + " (stock: 0)";
+        return Json(new { id = product.Id, text, value = product.Id, salePrice = product.SalePrice, purchasePrice = product.PurchasePrice });
+    }
+
+    private async Task<int> GetOrCreateCategoryIdAsync(string name)
+    {
+        var existing = await _context.Categories.FirstOrDefaultAsync(c => c.Name == name);
+        if (existing != null)
+            return existing.Id;
+
+        var category = new Category { Name = name };
+        _context.Categories.Add(category);
+        await _context.SaveChangesAsync();
+        return category.Id;
+    }
+
+    private async Task<int> GetOrCreateSupplierIdAsync(string name)
+    {
+        var existing = await _context.Suppliers.FirstOrDefaultAsync(s => s.Name == name);
+        if (existing != null)
+            return existing.Id;
+
+        var supplier = new Supplier { Name = name };
+        _context.Suppliers.Add(supplier);
+        await _context.SaveChangesAsync();
+        return supplier.Id;
     }
 
     [Authorize(Roles = AppRoles.Catalog)]

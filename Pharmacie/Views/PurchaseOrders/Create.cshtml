@@ -54,12 +54,21 @@
                                     {
                                         <tr>
                                             <td>
-                                                <select asp-for="Lines[i].ProductId"
-                                                        class="form-select form-select-sm tomselect-product"
-                                                        data-tomselect-product
-                                                        data-url="@Url.Action("Search", "Products")">
-                                                    <option value="0"></option>
-                                                </select>
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <select asp-for="Lines[i].ProductId"
+                                                            class="form-select form-select-sm tomselect-product flex-grow-1"
+                                                            data-tomselect-product
+                                                            data-val="false"
+                                                            data-url="@Url.Action("Search", "Products")">
+                                                        <option value="0"></option>
+                                                    </select>
+                                                    <button type="button"
+                                                            class="btn btn-outline-success btn-sm flex-shrink-0"
+                                                            title="Créer un nouveau produit"
+                                                            onclick="openQuickProductModal(this)">
+                                                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                             <td>
                                                 <input asp-for="Lines[i].QuantityOrdered" class="form-control form-control-sm" type="number" min="0" />
@@ -88,6 +97,7 @@
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <partial name="_QuickProductModal" />
     <script>
       document.addEventListener('DOMContentLoaded', function () {
         if (!window.TomSelect) return;
