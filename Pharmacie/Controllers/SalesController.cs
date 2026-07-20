@@ -115,14 +115,14 @@ public class SalesController : Controller
             ? ""
             : UserDisplayResolver.Resolve(labels, sale.UserId);
 
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("N° vente"),
             ReportCsvFormatter.Escape("Date vente"),
             ReportCsvFormatter.Escape("Enregistré par"),
             ReportCsvFormatter.Escape("Moyen de paiement"),
             ReportCsvFormatter.Escape("Notes")));
-        sb.AppendLine(string.Join(',',
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.IntInvariant(sale.Id),
             ReportCsvFormatter.Escape(sale.SoldAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
             ReportCsvFormatter.Escape(recordedBy),
@@ -130,7 +130,7 @@ public class SalesController : Controller
             ReportCsvFormatter.Escape(sale.Notes ?? "")));
 
         sb.AppendLine();
-        sb.AppendLine(string.Join(',',
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Ligne"),
             ReportCsvFormatter.Escape("N° produit"),
             ReportCsvFormatter.Escape("Produit"),
@@ -142,7 +142,7 @@ public class SalesController : Controller
         foreach (var l in sale.Lines.OrderBy(x => x.Id))
         {
             var sub = l.Quantity * l.UnitPrice;
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.IntInvariant(lineNo++),
                 ReportCsvFormatter.IntInvariant(l.ProductId),
                 ReportCsvFormatter.Escape(l.Product?.CommercialName ?? ""),
@@ -151,8 +151,7 @@ public class SalesController : Controller
                 ReportCsvFormatter.FcfaCsvAmount(sub)));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName($"vente-{sale.Id}-lignes"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), $"vente-{sale.Id}-lignes");
     }
 
     public IActionResult Create()

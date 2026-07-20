@@ -28,8 +28,8 @@ public class SuppliersController : Controller
     public async Task<IActionResult> IndexCsv()
     {
         var list = await _context.Suppliers.AsNoTracking().OrderBy(s => s.Name).ToListAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("N°"),
             ReportCsvFormatter.Escape("Nom"),
             ReportCsvFormatter.Escape("Contact"),
@@ -37,15 +37,14 @@ public class SuppliersController : Controller
 
         foreach (var s in list)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.IntInvariant(s.Id),
                 ReportCsvFormatter.Escape(s.Name),
                 ReportCsvFormatter.Escape(s.Contact ?? ""),
                 ReportCsvFormatter.Escape(s.Phone ?? "")));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("export-fournisseurs"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), "export-fournisseurs");
     }
 
     public async Task<IActionResult> Details(int? id)

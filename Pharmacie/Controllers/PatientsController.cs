@@ -96,8 +96,8 @@ public class PatientsController : Controller
     public async Task<IActionResult> IndexCsv([FromQuery] string? q, [FromQuery] string? active)
     {
         var list = await FilteredPatientsQuery(q, active).OrderBy(p => p.FullName).ToListAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("N° fiche"),
             ReportCsvFormatter.Escape("Nom complet"),
             ReportCsvFormatter.Escape("Téléphone"),
@@ -113,7 +113,7 @@ public class PatientsController : Controller
 
         foreach (var p in list)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.IntInvariant(p.Id),
                 ReportCsvFormatter.Escape(p.FullName),
                 ReportCsvFormatter.Escape(p.Phone),
@@ -128,8 +128,7 @@ public class PatientsController : Controller
                 ReportCsvFormatter.Escape(p.TreatingDoctor ?? "")));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("export-patients"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), "export-patients");
     }
 
     public async Task<IActionResult> DetailsCsv(int? id)
@@ -141,8 +140,8 @@ public class PatientsController : Controller
         if (p == null)
             return NotFound();
 
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("N° fiche"),
             ReportCsvFormatter.Escape("Nom complet"),
             ReportCsvFormatter.Escape("Téléphone"),
@@ -156,7 +155,7 @@ public class PatientsController : Controller
             ReportCsvFormatter.Escape("Traitement habituel"),
             ReportCsvFormatter.Escape("Médecin traitant")));
 
-        sb.AppendLine(string.Join(',',
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.IntInvariant(p.Id),
             ReportCsvFormatter.Escape(p.FullName),
             ReportCsvFormatter.Escape(p.Phone),
@@ -170,8 +169,7 @@ public class PatientsController : Controller
             ReportCsvFormatter.Escape(p.UsualTreatment ?? ""),
             ReportCsvFormatter.Escape(p.TreatingDoctor ?? "")));
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName($"fiche-patient-{p.Id}"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), $"fiche-patient-{p.Id}");
     }
 
     public async Task<IActionResult> PrescriptionsCsv([FromQuery] int? patientId)
@@ -181,8 +179,8 @@ public class PatientsController : Controller
             q = q.Where(r => r.PatientId == patientId.Value);
 
         var rows = await q.OrderByDescending(r => r.PrescribedAt).ThenByDescending(r => r.Id).ToListAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("N° ordonnance"),
             ReportCsvFormatter.Escape("N° patient"),
             ReportCsvFormatter.Escape("Patient"),
@@ -194,7 +192,7 @@ public class PatientsController : Controller
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.IntInvariant(r.Id),
                 ReportCsvFormatter.IntInvariant(r.PatientId),
                 ReportCsvFormatter.Escape(r.Patient?.FullName ?? ""),
@@ -206,8 +204,7 @@ public class PatientsController : Controller
         }
 
         var slug = patientId.HasValue ? $"ordonnances-patient-{patientId.Value}" : "export-ordonnances";
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName(slug));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), slug);
     }
 
     public async Task<IActionResult> RemindersCsv([FromQuery] int? patientId)
@@ -217,8 +214,8 @@ public class PatientsController : Controller
             q = q.Where(r => r.PatientId == patientId.Value);
 
         var rows = await q.OrderBy(r => r.ReminderDate).ThenBy(r => r.Id).ToListAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("N° rappel"),
             ReportCsvFormatter.Escape("N° patient"),
             ReportCsvFormatter.Escape("Patient"),
@@ -229,7 +226,7 @@ public class PatientsController : Controller
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.IntInvariant(r.Id),
                 ReportCsvFormatter.IntInvariant(r.PatientId),
                 ReportCsvFormatter.Escape(r.Patient?.FullName ?? ""),
@@ -240,8 +237,7 @@ public class PatientsController : Controller
         }
 
         var slug = patientId.HasValue ? $"rappels-patient-{patientId.Value}" : "export-rappels-patients";
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName(slug));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), slug);
     }
 
     [Authorize(Roles = AppRoles.PatientsManage)]

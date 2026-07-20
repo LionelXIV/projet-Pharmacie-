@@ -159,8 +159,8 @@ public class ProductsController : Controller
             .OrderBy(p => p.CommercialName)
             .ToListAsync();
 
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("N°"),
             ReportCsvFormatter.Escape("Nom commercial"),
             ReportCsvFormatter.Escape("Nom générique"),
@@ -177,7 +177,7 @@ public class ProductsController : Controller
 
         foreach (var p in list)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.IntInvariant(p.Id),
                 ReportCsvFormatter.Escape(p.CommercialName),
                 ReportCsvFormatter.Escape(p.GenericName ?? ""),
@@ -193,8 +193,7 @@ public class ProductsController : Controller
                 p.IsActive ? ReportCsvFormatter.Escape("Oui") : ReportCsvFormatter.Escape("Non")));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("export-catalogue-produits"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), "export-catalogue-produits");
     }
 
     [Authorize(Roles = AppRoles.Catalog)]

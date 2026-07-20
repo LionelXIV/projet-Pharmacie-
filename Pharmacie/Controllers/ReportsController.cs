@@ -39,8 +39,8 @@ public class ReportsController : Controller
     public async Task<IActionResult> StockStatusCsv()
     {
         var rows = await LoadStockStatusRowsAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Produit"),
             ReportCsvFormatter.Escape("Catégorie"),
             ReportCsvFormatter.Escape("Fournisseur"),
@@ -50,7 +50,7 @@ public class ReportsController : Controller
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.Escape(r.ProductName),
                 ReportCsvFormatter.Escape(r.CategoryName),
                 ReportCsvFormatter.Escape(r.SupplierName),
@@ -59,8 +59,7 @@ public class ReportsController : Controller
                 ReportCsvFormatter.Escape(r.StatusLabel)));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("rapport-etat-stock"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-etat-stock");
     }
 
     public async Task<IActionResult> NearExpiration()
@@ -73,8 +72,8 @@ public class ReportsController : Controller
     public async Task<IActionResult> NearExpirationCsv()
     {
         var (rows, _) = await LoadNearExpirationRowsAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Produit"),
             ReportCsvFormatter.Escape("Lot"),
             ReportCsvFormatter.Escape("Quantité restante"),
@@ -83,7 +82,7 @@ public class ReportsController : Controller
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.Escape(r.ProductName),
                 ReportCsvFormatter.Escape(r.LotNumber),
                 ReportCsvFormatter.IntInvariant(r.QuantityRemaining),
@@ -91,8 +90,7 @@ public class ReportsController : Controller
                 ReportCsvFormatter.IntInvariant(r.DaysRemaining)));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("rapport-proches-expiration"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-proches-expiration");
     }
 
     public async Task<IActionResult> ExpiredProducts()
@@ -104,8 +102,8 @@ public class ReportsController : Controller
     public async Task<IActionResult> ExpiredProductsCsv()
     {
         var rows = await LoadExpiredProductsRowsAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Produit"),
             ReportCsvFormatter.Escape("Lot"),
             ReportCsvFormatter.Escape("Quantité restante"),
@@ -113,15 +111,14 @@ public class ReportsController : Controller
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.Escape(r.ProductName),
                 ReportCsvFormatter.Escape(r.LotNumber),
                 ReportCsvFormatter.IntInvariant(r.QuantityRemaining),
                 ReportCsvFormatter.Escape(r.ExpirationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("rapport-produits-expires"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-produits-expires");
     }
 
     public async Task<IActionResult> SalesHistory()
@@ -134,8 +131,8 @@ public class ReportsController : Controller
     public async Task<IActionResult> SalesHistoryCsv()
     {
         var rows = await LoadSalesHistoryRowsAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Date vente"),
             ReportCsvFormatter.Escape("N° vente"),
             ReportCsvFormatter.Escape("Nombre de lignes"),
@@ -144,7 +141,7 @@ public class ReportsController : Controller
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.Escape(r.SoldAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                 ReportCsvFormatter.IntInvariant(r.SaleId),
                 ReportCsvFormatter.IntInvariant(r.LineCount),
@@ -152,8 +149,7 @@ public class ReportsController : Controller
                 ReportCsvFormatter.Escape(PaymentMethodDisplay.GetName(r.PaymentMethod))));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("rapport-historique-ventes"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-historique-ventes");
     }
 
     public async Task<IActionResult> StockMovementsHistory()
@@ -166,8 +162,8 @@ public class ReportsController : Controller
     public async Task<IActionResult> StockMovementsHistoryCsv()
     {
         var rows = await LoadStockMovementsHistoryRowsAsync();
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',',
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Date"),
             ReportCsvFormatter.Escape("Produit"),
             ReportCsvFormatter.Escape("Type"),
@@ -178,7 +174,7 @@ public class ReportsController : Controller
 
         foreach (var r in rows)
         {
-            sb.AppendLine(string.Join(',',
+            sb.AppendLine(ReportCsvFormatter.Join(
                 ReportCsvFormatter.Escape(r.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                 ReportCsvFormatter.Escape(r.ProductName),
                 ReportCsvFormatter.Escape(MovementTypeLabel(r.Type)),
@@ -188,8 +184,7 @@ public class ReportsController : Controller
                 ReportCsvFormatter.Escape(r.Reason ?? "")));
         }
 
-        var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", ReportCsvFormatter.FileName("rapport-historique-mouvements"));
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-historique-mouvements");
     }
 
     private static string MovementTypeLabel(StockMovementType t) => t switch

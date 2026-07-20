@@ -23,3 +23,4 @@ Chaque analyse / diagnostic / brief produit dans Cursor est enregistré ici pour
 | 2026-07-20 | [2026-07-20_feat-moyen-paiement-ventes.md](2026-07-20_feat-moyen-paiement-ventes.md) | Moyen de paiement Espèces/Wave/Orange Money sur ventes + rapports |
 | 2026-07-20 | [2026-07-20_feat-filtres-goodsreceipts.md](2026-07-20_feat-filtres-goodsreceipts.md) | Filtres recherche BL (n°, fournisseur, dates) sur GoodsReceipts/Index |
 | 2026-07-20 | [2026-07-20_feat-finances-dashboard.md](2026-07-20_feat-finances-dashboard.md) | Marge brute / panier moyen Dashboard + page Finances (Admin/Pharmacien) |
+| 2026-07-20 | [2026-07-20_fix-exports-csv.md](2026-07-20_fix-exports-csv.md) | Fix exports CSV : BOM réel, séparateur ;, PaymentMethod FR |
