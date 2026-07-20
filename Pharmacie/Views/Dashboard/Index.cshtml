@@ -21,7 +21,10 @@
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-outline-cta btn-sm" asp-controller="Reports" asp-action="Index"><i class="bi bi-clipboard2-data me-1" aria-hidden="true"></i>Rapports</a>
+            @if (AppRoles.CanAccessReports(User))
+            {
+                <a class="btn btn-outline-cta btn-sm" asp-controller="Reports" asp-action="Index"><i class="bi bi-clipboard2-data me-1" aria-hidden="true"></i>Rapports</a>
+            }
             <a class="btn btn-outline-secondary btn-sm" asp-controller="Alerts" asp-action="Index"><i class="bi bi-bell me-1" aria-hidden="true"></i>Alertes</a>
         </div>
     </div>
@@ -135,6 +138,83 @@
         </div>
     }
 </div>
+
+@if (ViewBag.ShowFinances == true)
+{
+    var margeBrute = (decimal)ViewBag.MargeBrute;
+    var panierMoyen = (decimal)ViewBag.PanierMoyen;
+    var nbVentes = (int)ViewBag.NbVentes;
+    var caDuJour = (decimal)ViewBag.CaDuJour;
+    var tauxMarge = caDuJour > 0 ? (margeBrute / caDuJour) * 100m : 0m;
+
+    <div class="row g-3 mt-2 mb-4">
+        <div class="col-12 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h6 class="text-muted fw-semibold text-uppercase mb-0">
+                <i class="bi bi-graph-up-arrow me-1" aria-hidden="true"></i>
+                Finances du jour — accès restreint
+            </h6>
+            <a class="btn btn-sm btn-outline-primary" asp-action="Finances">
+                Voir 30 jours <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 p-3 bg-success bg-opacity-10">
+                            <i class="bi bi-percent fs-4 text-success" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="fs-4 fw-bold text-success">
+                                @ReportCsvFormatter.FormatFcfa(margeBrute)
+                            </div>
+                            <div class="text-muted small">Marge brute du jour</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 p-3 bg-primary bg-opacity-10">
+                            <i class="bi bi-cart3 fs-4 text-primary" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="fs-4 fw-bold text-primary">
+                                @ReportCsvFormatter.FormatFcfa(panierMoyen)
+                            </div>
+                            <div class="text-muted small">
+                                Panier moyen (@nbVentes vente(s))
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 p-3 bg-warning bg-opacity-10">
+                            <i class="bi bi-bar-chart-line fs-4 text-warning" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="fs-4 fw-bold text-warning">
+                                @tauxMarge.ToString("N1") %
+                            </div>
+                            <div class="text-muted small">Taux de marge</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <h2 class="app-dash-section-title">Graphiques</h2>
 <div class="row g-4 mb-4">

@@ -28,6 +28,17 @@ public class DashboardController : Controller
         var horizon = _configuration.GetValue<int>("Alerts:ExpirationHorizonDays", 90);
         var horizonEnd = today.AddDays(horizon);
 
+        var todaySales = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+            .ThenInclude(l => l.Product)
+            .Where(s => s.SoldAt.Date == today)
+            .ToListAsync();
+
+        var caDuJour = todaySales
+            .SelectMany(s => s.Lines)
+            .Sum(l => l.UnitPrice * l.Quantity);
+
         var vm = new DashboardViewModel
         {
             Today = today,
@@ -46,12 +57,24 @@ public class DashboardController : Controller
             PendingPurchaseOrdersCount = await _db.PurchaseOrders.CountAsync(o =>
                 o.Status == PurchaseOrderStatus.Envoyee
                 || o.Status == PurchaseOrderStatus.PartiellementRecue),
-            SalesTodayCount = await _db.Sales.CountAsync(s => s.SoldAt.Date == today),
-            SalesTodayTotal = await _db.Sales
-                .Where(s => s.SoldAt.Date == today)
-                .SelectMany(s => s.Lines)
-                .SumAsync(l => l.Quantity * l.UnitPrice)
+            SalesTodayCount = todaySales.Count,
+            SalesTodayTotal = caDuJour
         };
+
+        if (AppRoles.CanAccessFinances(User))
+        {
+            var margeBrute = todaySales
+                .SelectMany(s => s.Lines)
+                .Sum(l => (l.UnitPrice - (l.Product?.PurchasePrice ?? 0m)) * l.Quantity);
+            var nbVentes = todaySales.Count;
+            var panierMoyen = nbVentes > 0 ? caDuJour / nbVentes : 0m;
+
+            ViewBag.ShowFinances = true;
+            ViewBag.MargeBrute = margeBrute;
+            ViewBag.PanierMoyen = panierMoyen;
+            ViewBag.NbVentes = nbVentes;
+            ViewBag.CaDuJour = caDuJour;
+        }
 
         var movements = await _db.StockMovements
             .AsNoTracking()
@@ -143,6 +166,74 @@ public class DashboardController : Controller
             .ToListAsync();
 
         ViewBag.StockChartData = JsonSerializer.Serialize(stockChartData);
+
+        return View(vm);
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> Finances()
+    {
+        var today = DateTime.Today;
+        var from = today.AddDays(-29);
+
+        var sales = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+            .ThenInclude(l => l.Product)
+            .Where(s => s.SoldAt.Date >= from && s.SoldAt.Date <= today)
+            .ToListAsync();
+
+        var byDay = sales
+            .GroupBy(s => s.SoldAt.Date)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var days = Enumerable.Range(0, 30)
+            .Select(offset =>
+            {
+                var day = from.AddDays(offset);
+                byDay.TryGetValue(day, out var daySales);
+                daySales ??= [];
+
+                var ca = daySales.SelectMany(s => s.Lines).Sum(l => l.UnitPrice * l.Quantity);
+                var marge = daySales.SelectMany(s => s.Lines)
+                    .Sum(l => (l.UnitPrice - (l.Product?.PurchasePrice ?? 0m)) * l.Quantity);
+                var nb = daySales.Count;
+
+                return new DashboardFinanceDayRow
+                {
+                    Date = day,
+                    Ca = ca,
+                    MargeBrute = marge,
+                    NbVentes = nb,
+                    PanierMoyen = nb > 0 ? ca / nb : 0m
+                };
+            })
+            .OrderByDescending(d => d.Date)
+            .ToList();
+
+        var paymentBreakdown = Enum.GetValues<PaymentMethod>()
+            .Select(method =>
+            {
+                var methodSales = sales.Where(s => s.PaymentMethod == method).ToList();
+                return new DashboardPaymentBreakdownRow
+                {
+                    PaymentMethod = method,
+                    SaleCount = methodSales.Count,
+                    Total = methodSales.SelectMany(s => s.Lines).Sum(l => l.UnitPrice * l.Quantity)
+                };
+            })
+            .ToList();
+
+        var vm = new DashboardFinancesViewModel
+        {
+            From = from,
+            To = today,
+            Days = days,
+            PaymentBreakdown = paymentBreakdown,
+            TotalCa = days.Sum(d => d.Ca),
+            TotalMarge = days.Sum(d => d.MargeBrute),
+            TotalVentes = days.Sum(d => d.NbVentes)
+        };
 
         return View(vm);
     }

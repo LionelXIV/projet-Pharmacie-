@@ -1,0 +1,134 @@
+@model DashboardFinancesViewModel
+@{
+    ViewData["Title"] = "Finances";
+    var avgBasket = Model.TotalVentes > 0 ? Model.TotalCa / Model.TotalVentes : 0m;
+    var tauxGlobal = Model.TotalCa > 0 ? (Model.TotalMarge / Model.TotalCa) * 100m : 0m;
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Finances</h1>
+            <p class="page-lead mb-0">
+                Du <strong>@Model.From.ToString("dd/MM/yyyy")</strong>
+                au <strong>@Model.To.ToString("dd/MM/yyyy")</strong>
+                · Accès Administrateur / Pharmacien
+            </p>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">
+            <i class="bi bi-speedometer2 me-1" aria-hidden="true"></i>Tableau de bord
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold mb-1">CA (30 j)</div>
+                <div class="fs-4 fw-bold">@ReportCsvFormatter.FormatFcfa(Model.TotalCa)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold mb-1">Marge brute</div>
+                <div class="fs-4 fw-bold text-success">@ReportCsvFormatter.FormatFcfa(Model.TotalMarge)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold mb-1">Panier moyen</div>
+                <div class="fs-4 fw-bold text-primary">@ReportCsvFormatter.FormatFcfa(avgBasket)</div>
+                <div class="small text-muted">@Model.TotalVentes vente(s)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold mb-1">Taux de marge</div>
+                <div class="fs-4 fw-bold text-warning">@tauxGlobal.ToString("N1") %</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm table-card h-100">
+            <div class="card-header bg-white border-bottom py-3">
+                <span class="fw-semibold">
+                    <i class="bi bi-calendar3 me-2 text-primary" aria-hidden="true"></i>
+                    Marge et panier moyen par jour
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th class="text-end">Ventes</th>
+                            <th class="text-end">CA</th>
+                            <th class="text-end">Marge brute</th>
+                            <th class="text-end">Panier moyen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in Model.Days)
+                        {
+                            <tr class="@(d.Date == Model.To ? "table-primary" : null)">
+                                <td class="text-nowrap">@d.Date.ToString("dd/MM/yyyy")</td>
+                                <td class="text-end">@d.NbVentes</td>
+                                <td class="text-end">@ReportCsvFormatter.FormatFcfa(d.Ca)</td>
+                                <td class="text-end text-success">@ReportCsvFormatter.FormatFcfa(d.MargeBrute)</td>
+                                <td class="text-end">@ReportCsvFormatter.FormatFcfa(d.PanierMoyen)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm table-card h-100">
+            <div class="card-header bg-white border-bottom py-3">
+                <span class="fw-semibold">
+                    <i class="bi bi-wallet2 me-2 text-primary" aria-hidden="true"></i>
+                    Répartition par moyen de paiement
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Paiement</th>
+                            <th class="text-end">Ventes</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.PaymentBreakdown)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="badge @PaymentMethodDisplay.BadgeCssClass(p.PaymentMethod)">
+                                        @PaymentMethodDisplay.GetName(p.PaymentMethod)
+                                    </span>
+                                </td>
+                                <td class="text-end">@p.SaleCount</td>
+                                <td class="text-end fw-medium">@ReportCsvFormatter.FormatFcfa(p.Total)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="small text-muted px-3 py-2 mb-0">
+                Période cumulée (30 derniers jours). Saisie manuelle du mode de paiement à la vente.
+            </p>
+        </div>
+    </div>
+</div>

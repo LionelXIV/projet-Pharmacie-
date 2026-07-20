@@ -41,7 +41,7 @@
     var showStockSection = true;
     var showCommerceSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanSeeCommerceMenu(User);
     var showPatientsSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessPatientsRead(User);
-    var showDonneesSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessDashboard(User);
+    var showDonneesSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessReports(User);
     var showAdminSection = User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur);
 }
 <body>
@@ -69,9 +69,15 @@
                         </a>
                         @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessDashboard(User))
                         {
-                            <a class="nav-link @(isDashboard ? "active" : null)" asp-controller="Dashboard" asp-action="Index" aria-current="@(isDashboard ? "page" : null)">
+                            <a class="nav-link @(isDashboard && IsAction("Index") ? "active" : null)" asp-controller="Dashboard" asp-action="Index" aria-current="@(isDashboard && IsAction("Index") ? "page" : null)">
                                 <i class="bi bi-speedometer2" aria-hidden="true"></i>Tableau de bord
                             </a>
+                            @if (AppRoles.CanAccessFinances(User))
+                            {
+                                <a class="nav-link @(isDashboard && IsAction("Finances") ? "active" : null)" asp-controller="Dashboard" asp-action="Finances" aria-current="@(isDashboard && IsAction("Finances") ? "page" : null)">
+                                    <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>Finances
+                                </a>
+                            }
                         }
                         <a class="nav-link @(isAlerts ? "active" : null)" asp-controller="Alerts" asp-action="Index" aria-current="@(isAlerts ? "page" : null)">
                             <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Alertes

@@ -38,6 +38,33 @@ public class DashboardViewModel
     public bool ShowPatientDashboardWidget { get; set; }
 }
 
+public class DashboardFinancesViewModel
+{
+    public DateTime From { get; set; }
+    public DateTime To { get; set; }
+    public List<DashboardFinanceDayRow> Days { get; set; } = new();
+    public List<DashboardPaymentBreakdownRow> PaymentBreakdown { get; set; } = new();
+    public decimal TotalCa { get; set; }
+    public decimal TotalMarge { get; set; }
+    public int TotalVentes { get; set; }
+}
+
+public class DashboardFinanceDayRow
+{
+    public DateTime Date { get; set; }
+    public decimal Ca { get; set; }
+    public decimal MargeBrute { get; set; }
+    public decimal PanierMoyen { get; set; }
+    public int NbVentes { get; set; }
+}
+
+public class DashboardPaymentBreakdownRow
+{
+    public PaymentMethod PaymentMethod { get; set; }
+    public int SaleCount { get; set; }
+    public decimal Total { get; set; }
+}
+
 public class DashboardMovementRow
 {
     public int Id { get; set; }

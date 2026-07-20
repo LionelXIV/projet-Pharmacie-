@@ -33,11 +33,15 @@ public static class AppRoles
     /// <summary>Commandes fournisseurs et réceptions.</summary>
     public const string Purchasing = $"{Administrateur},{Pharmacien},{GestionnaireStock}";
 
-    /// <summary>Tableau de bord (indicateurs globaux).</summary>
-    public const string DashboardAccess = $"{Administrateur},{Pharmacien},{GestionnaireStock}";
+    /// <summary>Tableau de bord (indicateurs opérationnels — tous les rôles métier).</summary>
+    public const string DashboardAccess =
+        $"{Administrateur},{Pharmacien},{Assistant},{GestionnaireStock},{Caissier}";
 
-    /// <summary>Rapports (même périmètre que le tableau de bord).</summary>
-    public const string ReportsAccess = DashboardAccess;
+    /// <summary>Rapports (indicateurs globaux sensibles — hors caissier / assistant).</summary>
+    public const string ReportsAccess = $"{Administrateur},{Pharmacien},{GestionnaireStock}";
+
+    /// <summary>Marge, panier moyen et page Finances (Admin / Pharmacien uniquement).</summary>
+    public const string FinancesAccess = $"{Administrateur},{Pharmacien}";
 
     /// <summary>Portefeuille patients : consultation (Admin, Pharmacien, Assistant).</summary>
     public const string PatientsRead = $"{Administrateur},{Pharmacien},{Assistant}";
@@ -57,9 +61,18 @@ public static class AppRoles
     public static bool CanAccessDashboard(ClaimsPrincipal user) =>
         user.IsInRole(Administrateur)
         || user.IsInRole(Pharmacien)
+        || user.IsInRole(Assistant)
+        || user.IsInRole(GestionnaireStock)
+        || user.IsInRole(Caissier);
+
+    public static bool CanAccessReports(ClaimsPrincipal user) =>
+        user.IsInRole(Administrateur)
+        || user.IsInRole(Pharmacien)
         || user.IsInRole(GestionnaireStock);
 
-    public static bool CanAccessReports(ClaimsPrincipal user) => CanAccessDashboard(user);
+    public static bool CanAccessFinances(ClaimsPrincipal user) =>
+        user.IsInRole(Administrateur)
+        || user.IsInRole(Pharmacien);
 
     public static bool CanAccessSales(ClaimsPrincipal user) =>
         user.IsInRole(Administrateur)
