@@ -17,5 +17,8 @@ public class Sale
     [Display(Name = "Utilisateur")]
     public string? UserId { get; set; }
 
+    [Display(Name = "Moyen de paiement")]
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Especes;
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

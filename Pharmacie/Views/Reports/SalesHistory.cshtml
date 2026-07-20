@@ -31,6 +31,7 @@
                 <th class="text-end">N° vente</th>
                 <th class="text-end">Lignes</th>
                 <th class="text-end">Total</th>
+                <th>Paiement</th>
                 <th></th>
             </tr>
         </thead>
@@ -42,6 +43,11 @@
                     <td class="text-end">@r.SaleId</td>
                     <td class="text-end">@r.LineCount</td>
                     <td class="text-end fw-medium">@ReportCsvFormatter.FormatFcfa(r.Total)</td>
+                    <td>
+                        <span class="badge @PaymentMethodDisplay.BadgeCssClass(r.PaymentMethod)">
+                            @PaymentMethodDisplay.GetName(r.PaymentMethod)
+                        </span>
+                    </td>
                     <td class="text-end"><a asp-controller="Sales" asp-action="Details" asp-route-id="@r.SaleId">Détail</a></td>
                 </tr>
             }

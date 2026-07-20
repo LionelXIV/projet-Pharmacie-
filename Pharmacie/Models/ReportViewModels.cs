@@ -43,6 +43,7 @@ public class ReportSaleHistoryRowViewModel
     public DateTime SoldAt { get; set; }
     public int LineCount { get; set; }
     public decimal Total { get; set; }
+    public PaymentMethod PaymentMethod { get; set; }
 }
 
 public class ReportMovementHistoryRowViewModel

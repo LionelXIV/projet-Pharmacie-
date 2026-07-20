@@ -20,7 +20,8 @@ public class SaleService
         DateTime soldAt,
         string? notes,
         IReadOnlyList<(int ProductId, int Quantity)> lines,
-        string? userId)
+        string? userId,
+        PaymentMethod paymentMethod = PaymentMethod.Especes)
     {
         if (lines.Count == 0)
             return (false, "Ajoutez au moins une ligne avec un produit et une quantité.", null);
@@ -34,7 +35,8 @@ public class SaleService
             {
                 SoldAt = soldAt,
                 Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
-                UserId = userId
+                UserId = userId,
+                PaymentMethod = paymentMethod
             };
             _db.Sales.Add(sale);
 

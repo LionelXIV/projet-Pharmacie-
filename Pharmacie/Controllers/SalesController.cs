@@ -120,11 +120,13 @@ public class SalesController : Controller
             ReportCsvFormatter.Escape("N° vente"),
             ReportCsvFormatter.Escape("Date vente"),
             ReportCsvFormatter.Escape("Enregistré par"),
+            ReportCsvFormatter.Escape("Moyen de paiement"),
             ReportCsvFormatter.Escape("Notes")));
         sb.AppendLine(string.Join(',',
             ReportCsvFormatter.IntInvariant(sale.Id),
             ReportCsvFormatter.Escape(sale.SoldAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
             ReportCsvFormatter.Escape(recordedBy),
+            ReportCsvFormatter.Escape(PaymentMethodDisplay.GetName(sale.PaymentMethod)),
             ReportCsvFormatter.Escape(sale.Notes ?? "")));
 
         sb.AppendLine();
@@ -182,7 +184,8 @@ public class SalesController : Controller
                 model.SoldAt,
                 model.Notes,
                 lines,
-                userId);
+                userId,
+                model.PaymentMethod);
             if (ok && saleId.HasValue)
                 return RedirectToAction(nameof(Details), new { id = saleId.Value });
 

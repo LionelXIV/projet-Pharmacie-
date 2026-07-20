@@ -139,7 +139,8 @@ public class ReportsController : Controller
             ReportCsvFormatter.Escape("Date vente"),
             ReportCsvFormatter.Escape("N° vente"),
             ReportCsvFormatter.Escape("Nombre de lignes"),
-            ReportCsvFormatter.Escape("Total (FCFA)")));
+            ReportCsvFormatter.Escape("Total (FCFA)"),
+            ReportCsvFormatter.Escape("Moyen de paiement")));
 
         foreach (var r in rows)
         {
@@ -147,7 +148,8 @@ public class ReportsController : Controller
                 ReportCsvFormatter.Escape(r.SoldAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)),
                 ReportCsvFormatter.IntInvariant(r.SaleId),
                 ReportCsvFormatter.IntInvariant(r.LineCount),
-                ReportCsvFormatter.FcfaCsvAmount(r.Total)));
+                ReportCsvFormatter.FcfaCsvAmount(r.Total),
+                ReportCsvFormatter.Escape(PaymentMethodDisplay.GetName(r.PaymentMethod))));
         }
 
         var bytes = ReportCsvFormatter.ToUtf8BytesWithBom(sb.ToString());
@@ -311,7 +313,8 @@ public class ReportsController : Controller
             SaleId = s.Id,
             SoldAt = s.SoldAt,
             LineCount = s.Lines.Count,
-            Total = s.Lines.Sum(l => l.Quantity * l.UnitPrice)
+            Total = s.Lines.Sum(l => l.Quantity * l.UnitPrice),
+            PaymentMethod = s.PaymentMethod
         }).ToList();
     }
 

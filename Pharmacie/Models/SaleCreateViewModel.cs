@@ -13,6 +13,9 @@ public class SaleCreateViewModel
     [Display(Name = "Notes")]
     public string? Notes { get; set; }
 
+    [Display(Name = "Moyen de paiement")]
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Especes;
+
     public List<SaleLineSlotViewModel> Lines { get; set; } = new();
 }
 

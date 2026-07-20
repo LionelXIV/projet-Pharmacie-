@@ -8,6 +8,12 @@
     <h1 class="page-title">Vente #@Model.Id</h1>
     <p class="page-lead mb-0">@Model.SoldAt.ToString("g")</p>
     <p class="small text-muted mb-0 mt-2">Enregistré par : <strong>@(ViewBag.RecordedBy ?? "—")</strong></p>
+    <p class="small mb-0 mt-2">
+        Moyen de paiement :
+        <span class="badge @PaymentMethodDisplay.BadgeCssClass(Model.PaymentMethod)">
+            @PaymentMethodDisplay.GetName(Model.PaymentMethod)
+        </span>
+    </p>
 </div>
 
 <div class="row">
