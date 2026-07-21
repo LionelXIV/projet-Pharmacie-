@@ -2,29 +2,29 @@
    VARIABLES CSS — Système de design Pharmacie
 ═══════════════════════════════════════ */
 :root {
-  /* Vert principal — profond et médical */
-  --ph-primary: #1A6B3C;
-  --ph-primary-dark: #145530;
-  --ph-primary-light: #E8F5EE;
-  --ph-primary-hover: #1E7D46;
+  /* Vert principal — plus clair et lumineux */
+  --ph-primary: #1E8449;        /* était #1A6B3C — plus clair */
+  --ph-primary-dark: #196F3D;   /* était #145530 */
+  --ph-primary-light: #EAFAF1;  /* était #E8F5EE */
+  --ph-primary-hover: #239B56;  /* était #1E7D46 */
 
   --ph-sidebar-width: 240px;
-  /* Sidebar — vert très foncé élégant */
-  --ph-sidebar-bg: #0D2818;
-  --ph-sidebar-text: #8FBA9F;
-  --ph-sidebar-text-hover: #C8E6D2;
+  /* Sidebar — légèrement moins foncée */
+  --ph-sidebar-bg: #0E3320;     /* était #0D2818 — très légèrement plus clair */
+  --ph-sidebar-text: #A9CCB5;   /* était #8FBA9F — plus lisible */
+  --ph-sidebar-text-hover: #D5EDE0;  /* était #C8E6D2 */
   --ph-sidebar-active-bg: rgba(255, 255, 255, 0.12);
   --ph-sidebar-active-text: #FFFFFF;
-  --ph-sidebar-brand: #2ECC71;
+  --ph-sidebar-brand: #2ECC71;  /* inchangé */
 
   /* Surfaces */
-  --ph-bg: #F0FAF4;
+  --ph-bg: #F2FCF5;             /* était #F0FAF4 */
   --ph-card-bg: #FFFFFF;
-  --ph-border: #D4EAD9;
+  --ph-border: #C8E6D2;         /* était #D4EAD9 */
 
   /* Texte */
   --ph-text: #0D2818;
-  --ph-text-muted: #5A7A62;
+  --ph-text-muted: #4A7A58;     /* était #5A7A62 */
 
   /* Statuts */
   --ph-success: #10B981;
