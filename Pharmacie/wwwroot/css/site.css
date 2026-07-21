@@ -2,29 +2,29 @@
    VARIABLES CSS — Système de design Pharmacie
 ═══════════════════════════════════════ */
 :root {
-  /* Vert Émeraude — lumineux et élégant */
-  --ph-primary: #2ECC71;
-  --ph-primary-dark: #27AE60;
-  --ph-primary-light: #EAFAF1;
-  --ph-primary-hover: #39D984;
+  /* Vert Sauge — doux, sophistiqué, médical */
+  --ph-primary: #4CAF82;
+  --ph-primary-dark: #3D9A6F;
+  --ph-primary-light: #EBF7F1;
+  --ph-primary-hover: #5BBF90;
 
   --ph-sidebar-width: 240px;
-  /* Sidebar — émeraude très foncé */
-  --ph-sidebar-bg: #0B3D22;
-  --ph-sidebar-text: #A9DFBF;
-  --ph-sidebar-text-hover: #D5F5E3;
-  --ph-sidebar-active-bg: rgba(46, 204, 113, 0.2);
+  /* Sidebar — sauge très foncé */
+  --ph-sidebar-bg: #0F2D1E;
+  --ph-sidebar-text: #95C4AA;
+  --ph-sidebar-text-hover: #C8E6D5;
+  --ph-sidebar-active-bg: rgba(76, 175, 130, 0.18);
   --ph-sidebar-active-text: #FFFFFF;
-  --ph-sidebar-brand: #2ECC71;
+  --ph-sidebar-brand: #4CAF82;
 
   /* Surfaces */
-  --ph-bg: #F2FCF5;
+  --ph-bg: #F3FAF6;
   --ph-card-bg: #FFFFFF;
-  --ph-border: #A9DFBF;
+  --ph-border: #B8DEC9;
 
   /* Texte */
-  --ph-text: #0B3D22;
-  --ph-text-muted: #1E8449;
+  --ph-text: #0F2D1E;
+  --ph-text-muted: #3D7A58;
 
   /* Statuts */
   --ph-success: #10B981;
@@ -45,10 +45,10 @@
   --ph-shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
 
   --bs-primary: var(--ph-primary);
-  --bs-primary-rgb: 46, 204, 113;
+  --bs-primary-rgb: 76, 175, 130;
   --bs-link-color: var(--ph-primary-dark);
   --bs-link-hover-color: var(--ph-primary-dark);
-  --bs-focus-ring-color: rgba(46, 204, 113, 0.45);
+  --bs-focus-ring-color: rgba(76, 175, 130, 0.45);
 }
 
 /* BASE */
@@ -68,15 +68,15 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link,
 
 /* BOOTSTRAP OVERRIDES */
 .btn-primary {
-  background-color: #2ECC71;
-  border-color: #2ECC71;
+  background-color: #4CAF82;
+  border-color: #4CAF82;
   color: #FFFFFF;
 }
 
 .btn-primary:hover,
 .btn-primary:focus {
-  background-color: #27AE60;
-  border-color: #27AE60;
+  background-color: #3D9A6F;
+  border-color: #3D9A6F;
   color: #FFFFFF;
 }
 
@@ -147,12 +147,12 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link,
 
 .form-control:focus,
 .form-select:focus {
-  border-color: #2ECC71;
-  box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.25);
+  border-color: #4CAF82;
+  box-shadow: 0 0 0 3px rgba(76, 175, 130, 0.20);
 }
 
 a {
-  color: #27AE60;
+  color: #3D9A6F;
 }
 
 a:hover {
@@ -456,13 +456,13 @@ main h1:not(.hero-title) {
 
 .btn-primary {
   --bs-btn-color: #FFFFFF;
-  --bs-btn-bg: #2ECC71;
-  --bs-btn-border-color: #2ECC71;
-  --bs-btn-hover-bg: #27AE60;
-  --bs-btn-hover-border-color: #27AE60;
+  --bs-btn-bg: #4CAF82;
+  --bs-btn-border-color: #4CAF82;
+  --bs-btn-hover-bg: #3D9A6F;
+  --bs-btn-hover-border-color: #3D9A6F;
   --bs-btn-hover-color: #FFFFFF;
-  --bs-btn-active-bg: #27AE60;
-  --bs-btn-active-border-color: #27AE60;
+  --bs-btn-active-bg: #3D9A6F;
+  --bs-btn-active-border-color: #3D9A6F;
   --bs-btn-active-color: #FFFFFF;
   font-weight: 600;
   border-radius: 0.5rem;
@@ -533,8 +533,8 @@ main h1:not(.hero-title) {
 
 .form-control:focus,
 .form-select:focus {
-  border-color: #2ECC71;
-  box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.25);
+  border-color: #4CAF82;
+  box-shadow: 0 0 0 3px rgba(76, 175, 130, 0.20);
 }
 
 .btn:focus,
