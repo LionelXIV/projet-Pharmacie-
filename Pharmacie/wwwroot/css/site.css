@@ -2,29 +2,29 @@
    VARIABLES CSS — Système de design Pharmacie
 ═══════════════════════════════════════ */
 :root {
-  /* Vert principal — plus clair et lumineux */
-  --ph-primary: #1E8449;        /* était #1A6B3C — plus clair */
-  --ph-primary-dark: #196F3D;   /* était #145530 */
-  --ph-primary-light: #EAFAF1;  /* était #E8F5EE */
-  --ph-primary-hover: #239B56;  /* était #1E7D46 */
+  /* Vert Émeraude — lumineux et élégant */
+  --ph-primary: #2ECC71;
+  --ph-primary-dark: #27AE60;
+  --ph-primary-light: #EAFAF1;
+  --ph-primary-hover: #39D984;
 
   --ph-sidebar-width: 240px;
-  /* Sidebar — légèrement moins foncée */
-  --ph-sidebar-bg: #0E3320;     /* était #0D2818 — très légèrement plus clair */
-  --ph-sidebar-text: #A9CCB5;   /* était #8FBA9F — plus lisible */
-  --ph-sidebar-text-hover: #D5EDE0;  /* était #C8E6D2 */
-  --ph-sidebar-active-bg: rgba(255, 255, 255, 0.12);
+  /* Sidebar — émeraude très foncé */
+  --ph-sidebar-bg: #0B3D22;
+  --ph-sidebar-text: #A9DFBF;
+  --ph-sidebar-text-hover: #D5F5E3;
+  --ph-sidebar-active-bg: rgba(46, 204, 113, 0.2);
   --ph-sidebar-active-text: #FFFFFF;
-  --ph-sidebar-brand: #2ECC71;  /* inchangé */
+  --ph-sidebar-brand: #2ECC71;
 
   /* Surfaces */
-  --ph-bg: #F2FCF5;             /* était #F0FAF4 */
+  --ph-bg: #F2FCF5;
   --ph-card-bg: #FFFFFF;
-  --ph-border: #C8E6D2;         /* était #D4EAD9 */
+  --ph-border: #A9DFBF;
 
   /* Texte */
-  --ph-text: #0D2818;
-  --ph-text-muted: #4A7A58;     /* était #5A7A62 */
+  --ph-text: #0B3D22;
+  --ph-text-muted: #1E8449;
 
   /* Statuts */
   --ph-success: #10B981;
@@ -45,10 +45,10 @@
   --ph-shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
 
   --bs-primary: var(--ph-primary);
-  --bs-primary-rgb: 26, 107, 60;
-  --bs-link-color: var(--ph-primary);
+  --bs-primary-rgb: 46, 204, 113;
+  --bs-link-color: var(--ph-primary-dark);
   --bs-link-hover-color: var(--ph-primary-dark);
-  --bs-focus-ring-color: rgba(26, 107, 60, 0.45);
+  --bs-focus-ring-color: rgba(46, 204, 113, 0.45);
 }
 
 /* BASE */
@@ -68,19 +68,22 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link,
 
 /* BOOTSTRAP OVERRIDES */
 .btn-primary {
-  background-color: var(--ph-primary);
-  border-color: var(--ph-primary);
+  background-color: #2ECC71;
+  border-color: #2ECC71;
+  color: #FFFFFF;
 }
 
 .btn-primary:hover,
 .btn-primary:focus {
-  background-color: var(--ph-primary-hover);
-  border-color: var(--ph-primary-hover);
+  background-color: #27AE60;
+  border-color: #27AE60;
+  color: #FFFFFF;
 }
 
 .btn-primary:active {
   background-color: var(--ph-primary-dark);
   border-color: var(--ph-primary-dark);
+  color: #FFFFFF;
 }
 
 .text-primary {
@@ -144,12 +147,12 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link,
 
 .form-control:focus,
 .form-select:focus {
-  border-color: var(--ph-primary);
-  box-shadow: 0 0 0 3px rgba(26, 107, 60, 0.15);
+  border-color: #2ECC71;
+  box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.25);
 }
 
 a {
-  color: var(--ph-primary);
+  color: #27AE60;
 }
 
 a:hover {
@@ -452,12 +455,15 @@ main h1:not(.hero-title) {
 }
 
 .btn-primary {
-  --bs-btn-bg: var(--ph-primary);
-  --bs-btn-border-color: var(--ph-primary);
-  --bs-btn-hover-bg: var(--ph-primary-dark);
-  --bs-btn-hover-border-color: var(--ph-primary-dark);
-  --bs-btn-active-bg: var(--ph-primary-dark);
-  --bs-btn-active-border-color: var(--ph-primary-dark);
+  --bs-btn-color: #FFFFFF;
+  --bs-btn-bg: #2ECC71;
+  --bs-btn-border-color: #2ECC71;
+  --bs-btn-hover-bg: #27AE60;
+  --bs-btn-hover-border-color: #27AE60;
+  --bs-btn-hover-color: #FFFFFF;
+  --bs-btn-active-bg: #27AE60;
+  --bs-btn-active-border-color: #27AE60;
+  --bs-btn-active-color: #FFFFFF;
   font-weight: 600;
   border-radius: 0.5rem;
   padding: 0.45rem 1rem;
@@ -527,8 +533,8 @@ main h1:not(.hero-title) {
 
 .form-control:focus,
 .form-select:focus {
-  border-color: var(--ph-primary);
-  box-shadow: 0 0 0 0.2rem rgba(26, 107, 60, 0.18);
+  border-color: #2ECC71;
+  box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.25);
 }
 
 .btn:focus,
