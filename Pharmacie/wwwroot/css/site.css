@@ -2,28 +2,39 @@
    VARIABLES CSS — Système de design Pharmacie
 ═══════════════════════════════════════ */
 :root {
-  --ph-primary: #2563EB;
-  --ph-primary-dark: #1D4ED8;
-  --ph-primary-light: #EFF6FF;
+  /* Vert principal — profond et médical */
+  --ph-primary: #1A6B3C;
+  --ph-primary-dark: #145530;
+  --ph-primary-light: #E8F5EE;
+  --ph-primary-hover: #1E7D46;
 
   --ph-sidebar-width: 240px;
-  --ph-sidebar-bg: #0F172A;
-  --ph-sidebar-text: #94A3B8;
-  --ph-sidebar-text-hover: #E2E8F0;
-  --ph-sidebar-active-bg: rgba(255,255,255,0.1);
+  /* Sidebar — vert très foncé élégant */
+  --ph-sidebar-bg: #0D2818;
+  --ph-sidebar-text: #8FBA9F;
+  --ph-sidebar-text-hover: #C8E6D2;
+  --ph-sidebar-active-bg: rgba(255, 255, 255, 0.12);
   --ph-sidebar-active-text: #FFFFFF;
+  --ph-sidebar-brand: #2ECC71;
 
-  --ph-bg: #F1F5F9;
+  /* Surfaces */
+  --ph-bg: #F0FAF4;
   --ph-card-bg: #FFFFFF;
-  --ph-border: #E2E8F0;
+  --ph-border: #D4EAD9;
 
-  --ph-text: #0F172A;
-  --ph-text-muted: #64748B;
+  /* Texte */
+  --ph-text: #0D2818;
+  --ph-text-muted: #5A7A62;
 
+  /* Statuts */
   --ph-success: #10B981;
   --ph-warning: #F59E0B;
   --ph-danger: #EF4444;
-  --ph-info: #3B82F6;
+  --ph-info: #0EA5E9;
+
+  /* Accent vert vif */
+  --ph-accent: #2ECC71;
+  --ph-accent-dark: #27AE60;
 
   --ph-font-ui: 'Nunito', sans-serif;
   --ph-font-data: 'Inter', sans-serif;
@@ -34,10 +45,10 @@
   --ph-shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
 
   --bs-primary: var(--ph-primary);
-  --bs-primary-rgb: 37, 99, 235;
+  --bs-primary-rgb: 26, 107, 60;
   --bs-link-color: var(--ph-primary);
   --bs-link-hover-color: var(--ph-primary-dark);
-  --bs-focus-ring-color: rgba(37, 99, 235, 0.45);
+  --bs-focus-ring-color: rgba(26, 107, 60, 0.45);
 }
 
 /* BASE */
@@ -61,7 +72,13 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link,
   border-color: var(--ph-primary);
 }
 
-.btn-primary:hover {
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--ph-primary-hover);
+  border-color: var(--ph-primary-hover);
+}
+
+.btn-primary:active {
   background-color: var(--ph-primary-dark);
   border-color: var(--ph-primary-dark);
 }
@@ -114,7 +131,7 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link,
 }
 
 .table-hover tbody tr:hover {
-  background-color: #F8FAFC;
+  background-color: var(--ph-primary-light);
 }
 
 /* FORMULAIRES */
@@ -128,7 +145,21 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .nav-link,
 .form-control:focus,
 .form-select:focus {
   border-color: var(--ph-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 3px rgba(26, 107, 60, 0.15);
+}
+
+a {
+  color: var(--ph-primary);
+}
+
+a:hover {
+  color: var(--ph-primary-dark);
+}
+
+/* Wave (marque) — bleu conservé même si primary est vert */
+.badge-wave {
+  background-color: #2563EB !important;
+  color: #fff !important;
 }
 
 .form-label {
@@ -186,13 +217,13 @@ html {
   background: var(--ph-info);
   border-radius: 0.5rem;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 4px 14px rgba(26, 107, 60, 0.35);
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
 
 .app-dropdown-menu {
-  border: 1px solid rgba(37, 99, 235, 0.14) !important;
+  border: 1px solid rgba(26, 107, 60, 0.14) !important;
 }
 
 a[href]:not([disabled]),
@@ -210,14 +241,14 @@ summary {
 }
 
 #main-content:focus-visible {
-  outline: 3px solid rgba(59, 130, 246, 0.55);
+  outline: 3px solid rgba(26, 107, 60, 0.55);
   outline-offset: 4px;
 }
 
 .app-navbar {
   background: #fff !important;
   border-bottom: 1px solid var(--ph-border) !important;
-  box-shadow: 0 1px 0 rgba(37, 99, 235, 0.07), 0 10px 28px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 1px 0 rgba(26, 107, 60, 0.07), 0 10px 28px rgba(15, 23, 42, 0.05);
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;
   max-width: 100%;
@@ -260,7 +291,7 @@ summary {
 }
 
 .app-navbar-toggler:focus {
-  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 0 0.2rem rgba(26, 107, 60, 0.35);
 }
 
 .app-navbar .navbar-brand {
@@ -279,7 +310,7 @@ summary {
 .brand-mark svg,
 .brand-mark-svg {
   display: block;
-  filter: drop-shadow(0 1px 4px rgba(37, 99, 235, 0.2));
+  filter: drop-shadow(0 1px 4px rgba(26, 107, 60, 0.2));
 }
 
 .brand-text {
@@ -330,7 +361,7 @@ summary {
 }
 
 .app-nav-link:focus-visible {
-  outline: 3px solid rgba(59, 130, 246, 0.55);
+  outline: 3px solid rgba(26, 107, 60, 0.55);
   outline-offset: 2px;
 }
 
@@ -435,10 +466,10 @@ main h1:not(.hero-title) {
 
 .btn-cta {
   --bs-btn-color: #fff;
-  --bs-btn-bg: var(--ph-info);
-  --bs-btn-border-color: var(--ph-info);
-  --bs-btn-hover-bg: var(--ph-primary-dark);
-  --bs-btn-hover-border-color: var(--ph-primary-dark);
+  --bs-btn-bg: var(--ph-primary);
+  --bs-btn-border-color: var(--ph-primary);
+  --bs-btn-hover-bg: var(--ph-primary-hover);
+  --bs-btn-hover-border-color: var(--ph-primary-hover);
   --bs-btn-active-bg: var(--ph-primary-dark);
   --bs-btn-active-border-color: var(--ph-primary-dark);
   font-weight: 600;
@@ -447,12 +478,12 @@ main h1:not(.hero-title) {
 }
 
 .btn-outline-cta {
-  --bs-btn-color: var(--ph-info);
-  --bs-btn-border-color: rgba(59, 130, 246, 0.35);
-  --bs-btn-hover-bg: rgba(59, 130, 246, 0.08);
-  --bs-btn-hover-border-color: var(--ph-info);
+  --bs-btn-color: var(--ph-primary);
+  --bs-btn-border-color: rgba(26, 107, 60, 0.35);
+  --bs-btn-hover-bg: rgba(26, 107, 60, 0.08);
+  --bs-btn-hover-border-color: var(--ph-primary);
   --bs-btn-hover-color: var(--ph-primary-dark);
-  --bs-btn-active-bg: rgba(59, 130, 246, 0.12);
+  --bs-btn-active-bg: rgba(26, 107, 60, 0.12);
   --bs-btn-active-border-color: var(--ph-primary-dark);
   --bs-btn-active-color: var(--ph-primary-dark);
   font-weight: 600;
@@ -491,20 +522,20 @@ main h1:not(.hero-title) {
   color: var(--ph-text-muted);
   font-weight: 600;
   border-bottom-color: var(--ph-border) !important;
-  background: rgba(239, 246, 255, 0.55);
+  background: rgba(232, 245, 238, 0.55);
 }
 
 .form-control:focus,
 .form-select:focus {
   border-color: var(--ph-primary);
-  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.18);
+  box-shadow: 0 0 0 0.2rem rgba(26, 107, 60, 0.18);
 }
 
 .btn:focus,
 .btn:active:focus,
 .btn-link.nav-link:focus,
 .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.25rem rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.25rem rgba(26, 107, 60, 0.4);
 }
 
 .app-footer {
@@ -556,7 +587,7 @@ main h1:not(.hero-title) {
 .app-home-card,
 .demo-card {
   height: 100%;
-  border: 1px solid rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(26, 107, 60, 0.14);
   border-radius: 0.75rem;
   background: #fff;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -618,7 +649,7 @@ main h1:not(.hero-title) {
 
 .app-tag-subtle,
 .badge-demo {
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(26, 107, 60, 0.08);
   color: var(--ph-primary-dark);
   font-weight: 600;
   font-size: 0.7rem;
@@ -746,8 +777,8 @@ main h1:not(.hero-title) {
 .table-card {
   background: #fff;
   border-radius: 0.75rem;
-  border: 1px solid rgba(37, 99, 235, 0.12);
-  box-shadow: 0 1px 0 rgba(37, 99, 235, 0.06), 0 6px 20px rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(26, 107, 60, 0.12);
+  box-shadow: 0 1px 0 rgba(26, 107, 60, 0.06), 0 6px 20px rgba(15, 23, 42, 0.05);
   overflow: hidden;
 }
 
@@ -779,7 +810,7 @@ main h1:not(.hero-title) {
 
 .app-breadcrumb {
   padding: 0.5rem 0.85rem;
-  background: rgba(239, 246, 255, 0.5);
+  background: rgba(232, 245, 238, 0.5);
   border-radius: 0.5rem;
   border: 1px solid var(--ph-border);
   font-size: 0.875rem;
@@ -821,7 +852,7 @@ main h1:not(.hero-title) {
   font-size: 0.8rem;
   color: var(--ph-text-muted);
   padding: 0.5rem 1rem;
-  background: rgba(239, 246, 255, 0.4);
+  background: rgba(232, 245, 238, 0.4);
   border-top: 1px solid var(--ph-border);
 }
 
@@ -867,7 +898,7 @@ main h1:not(.hero-title) {
   color: var(--ph-text-muted);
   text-align: center;
   padding: 0.35rem 0.5rem;
-  background: rgba(239, 246, 255, 0.55);
+  background: rgba(232, 245, 238, 0.55);
   border: 1px dashed var(--ph-border);
   border-radius: 0.5rem;
   margin-bottom: 0;
@@ -876,7 +907,7 @@ main h1:not(.hero-title) {
 .app-empty-state {
   text-align: center;
   padding: 2rem 1.15rem;
-  background: rgba(239, 246, 255, 0.4);
+  background: rgba(232, 245, 238, 0.4);
   border: 1px dashed var(--ph-border);
   border-radius: 0.75rem;
   color: var(--ph-text-muted);
@@ -919,7 +950,7 @@ main h1:not(.hero-title) {
 
 .app-kpi-card {
   border-radius: 0.75rem;
-  border: 1px solid rgba(37, 99, 235, 0.12) !important;
+  border: 1px solid rgba(26, 107, 60, 0.12) !important;
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
@@ -955,11 +986,11 @@ main h1:not(.hero-title) {
 }
 
 .app-activity-panel .card-header {
-  border-bottom: 1px solid rgba(37, 99, 235, 0.12);
+  border-bottom: 1px solid rgba(26, 107, 60, 0.12);
 }
 
 .dropdown-item:focus-visible {
-  outline: 3px solid rgba(59, 130, 246, 0.45);
+  outline: 3px solid rgba(26, 107, 60, 0.45);
   outline-offset: -3px;
 }
 
@@ -1052,7 +1083,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 
 .ph-sidebar-brand i {
   font-size: 1.4rem;
-  color: var(--ph-primary);
+  color: var(--ph-sidebar-brand);
 }
 
 .ph-sidebar-nav {
@@ -1096,7 +1127,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 
 .ph-sidebar-nav .nav-link.active {
   color: var(--ph-sidebar-active-text);
-  background-color: var(--ph-primary);
+  background-color: var(--ph-sidebar-active-bg);
   font-weight: 600;
 }
 

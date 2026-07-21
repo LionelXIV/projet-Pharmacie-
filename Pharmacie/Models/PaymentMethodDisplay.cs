@@ -14,7 +14,7 @@ public static class PaymentMethodDisplay
 
     public static string BadgeCssClass(PaymentMethod method) => method switch
     {
-        PaymentMethod.Wave => "text-bg-primary",
+        PaymentMethod.Wave => "badge-wave",
         PaymentMethod.OrangeMoney => "text-bg-warning",
         _ => "text-bg-secondary"
     };

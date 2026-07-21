@@ -25,3 +25,4 @@ Chaque analyse / diagnostic / brief produit dans Cursor est enregistré ici pour
 | 2026-07-20 | [2026-07-20_feat-finances-dashboard.md](2026-07-20_feat-finances-dashboard.md) | Marge brute / panier moyen Dashboard + page Finances (Admin/Pharmacien) |
 | 2026-07-20 | [2026-07-20_fix-exports-csv.md](2026-07-20_fix-exports-csv.md) | Fix exports CSV : BOM réel, séparateur ;, PaymentMethod FR |
 | 2026-07-20 | [2026-07-20_fix-tomselect-name-sales-create.md](2026-07-20_fix-tomselect-name-sales-create.md) | name/id explicites TomSelect Sales/Create (ProductId POST) |
+| 2026-07-20 | [2026-07-20_feat-palette-verte-pharmacie.md](2026-07-20_feat-palette-verte-pharmacie.md) | Palette verte pharmacie (CSS + brand + charts) |
