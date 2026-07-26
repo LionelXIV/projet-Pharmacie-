@@ -366,5 +366,30 @@
   });
 })();
     </script>
+    <script>
+(function() {
+  'use strict';
+  var sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+
+  // Restaurer la position sauvegardée
+  var savedScroll = sessionStorage.getItem('sidebarScrollTop');
+  if (savedScroll) {
+    sidebar.scrollTop = parseInt(savedScroll, 10);
+  }
+
+  // Sauvegarder la position avant chaque navigation
+  sidebar.addEventListener('scroll', function() {
+    sessionStorage.setItem('sidebarScrollTop', sidebar.scrollTop);
+  });
+
+  // Aussi sauvegarder au clic sur un lien
+  sidebar.querySelectorAll('a.nav-link').forEach(function(link) {
+    link.addEventListener('click', function() {
+      sessionStorage.setItem('sidebarScrollTop', sidebar.scrollTop);
+    });
+  });
+})();
+    </script>
 </body>
 </html>
