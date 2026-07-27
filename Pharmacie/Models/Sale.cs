@@ -17,6 +17,11 @@ public class Sale
     [Display(Name = "Utilisateur")]
     public string? UserId { get; set; }
 
+    [Display(Name = "Vendeur")]
+    public int? VendeurId { get; set; }
+
+    public Vendeur? Vendeur { get; set; }
+
     [Display(Name = "Moyen de paiement")]
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Especes;
 

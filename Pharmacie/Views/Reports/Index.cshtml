@@ -1,3 +1,4 @@
+@using Pharmacie.Authorization
 @{
     ViewData["Title"] = "Rapports";
 }
@@ -53,4 +54,16 @@
             </div>
         </div>
     </div>
+    @if (User.IsInRole(AppRoles.Administrateur) || User.IsInRole(AppRoles.Pharmacien))
+    {
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 report-hub-card">
+                <div class="card-body">
+                    <h2 class="h5 card-title"><i class="bi bi-bar-chart-steps" aria-hidden="true"></i>Performance vendeurs</h2>
+                    <p class="card-text small text-muted">Chiffre d'affaires du jour par vendeur.</p>
+                    <a class="btn btn-outline-primary stretched-link" asp-action="VendeursDuJour">Ouvrir</a>
+                </div>
+            </div>
+        </div>
+    }
 </div>

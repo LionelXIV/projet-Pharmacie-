@@ -80,6 +80,18 @@
                         <span asp-validation-for="PaymentMethod" class="text-danger"></span>
                     </div>
 
+                    <div class="mb-3">
+                        <label asp-for="VendeurId" class="form-label fw-semibold">
+                            <i class="bi bi-person-badge" aria-hidden="true"></i>
+                            Vendeur *
+                        </label>
+                        <select asp-for="VendeurId" class="form-select" asp-items="ViewBag.Vendeurs" required>
+                            <option value="">-- Sélectionner le vendeur --</option>
+                        </select>
+                        <span asp-validation-for="VendeurId" class="text-danger"></span>
+                        <div class="form-text">Indiquez le vendeur qui a conseillé le client.</div>
+                    </div>
+
                     <div class="d-flex flex-wrap gap-2 pt-2 border-top">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Valider la vente</button>
                         <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>

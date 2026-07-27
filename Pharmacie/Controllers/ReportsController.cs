@@ -313,6 +313,90 @@ public class ReportsController : Controller
         }).ToList();
     }
 
+    [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> VendeursDuJour(DateTime? date = null)
+    {
+        var targetDate = (date ?? DateTime.Today).Date;
+        var rapport = await BuildVendeurRapportAsync(targetDate);
+        ViewBag.DateRapport = targetDate;
+        ViewBag.TotalJour = rapport.Sum(r => r.ChiffreAffaires);
+        ViewBag.TotalVentes = rapport.Sum(r => r.NombreVentes);
+        return View(rapport);
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> ExportVendeursCsv(DateTime? date = null)
+    {
+        var targetDate = (date ?? DateTime.Today).Date;
+        var rapport = await BuildVendeurRapportAsync(targetDate);
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Vendeur"),
+            ReportCsvFormatter.Escape("Couleur ticket"),
+            ReportCsvFormatter.Escape("Nb ventes"),
+            ReportCsvFormatter.Escape("CA (FCFA)"),
+            ReportCsvFormatter.Escape("Articles"),
+            ReportCsvFormatter.Escape("Panier moyen (FCFA)")));
+
+        foreach (var r in rapport)
+        {
+            sb.AppendLine(ReportCsvFormatter.Join(
+                ReportCsvFormatter.Escape(r.NomVendeur),
+                ReportCsvFormatter.Escape(r.CouleurTicket ?? ""),
+                ReportCsvFormatter.IntInvariant(r.NombreVentes),
+                ReportCsvFormatter.FcfaCsvAmount(r.ChiffreAffaires),
+                ReportCsvFormatter.IntInvariant(r.NombreArticles),
+                ReportCsvFormatter.FcfaCsvAmount(r.PanierMoyen)));
+        }
+
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("TOTAL"),
+            "",
+            ReportCsvFormatter.IntInvariant(rapport.Sum(r => r.NombreVentes)),
+            ReportCsvFormatter.FcfaCsvAmount(rapport.Sum(r => r.ChiffreAffaires)),
+            ReportCsvFormatter.IntInvariant(rapport.Sum(r => r.NombreArticles)),
+            ""));
+
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), $"performance_vendeurs_{targetDate:yyyyMMdd}");
+    }
+
+    private async Task<List<VendeurRapportViewModel>> BuildVendeurRapportAsync(DateTime targetDate)
+    {
+        var start = targetDate.Date;
+        var end = start.AddDays(1);
+        var sales = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+            .Include(s => s.Vendeur)
+            .Where(s => s.SoldAt >= start && s.SoldAt < end)
+            .ToListAsync();
+
+        return sales
+            .GroupBy(s => new
+            {
+                s.VendeurId,
+                Nom = s.Vendeur != null ? s.Vendeur.Nom : "Non attribué",
+                Couleur = s.Vendeur != null ? s.Vendeur.CouleurTicket : null
+            })
+            .Select(g =>
+            {
+                var ca = g.SelectMany(s => s.Lines).Sum(l => l.UnitPrice * l.Quantity);
+                var count = g.Count();
+                return new VendeurRapportViewModel
+                {
+                    VendeurId = g.Key.VendeurId,
+                    NomVendeur = g.Key.Nom,
+                    CouleurTicket = g.Key.Couleur,
+                    NombreVentes = count,
+                    ChiffreAffaires = ca,
+                    NombreArticles = g.SelectMany(s => s.Lines).Sum(l => l.Quantity),
+                    PanierMoyen = count > 0 ? ca / count : 0
+                };
+            })
+            .OrderByDescending(v => v.ChiffreAffaires)
+            .ToList();
+    }
+
     private async Task<List<ReportMovementHistoryRowViewModel>> LoadStockMovementsHistoryRowsAsync()
     {
         var movements = await _db.StockMovements

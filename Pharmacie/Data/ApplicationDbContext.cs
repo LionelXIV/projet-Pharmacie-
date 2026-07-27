@@ -30,6 +30,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ImportLine> ImportLines => Set<ImportLine>();
     public DbSet<ImportAnomaly> ImportAnomalies => Set<ImportAnomaly>();
     public DbSet<UserActivityReport> UserActivityReports => Set<UserActivityReport>();
+    public DbSet<Vendeur> Vendeurs => Set<Vendeur>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -99,6 +100,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany()
                 .HasForeignKey(l => l.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Sale>(entity =>
+        {
+            entity.HasOne(s => s.Vendeur)
+                .WithMany(v => v.Sales)
+                .HasForeignKey(s => s.VendeurId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<Vendeur>(entity =>
+        {
+            entity.ToTable("Vendeurs");
+            entity.Property(v => v.Nom).HasMaxLength(100).IsRequired();
+            entity.Property(v => v.CouleurTicket).HasMaxLength(50);
+            entity.HasIndex(v => v.Nom);
+            entity.HasIndex(v => v.IsActif);
         });
 
         builder.Entity<PurchaseOrder>(entity =>

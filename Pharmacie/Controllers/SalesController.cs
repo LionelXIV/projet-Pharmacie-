@@ -36,6 +36,7 @@ public class SalesController : Controller
         var q = _context.Sales
             .AsNoTracking()
             .Include(s => s.Lines)
+            .Include(s => s.Vendeur)
             .AsQueryable();
 
         if (filter.From.HasValue)
@@ -154,12 +155,13 @@ public class SalesController : Controller
         return ReportCsvFormatter.FileResult(this, sb.ToString(), $"vente-{sale.Id}-lignes");
     }
 
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
         var vm = new SaleCreateViewModel
         {
             Lines = Enumerable.Range(0, 8).Select(_ => new SaleLineSlotViewModel()).ToList()
         };
+        await PopulateVendeursAsync();
         return View(vm);
     }
 
@@ -176,6 +178,15 @@ public class SalesController : Controller
         if (lines.Count == 0)
             ModelState.AddModelError(string.Empty, "Ajoutez au moins une ligne avec un produit et une quantité.");
 
+        if (!model.VendeurId.HasValue || model.VendeurId.Value <= 0)
+            ModelState.AddModelError(nameof(model.VendeurId), "Veuillez sélectionner le vendeur.");
+        else
+        {
+            var vendeurOk = await _context.Vendeurs.AnyAsync(v => v.Id == model.VendeurId && v.IsActif);
+            if (!vendeurOk)
+                ModelState.AddModelError(nameof(model.VendeurId), "Vendeur invalide ou inactif.");
+        }
+
         if (ModelState.IsValid)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -186,7 +197,16 @@ public class SalesController : Controller
                 userId,
                 model.PaymentMethod);
             if (ok && saleId.HasValue)
+            {
+                var sale = await _context.Sales.FindAsync(saleId.Value);
+                if (sale != null)
+                {
+                    sale.VendeurId = model.VendeurId;
+                    await _context.SaveChangesAsync();
+                }
+
                 return RedirectToAction(nameof(Details), new { id = saleId.Value });
+            }
 
             ModelState.AddModelError(string.Empty, error ?? "Vente impossible.");
         }
@@ -196,7 +216,24 @@ public class SalesController : Controller
             model.Lines = Enumerable.Range(0, 8).Select(_ => new SaleLineSlotViewModel()).ToList();
         }
 
+        await PopulateVendeursAsync(model.VendeurId);
         return View(model);
+    }
+
+    private async Task PopulateVendeursAsync(int? selectedId = null)
+    {
+        var items = await _context.Vendeurs
+            .AsNoTracking()
+            .Where(v => v.IsActif)
+            .OrderBy(v => v.Nom)
+            .Select(v => new SelectListItem
+            {
+                Value = v.Id.ToString(),
+                Text = v.CouleurTicket != null ? $"{v.Nom} ({v.CouleurTicket})" : v.Nom,
+                Selected = selectedId.HasValue && v.Id == selectedId.Value
+            })
+            .ToListAsync();
+        ViewBag.Vendeurs = items;
     }
 
     private async Task PopulateSaleFilterUsersAsync(string? selectedUserId)

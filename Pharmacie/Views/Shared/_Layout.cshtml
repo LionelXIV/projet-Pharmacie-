@@ -37,6 +37,7 @@
     var isPatients = IsCtrlAny("Patients", "PatientPrescriptions", "PatientReminders", "PatientRemindersAlerts");
     var isAlerts = IsCtrl("Alerts");
     var isAdminUsers = IsCtrl("AdminUsers");
+    var isVendeurs = IsCtrl("Vendeurs");
     var showPrincipalSection = true;
     var showCatalogueSection = true;
     var showStockSection = true;
@@ -44,6 +45,8 @@
     var showPatientsSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessPatientsRead(User);
     var showDonneesSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessReports(User);
     var showAdminSection = User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur);
+    var showVendeursMenu = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessFinances(User);
+    var showPerformanceVendeurs = showVendeursMenu;
 }
 <body>
     <a class="skip-link visually-hidden-focusable" href="#main-content">Aller au contenu</a>
@@ -181,19 +184,34 @@
                         <a class="nav-link @(isReports && IsAction("StockMovementsHistory") ? "active" : null)" asp-controller="Reports" asp-action="StockMovementsHistory" aria-current="@(isReports && IsAction("StockMovementsHistory") ? "page" : null)">
                             <i class="bi bi-arrow-left-right" aria-hidden="true"></i>Historique mouvements
                         </a>
+                        @if (showPerformanceVendeurs)
+                        {
+                            <a class="nav-link @(isReports && IsActionAny("VendeursDuJour", "ExportVendeursCsv") ? "active" : null)" asp-controller="Reports" asp-action="VendeursDuJour" aria-current="@(isReports && IsActionAny("VendeursDuJour", "ExportVendeursCsv") ? "page" : null)">
+                                <i class="bi bi-bar-chart-steps" aria-hidden="true"></i>Performance vendeurs
+                            </a>
+                        }
                     </div>
                 }
 
-                @if (showAdminSection)
+                @if (showAdminSection || showVendeursMenu)
                 {
                     <div class="ph-nav-section">
                         <span class="ph-nav-label">Administration</span>
-                        <a class="nav-link @(isAdminUsers && IsActionAny("Index", "Create", "Edit", "DeleteWithReport") ? "active" : null)" asp-controller="AdminUsers" asp-action="Index" aria-current="@(isAdminUsers && IsActionAny("Index", "Create", "Edit", "DeleteWithReport") ? "page" : null)">
-                            <i class="bi bi-person-gear" aria-hidden="true"></i>Utilisateurs
-                        </a>
-                        <a class="nav-link @(isAdminUsers && IsActionAny("ActivityReports", "ActivityReportDetails", "ExportActivityReportCsv") ? "active" : null)" asp-controller="AdminUsers" asp-action="ActivityReports" aria-current="@(isAdminUsers && IsActionAny("ActivityReports", "ActivityReportDetails", "ExportActivityReportCsv") ? "page" : null)">
-                            <i class="bi bi-archive" aria-hidden="true"></i>Rapports utilisateurs
-                        </a>
+                        @if (showAdminSection)
+                        {
+                            <a class="nav-link @(isAdminUsers && IsActionAny("Index", "Create", "Edit", "DeleteWithReport") ? "active" : null)" asp-controller="AdminUsers" asp-action="Index" aria-current="@(isAdminUsers && IsActionAny("Index", "Create", "Edit", "DeleteWithReport") ? "page" : null)">
+                                <i class="bi bi-person-gear" aria-hidden="true"></i>Utilisateurs
+                            </a>
+                            <a class="nav-link @(isAdminUsers && IsActionAny("ActivityReports", "ActivityReportDetails", "ExportActivityReportCsv") ? "active" : null)" asp-controller="AdminUsers" asp-action="ActivityReports" aria-current="@(isAdminUsers && IsActionAny("ActivityReports", "ActivityReportDetails", "ExportActivityReportCsv") ? "page" : null)">
+                                <i class="bi bi-archive" aria-hidden="true"></i>Rapports utilisateurs
+                            </a>
+                        }
+                        @if (showVendeursMenu)
+                        {
+                            <a class="nav-link @(isVendeurs ? "active" : null)" asp-controller="Vendeurs" asp-action="Index" aria-current="@(isVendeurs ? "page" : null)">
+                                <i class="bi bi-people" aria-hidden="true"></i>Vendeurs
+                            </a>
+                        }
                     </div>
                 }
             </nav>

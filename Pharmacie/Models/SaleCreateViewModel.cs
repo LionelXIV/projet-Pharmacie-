@@ -16,6 +16,10 @@ public class SaleCreateViewModel
     [Display(Name = "Moyen de paiement")]
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Especes;
 
+    [Required(ErrorMessage = "Veuillez sélectionner le vendeur.")]
+    [Display(Name = "Vendeur")]
+    public int? VendeurId { get; set; }
+
     public List<SaleLineSlotViewModel> Lines { get; set; } = new();
 }
 

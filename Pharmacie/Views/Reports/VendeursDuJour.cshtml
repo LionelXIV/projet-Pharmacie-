@@ -1,0 +1,103 @@
+@model IEnumerable<VendeurRapportViewModel>
+@using Pharmacie.Reporting
+@{
+    ViewData["Title"] = "Performance des vendeurs";
+    var dateRapport = (DateTime)(ViewBag.DateRapport ?? DateTime.Today);
+    var totalJour = (decimal)(ViewBag.TotalJour ?? 0m);
+    var totalVentes = (int)(ViewBag.TotalVentes ?? 0);
+
+    string BadgeHtml(string? couleur)
+    {
+        if (string.IsNullOrEmpty(couleur))
+            return "<span class=\"text-muted\">—</span>";
+        return couleur switch
+        {
+            "Bleu" => $"<span class=\"badge bg-primary\">{couleur}</span>",
+            "Jaune" => $"<span class=\"badge bg-warning text-dark\">{couleur}</span>",
+            "Vert" => $"<span class=\"badge bg-success\">{couleur}</span>",
+            "Rose" => $"<span class=\"badge text-white\" style=\"background:#FF69B4\">{couleur}</span>",
+            _ => $"<span class=\"badge bg-secondary\">{couleur}</span>"
+        };
+    }
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-lg-between gap-3">
+        <div>
+            <h1 class="page-title">Performance des vendeurs</h1>
+            <p class="page-lead mb-0">Chiffre d'affaires par vendeur pour la journée.</p>
+        </div>
+        <a class="btn btn-outline-secondary flex-shrink-0" asp-action="ExportVendeursCsv" asp-route-date="@dateRapport.ToString("yyyy-MM-dd")">
+            <i class="bi bi-download me-1" aria-hidden="true"></i>Exporter CSV
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3 p-md-4">
+        <form method="get" asp-action="VendeursDuJour" class="row g-2 align-items-end">
+            <div class="col-md-4 col-lg-3">
+                <label class="form-label small mb-0" for="date">Date</label>
+                <input type="date" name="date" id="date" class="form-control form-control-sm"
+                       value="@dateRapport.ToString("yyyy-MM-dd")" data-flatpickr-ignore />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-eye me-1" aria-hidden="true"></i>Voir</button>
+            </div>
+        </form>
+        <p class="mb-0 mt-3 fw-semibold">
+            Total journée : @totalVentes vente(s) — @ReportCsvFormatter.FormatFcfa(totalJour)
+        </p>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="app-empty-state my-3" role="status">
+        <i class="bi bi-bar-chart-steps" aria-hidden="true"></i>
+        <p class="app-empty-state-title mb-1">Aucune vente</p>
+        <p class="mb-0 small">Pas de vente enregistrée pour cette date.</p>
+    </div>
+}
+else
+{
+    <div class="table-card mb-3">
+        <div class="table-responsive">
+            <table class="table table-striped table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Vendeur</th>
+                        <th>Couleur</th>
+                        <th class="text-end">Nb ventes</th>
+                        <th class="text-end">CA (FCFA)</th>
+                        <th class="text-end">Articles</th>
+                        <th class="text-end">Panier moyen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@r.NomVendeur</td>
+                            <td>@Html.Raw(BadgeHtml(r.CouleurTicket))</td>
+                            <td class="text-end">@r.NombreVentes</td>
+                            <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(r.ChiffreAffaires)</td>
+                            <td class="text-end">@r.NombreArticles</td>
+                            <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(r.PanierMoyen)</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td>Total</td>
+                        <td></td>
+                        <td class="text-end">@totalVentes</td>
+                        <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(totalJour)</td>
+                        <td class="text-end">@Model.Sum(r => r.NombreArticles)</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}
