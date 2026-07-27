@@ -37,7 +37,6 @@
     var isPatients = IsCtrlAny("Patients", "PatientPrescriptions", "PatientReminders", "PatientRemindersAlerts");
     var isAlerts = IsCtrl("Alerts");
     var isAdminUsers = IsCtrl("AdminUsers");
-    var isAdmin = IsCtrl("Admin");
     var isVendeurs = IsCtrl("Vendeurs");
     var showPrincipalSection = true;
     var showCatalogueSection = true;
@@ -205,9 +204,6 @@
                             </a>
                             <a class="nav-link @(isAdminUsers && IsActionAny("ActivityReports", "ActivityReportDetails", "ExportActivityReportCsv") ? "active" : null)" asp-controller="AdminUsers" asp-action="ActivityReports" aria-current="@(isAdminUsers && IsActionAny("ActivityReports", "ActivityReportDetails", "ExportActivityReportCsv") ? "page" : null)">
                                 <i class="bi bi-archive" aria-hidden="true"></i>Rapports utilisateurs
-                            </a>
-                            <a class="nav-link text-danger @(isAdmin && IsActionAny("ResetData", "ResetAllData") ? "active" : null)" asp-controller="Admin" asp-action="ResetData" aria-current="@(isAdmin && IsActionAny("ResetData", "ResetAllData") ? "page" : null)">
-                                <i class="bi bi-trash3" aria-hidden="true"></i>Remise à zéro
                             </a>
                         }
                         @if (showVendeursMenu)
