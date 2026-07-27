@@ -391,5 +391,26 @@
   });
 })();
     </script>
+    <script>
+function togglePassword(fieldId) {
+  var field = document.getElementById(fieldId);
+  var icon = document.querySelector(
+    '[onclick="togglePassword(\'' + fieldId + '\')"] i');
+  if (!field) return;
+  if (field.type === 'password') {
+    field.type = 'text';
+    if (icon) {
+      icon.classList.remove('bi-eye');
+      icon.classList.add('bi-eye-slash');
+    }
+  } else {
+    field.type = 'password';
+    if (icon) {
+      icon.classList.remove('bi-eye-slash');
+      icon.classList.add('bi-eye');
+    }
+  }
+}
+    </script>
 </body>
 </html>

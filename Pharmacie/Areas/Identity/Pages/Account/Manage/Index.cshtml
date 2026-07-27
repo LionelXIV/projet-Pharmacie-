@@ -1,0 +1,36 @@
+@page
+@model Pharmacie.Areas.Identity.Pages.Account.Manage.IndexModel
+@{
+    ViewData["Title"] = "Mon compte";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <h1 class="h3 mb-3">@ViewData["Title"]</h1>
+        @if (!string.IsNullOrEmpty(Model.StatusMessage))
+        {
+            <div class="alert alert-success alert-dismissible" role="alert">
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+                @Model.StatusMessage
+            </div>
+        }
+        <form id="profile-form" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+            <div class="mb-3">
+                <label asp-for="Username" class="form-label">Identifiant</label>
+                <input asp-for="Username" class="form-control" disabled />
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.PhoneNumber" class="form-label"></label>
+                <input asp-for="Input.PhoneNumber" class="form-control" />
+                <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+            </div>
+            <button id="update-profile-button" type="submit" class="btn btn-primary">Valider</button>
+            <a class="btn btn-outline-secondary" asp-page="./ChangePassword">Changer le mot de passe</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

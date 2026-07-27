@@ -23,7 +23,7 @@
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
                     <div class="mb-3">
-                        <label asp-for="Email" class="form-label"></label>
+                        <label asp-for="Email" class="form-label">Adresse email</label>
                         <input asp-for="Email" class="form-control" readonly />
                         <span class="form-text">L’email ne peut pas être modifié ici.</span>
                     </div>
@@ -45,13 +45,31 @@
 
                     <div class="mb-3">
                         <label asp-for="NewPassword" class="form-label"></label>
-                        <input asp-for="NewPassword" class="form-control" autocomplete="new-password" />
+                        <div class="input-group">
+                            <input asp-for="NewPassword" class="form-control" id="password-field-edit"
+                                   autocomplete="new-password" />
+                            <button class="btn btn-outline-secondary" type="button"
+                                    onclick="togglePassword('password-field-edit')"
+                                    tabindex="-1"
+                                    title="Afficher/masquer le mot de passe">
+                                <i class="bi bi-eye" id="eye-icon-edit"></i>
+                            </button>
+                        </div>
                         <span asp-validation-for="NewPassword" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
                         <label asp-for="ConfirmNewPassword" class="form-label"></label>
-                        <input asp-for="ConfirmNewPassword" class="form-control" autocomplete="new-password" />
+                        <div class="input-group">
+                            <input asp-for="ConfirmNewPassword" class="form-control" id="password-field-edit-confirm"
+                                   autocomplete="new-password" />
+                            <button class="btn btn-outline-secondary" type="button"
+                                    onclick="togglePassword('password-field-edit-confirm')"
+                                    tabindex="-1"
+                                    title="Afficher/masquer le mot de passe">
+                                <i class="bi bi-eye" id="eye-icon-edit-confirm"></i>
+                            </button>
+                        </div>
                         <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
                     </div>
 

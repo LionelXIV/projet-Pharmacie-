@@ -29,13 +29,31 @@
 
                     <div class="mb-3">
                         <label asp-for="Password" class="form-label"></label>
-                        <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                        <div class="input-group">
+                            <input asp-for="Password" class="form-control" id="password-field-create"
+                                   autocomplete="new-password" />
+                            <button class="btn btn-outline-secondary" type="button"
+                                    onclick="togglePassword('password-field-create')"
+                                    tabindex="-1"
+                                    title="Afficher/masquer le mot de passe">
+                                <i class="bi bi-eye" id="eye-icon-create"></i>
+                            </button>
+                        </div>
                         <span asp-validation-for="Password" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3">
                         <label asp-for="ConfirmPassword" class="form-label"></label>
-                        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                        <div class="input-group">
+                            <input asp-for="ConfirmPassword" class="form-control" id="password-field-create-confirm"
+                                   autocomplete="new-password" />
+                            <button class="btn btn-outline-secondary" type="button"
+                                    onclick="togglePassword('password-field-create-confirm')"
+                                    tabindex="-1"
+                                    title="Afficher/masquer le mot de passe">
+                                <i class="bi bi-eye" id="eye-icon-create-confirm"></i>
+                            </button>
+                        </div>
                         <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
                     </div>
 
