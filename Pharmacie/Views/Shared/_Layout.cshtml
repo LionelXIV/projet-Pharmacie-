@@ -18,6 +18,13 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet" crossorigin="anonymous" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Pharmacie.styles.css" asp-append-version="true" />
+    <!-- PWA -->
+    <link rel="manifest" href="~/manifest.json" asp-append-version="true" />
+    <meta name="theme-color" content="#4CAF82" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Pharmacie SJP" />
+    <link rel="apple-touch-icon" href="~/icons/icon-192.png" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 @{
@@ -241,6 +248,16 @@
                 <h6 class="ph-page-title mb-0">@ViewData["Title"]</h6>
                 <span class="ph-mobile-nav-hint text-muted small">Menu latéral sur grand écran</span>
                 <div class="ph-topbar-actions">
+                    @if (User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur))
+                    {
+                        <button type="button"
+                                id="btn-install"
+                                class="btn btn-sm btn-outline-success d-none ms-2"
+                                title="Installer l'application sur ce poste">
+                            <i class="bi bi-download" aria-hidden="true"></i>
+                            <span class="d-none d-md-inline">Installer</span>
+                        </button>
+                    }
                     <partial name="_LoginPartial" />
                 </div>
             </header>
@@ -433,6 +450,52 @@ function togglePassword(fieldId) {
     }
   }
 }
+    </script>
+    <script>
+      var isAdmin = @(User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur) ? "true" : "false");
+      var btnInstall = document.getElementById('btn-install');
+      var deferredPrompt;
+
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        if (isAdmin && btnInstall) {
+          btnInstall.classList.remove('d-none');
+        }
+      });
+
+      if (btnInstall) {
+        btnInstall.addEventListener('click', async function () {
+          if (!deferredPrompt) return;
+          deferredPrompt.prompt();
+          var choice = await deferredPrompt.userChoice;
+          if (choice.outcome === 'accepted') {
+            btnInstall.classList.add('d-none');
+            if (window.toastr) {
+              toastr.success('Application installée sur ce poste !', 'Installation réussie');
+            }
+          }
+          deferredPrompt = null;
+        });
+      }
+
+      window.addEventListener('appinstalled', function () {
+        if (btnInstall) btnInstall.classList.add('d-none');
+        deferredPrompt = null;
+      });
+
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then(function () {
+              console.log('Service Worker enregistré');
+            })
+            .catch(function (err) {
+              console.log('Service Worker échec:', err);
+            });
+        });
+      }
     </script>
 </body>
 </html>
