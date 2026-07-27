@@ -49,11 +49,12 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// Cookie de session strict : MaxAge null + isPersistent:false à la connexion.
+// Cookie de session : 8h (journée de travail), sliding, MaxAge null.
+// La déconnexion explicite se fait via le bouton « Terminer la session ».
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.ExpireTimeSpan = TimeSpan.FromHours(12);
-    options.SlidingExpiration = false;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
     options.Cookie.IsEssential = true;
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;

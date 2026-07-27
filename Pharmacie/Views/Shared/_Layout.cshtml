@@ -264,6 +264,25 @@
                             <span class="d-none d-md-inline">Installer</span>
                         </button>
                     }
+                    @if (User?.Identity?.IsAuthenticated == true)
+                    {
+                        <small class="text-muted d-none d-lg-inline me-2">
+                            Cliquez ici avant de fermer →
+                        </small>
+                        <form asp-area="Identity"
+                              asp-page="/Account/Logout"
+                              asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })"
+                              method="post"
+                              class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit"
+                                    class="btn btn-danger btn-sm"
+                                    title="Terminer ma session et déconnecter">
+                                <i class="bi bi-power" aria-hidden="true"></i>
+                                <span class="d-none d-md-inline ms-1">Terminer la session</span>
+                            </button>
+                        </form>
+                    }
                     <partial name="_LoginPartial" />
                 </div>
             </header>
@@ -507,10 +526,11 @@ function togglePassword(fieldId) {
 (function () {
   'use strict';
 
+  // beforeunload retiré (non fiable sur Chrome).
+  // pagehide + sendBeacon conservé pour PWA / navigateurs qui le supportent.
   var isAuthenticated = @(User?.Identity?.IsAuthenticated == true ? "true" : "false");
   if (!isAuthenticated) return;
 
-  var logoutConfirmed = false;
   var isInternalNavigation = false;
 
   document.addEventListener('click', function (e) {
@@ -529,16 +549,6 @@ function togglePassword(fieldId) {
     setTimeout(function () {
       isInternalNavigation = false;
     }, 2000);
-  });
-
-  window.addEventListener('beforeunload', function (e) {
-    if (isInternalNavigation) return;
-    if (logoutConfirmed) return;
-
-    var message = 'Voulez-vous vous déconnecter avant de fermer ?';
-    e.preventDefault();
-    e.returnValue = message;
-    return message;
   });
 
   window.addEventListener('pagehide', function (e) {
