@@ -104,30 +104,43 @@
             <tbody>
                 @foreach (var item in Model.Movements)
                 {
+                    var badgeClass = item.Type switch
+                    {
+                        StockMovementType.Entree => "bg-success",
+                        StockMovementType.Sortie => "bg-danger",
+                        StockMovementType.Ajustement => "bg-warning text-dark",
+                        _ => "bg-secondary"
+                    };
+                    var badgeLabel = item.Type switch
+                    {
+                        StockMovementType.Entree => "Entrée",
+                        StockMovementType.Sortie => "Sortie",
+                        StockMovementType.Ajustement => "Ajustement",
+                        _ => item.Type.ToString()
+                    };
+                    var quantityClass = item.Type switch
+                    {
+                        StockMovementType.Entree => "text-success fw-bold",
+                        StockMovementType.Sortie => "text-danger fw-bold",
+                        StockMovementType.Ajustement => "text-warning fw-bold",
+                        _ => "text-secondary"
+                    };
+                    var quantityPrefix = item.Type switch
+                    {
+                        StockMovementType.Entree => "+",
+                        StockMovementType.Sortie => "-",
+                        StockMovementType.Ajustement => "±",
+                        _ => ""
+                    };
                     <tr>
                         <td class="text-nowrap small">@item.OccurredAt.ToString("g")</td>
-                        <td>@(item.Type switch
-                        {
-                            StockMovementType.Entree => "Entrée",
-                            StockMovementType.Sortie => "Sortie",
-                            StockMovementType.Ajustement => "Ajustement",
-                            _ => item.Type.ToString()
-                        })</td>
+                        <td>
+                            <span class="badge @badgeClass">@badgeLabel</span>
+                        </td>
                         <td>@item.Product?.CommercialName</td>
                         <td class="small">@item.Batch?.LotNumber</td>
                         <td>
-                            @switch (item.Type)
-                            {
-                                case StockMovementType.Entree:
-                                    <span class="text-success">+@item.Quantity</span>
-                                    break;
-                                case StockMovementType.Sortie:
-                                    <span class="text-danger">-@item.Quantity</span>
-                                    break;
-                                default:
-                                    <span>@(item.Quantity > 0 ? "+" : "")@item.Quantity</span>
-                                    break;
-                            }
+                            <span class="@quantityClass">@quantityPrefix@item.Quantity</span>
                         </td>
                         <td class="small">@UserDisplayResolver.Resolve(userLabels, item.UserId)</td>
                         <td class="small text-nowrap">
