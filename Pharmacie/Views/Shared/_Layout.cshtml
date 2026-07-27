@@ -27,6 +27,7 @@
     <link rel="apple-touch-icon" href="~/icons/icon-192.png" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     var routeController = (ViewContext.RouteData.Values["controller"] as string) ?? string.Empty;
     var routeAction = (ViewContext.RouteData.Values["action"] as string) ?? string.Empty;
@@ -54,8 +55,13 @@
     var showAdminSection = User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur);
     var showVendeursMenu = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessFinances(User);
     var showPerformanceVendeurs = showVendeursMenu;
+    var antiforgeryTokens = Antiforgery.GetAndStoreTokens(Context);
 }
 <body>
+    <input type="hidden"
+           id="global-antiforgery-token"
+           name="__RequestVerificationToken"
+           value="@antiforgeryTokens.RequestToken" />
     <a class="skip-link visually-hidden-focusable" href="#main-content">Aller au contenu</a>
     <div class="ph-app">
         <aside class="ph-sidebar" id="sidebar" aria-label="Navigation principale">
@@ -496,6 +502,48 @@ function togglePassword(fieldId) {
             });
         });
       }
+    </script>
+    <script>
+(function () {
+  'use strict';
+
+  function sendSilentLogout() {
+    var tokenInput = document.getElementById('global-antiforgery-token')
+      || document.querySelector('input[name="__RequestVerificationToken"]');
+    if (!tokenInput || !navigator.sendBeacon) return;
+    var params = new URLSearchParams();
+    params.append('__RequestVerificationToken', tokenInput.value);
+    navigator.sendBeacon('/logout-silent', params);
+  }
+
+  // Évite de déconnecter lors d'une navigation interne (liens / formulaires du site)
+  var internalNav = false;
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a || a.target === '_blank') return;
+    try {
+      var url = new URL(a.href, window.location.origin);
+      if (url.origin === window.location.origin) internalNav = true;
+    } catch (_) { /* ignore */ }
+  }, true);
+  document.addEventListener('submit', function () {
+    internalNav = true;
+  }, true);
+
+  // Déconnexion uniquement à la fermeture réelle (pas au changement d'onglet)
+  window.addEventListener('pagehide', function () {
+    if (internalNav) {
+      internalNav = false;
+      return;
+    }
+    sendSilentLogout();
+  });
+
+  window.addEventListener('beforeunload', function () {
+    if (internalNav) return;
+    sendSilentLogout();
+  });
+})();
     </script>
 </body>
 </html>
