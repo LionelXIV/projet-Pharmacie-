@@ -49,12 +49,15 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// Cookie d'auth non persistant : isPersistent:false à la connexion → disparaît à la fermeture du navigateur/PWA.
-// ExpireTimeSpan borne la durée max si l'app reste ouverte.
+// Cookie de session strict : MaxAge null + isPersistent:false à la connexion.
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.ExpireTimeSpan = TimeSpan.FromHours(12);
     options.SlidingExpiration = false;
+    options.Cookie.IsEssential = true;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.MaxAge = null;
     options.LoginPath = "/Identity/Account/Login";
     options.LogoutPath = "/Identity/Account/Logout";
 });
