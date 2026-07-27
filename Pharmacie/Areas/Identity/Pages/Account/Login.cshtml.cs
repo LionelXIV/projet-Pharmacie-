@@ -103,6 +103,7 @@ public class LoginModel : PageModel
             Input.Email!, Input.Password!, isPersistent: false, lockoutOnFailure: false);
         if (result.Succeeded)
         {
+            HttpContext.Session.SetString("SessionStart", DateTime.UtcNow.ToString("O"));
             _logger.LogInformation("User logged in (admin).");
             return LocalRedirect(returnUrl);
         }
@@ -160,6 +161,7 @@ public class LoginModel : PageModel
         }
 
         await _signInManager.SignInAsync(user, isPersistent: false);
+        HttpContext.Session.SetString("SessionStart", DateTime.UtcNow.ToString("O"));
         _logger.LogInformation("User logged in (PIN) as {DisplayName}.", user.DisplayName);
         return LocalRedirect(returnUrl);
     }

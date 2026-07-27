@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Pharmacie.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -64,6 +65,16 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    // Cookie de session navigateur (séparé d'Identity) — sans MaxAge → disparaît à la fermeture
+    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.Cookie.Name = ".Pharmacie.BrowserSession";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+});
 builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<PurchaseService>();
 builder.Services.AddScoped<SaleService>();
@@ -168,10 +179,47 @@ app.Use(async (context, next) =>
 
 app.UseRouting();
 
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Identity cookie peut survivre à la fermeture Chrome ; le cookie Session disparaît.
+// Si Identity est authentifié mais SessionStart absent → nouvelle session navigateur → déconnexion.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+
+    static bool IsExempt(PathString path) =>
+        path.StartsWithSegments("/Identity/Account/Login")
+        || path.StartsWithSegments("/Identity/Account/Logout")
+        || path.StartsWithSegments("/logout-silent")
+        || path.StartsWithSegments("/sw.js")
+        || path.StartsWithSegments("/manifest.json")
+        || path.StartsWithSegments("/icons")
+        || path.StartsWithSegments("/css")
+        || path.StartsWithSegments("/js")
+        || path.StartsWithSegments("/lib")
+        || path.StartsWithSegments("/favicon");
+
+    if (!IsExempt(path)
+        && context.User.Identity?.IsAuthenticated == true)
+    {
+        var sessionStart = context.Session.GetString("SessionStart");
+        if (string.IsNullOrEmpty(sessionStart))
+        {
+            await context.SignOutAsync(IdentityConstants.ApplicationScheme);
+            context.Session.Clear();
+            context.Response.Redirect("/Identity/Account/Login");
+            return;
+        }
+    }
+
+    await next();
+});
+
 app.MapStaticAssets();
+
+app.MapControllers();
 
 app.MapControllerRoute(
         name: "default",
@@ -181,9 +229,10 @@ app.MapControllerRoute(
 app.MapRazorPages()
     .WithStaticAssets();
 
-app.MapPost("/logout-silent", async (SignInManager<ApplicationUser> signInManager) =>
+app.MapPost("/logout-silent", async (HttpContext ctx, SignInManager<ApplicationUser> signInManager) =>
 {
     await signInManager.SignOutAsync();
+    ctx.Session.Clear();
     return Results.Ok();
 }).RequireAuthorization();
 
