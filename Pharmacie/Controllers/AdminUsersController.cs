@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -12,26 +14,47 @@ namespace Pharmacie.Controllers;
 [Authorize(Roles = AppRoles.Administrateur)]
 public class AdminUsersController : Controller
 {
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IPasswordHasher<ApplicationUser> _passwordHasher;
 
-    public AdminUsersController(UserManager<IdentityUser> userManager)
+    private static readonly Dictionary<string, string> RoleLabels = new()
+    {
+        [AppRoles.Administrateur] = "Administrateur",
+        [AppRoles.Pharmacien] = "Pharmacien",
+        [AppRoles.GestionnaireStock] = "Gestionnaire de stock",
+        [AppRoles.Assistant] = "Assistant",
+        [AppRoles.Caissier] = "Caissier"
+    };
+
+    public AdminUsersController(
+        UserManager<ApplicationUser> userManager,
+        IPasswordHasher<ApplicationUser> passwordHasher)
     {
         _userManager = userManager;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<IActionResult> Index()
     {
         var list = new List<AdminUserRowViewModel>();
-        var users = await _userManager.Users.AsNoTracking().OrderBy(u => u.Email).ToListAsync();
+        var users = await _userManager.Users.AsNoTracking()
+            .OrderBy(u => u.DisplayName)
+            .ThenBy(u => u.Email)
+            .ToListAsync();
         foreach (var u in users)
         {
             var roles = await _userManager.GetRolesAsync(u);
             var locked = u.LockoutEnd.HasValue && u.LockoutEnd > DateTimeOffset.UtcNow;
+            var isAdmin = roles.Contains(AppRoles.Administrateur);
             list.Add(new AdminUserRowViewModel
             {
                 Id = u.Id,
-                Email = u.Email ?? u.UserName ?? u.Id,
-                RolesDisplay = string.Join(", ", roles.OrderBy(r => r)),
+                DisplayName = string.IsNullOrWhiteSpace(u.DisplayName)
+                    ? (u.Email ?? u.UserName ?? u.Id)
+                    : u.DisplayName,
+                Email = u.Email ?? "—",
+                RolesDisplay = string.Join(", ", roles.Select(r => RoleLabels.GetValueOrDefault(r, r)).OrderBy(r => r)),
+                LoginType = isAdmin || string.IsNullOrEmpty(u.PinHash) ? "Email" : "PIN",
                 IsLockedOut = locked
             });
         }
@@ -53,21 +76,62 @@ public class AdminUsersController : Controller
         if (!AppRoles.AllAssignableRoles.Contains(model.Role))
             ModelState.AddModelError(nameof(model.Role), "Rôle invalide.");
 
+        var isAdmin = model.Role == AppRoles.Administrateur;
+        ValidateCreateModel(model, isAdmin);
+
         if (ModelState.IsValid)
         {
-            var user = new IdentityUser
+            IdentityResult create;
+            ApplicationUser user;
+
+            if (isAdmin)
             {
-                UserName = model.Email.Trim(),
-                Email = model.Email.Trim(),
-                EmailConfirmed = true
-            };
-            var create = await _userManager.CreateAsync(user, model.Password);
+                var displayName = model.DisplayName!.Trim();
+                if (await DisplayNameExistsAsync(displayName))
+                {
+                    ModelState.AddModelError(nameof(model.DisplayName), "Cet identifiant affiché est déjà utilisé.");
+                    PopulateRoleSelect(model.Role);
+                    return View(model);
+                }
+
+                user = new ApplicationUser
+                {
+                    UserName = model.Email!.Trim(),
+                    Email = model.Email!.Trim(),
+                    EmailConfirmed = true,
+                    DisplayName = displayName,
+                    PinHash = null
+                };
+                create = await _userManager.CreateAsync(user, model.Password!);
+            }
+            else
+            {
+                var displayName = model.DisplayName!.Trim();
+                if (await DisplayNameExistsAsync(displayName))
+                {
+                    ModelState.AddModelError(nameof(model.DisplayName), "Cet identifiant est déjà utilisé.");
+                    PopulateRoleSelect(model.Role);
+                    return View(model);
+                }
+
+                var email = await BuildInternalEmailAsync(displayName);
+                user = new ApplicationUser
+                {
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true,
+                    DisplayName = displayName
+                };
+                user.PinHash = _passwordHasher.HashPassword(user, model.Pin!);
+                create = await _userManager.CreateAsync(user, GenerateInternalPassword());
+            }
+
             if (create.Succeeded)
             {
                 var addRole = await _userManager.AddToRoleAsync(user, model.Role);
                 if (addRole.Succeeded)
                 {
-                    TempData["Success"] = $"Utilisateur « {user.Email} » créé avec le rôle {model.Role}.";
+                    TempData["Success"] = $"Utilisateur « {user.DisplayName} » créé avec le rôle {RoleLabels.GetValueOrDefault(model.Role, model.Role)}.";
                     return RedirectToAction(nameof(Index));
                 }
 
@@ -100,13 +164,16 @@ public class AdminUsersController : Controller
             ?? AppRoles.Assistant;
 
         var locked = user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow;
+        var isAdmin = currentRole == AppRoles.Administrateur;
 
         var vm = new AdminUserEditViewModel
         {
             Id = user.Id,
             Email = user.Email ?? user.UserName ?? user.Id,
+            DisplayName = user.DisplayName ?? string.Empty,
             Role = AppRoles.AllAssignableRoles.Contains(currentRole) ? currentRole : AppRoles.Assistant,
-            AccountLocked = locked
+            AccountLocked = locked,
+            IsPinLogin = !isAdmin && !string.IsNullOrEmpty(user.PinHash)
         };
 
         PopulateRoleSelect(vm.Role);
@@ -122,14 +189,28 @@ public class AdminUsersController : Controller
         if (!AppRoles.AllAssignableRoles.Contains(model.Role))
             ModelState.AddModelError(nameof(model.Role), "Rôle invalide.");
 
-        if (!string.IsNullOrWhiteSpace(model.NewPassword) || !string.IsNullOrWhiteSpace(model.ConfirmNewPassword))
+        var isAdminRole = model.Role == AppRoles.Administrateur;
+
+        if (isAdminRole)
         {
-            if (string.IsNullOrWhiteSpace(model.NewPassword) || string.IsNullOrWhiteSpace(model.ConfirmNewPassword))
-                ModelState.AddModelError(string.Empty, "Renseignez le nouveau mot de passe et sa confirmation, ou laissez les deux vides.");
-            else if (model.NewPassword != model.ConfirmNewPassword)
-                ModelState.AddModelError(nameof(model.ConfirmNewPassword), "Les mots de passe ne correspondent pas.");
-            else if (model.NewPassword!.Length < 6)
-                ModelState.AddModelError(nameof(model.NewPassword), "Le mot de passe doit contenir au moins 6 caractères.");
+            if (!string.IsNullOrWhiteSpace(model.NewPassword) || !string.IsNullOrWhiteSpace(model.ConfirmNewPassword))
+            {
+                if (string.IsNullOrWhiteSpace(model.NewPassword) || string.IsNullOrWhiteSpace(model.ConfirmNewPassword))
+                    ModelState.AddModelError(string.Empty, "Renseignez le nouveau mot de passe et sa confirmation, ou laissez les deux vides.");
+                else if (model.NewPassword != model.ConfirmNewPassword)
+                    ModelState.AddModelError(nameof(model.ConfirmNewPassword), "Les mots de passe ne correspondent pas.");
+                else if (model.NewPassword!.Length < 6)
+                    ModelState.AddModelError(nameof(model.NewPassword), "Le mot de passe doit contenir au moins 6 caractères.");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(model.NewPin) || !string.IsNullOrWhiteSpace(model.ConfirmNewPin))
+        {
+            if (string.IsNullOrWhiteSpace(model.NewPin) || string.IsNullOrWhiteSpace(model.ConfirmNewPin))
+                ModelState.AddModelError(string.Empty, "Renseignez le nouveau code PIN et sa confirmation, ou laissez les deux vides.");
+            else if (model.NewPin != model.ConfirmNewPin)
+                ModelState.AddModelError(nameof(model.ConfirmNewPin), "Les codes PIN ne correspondent pas.");
+            else if (!Regex.IsMatch(model.NewPin!, @"^\d{4}$"))
+                ModelState.AddModelError(nameof(model.NewPin), "Le code PIN doit contenir exactement 4 chiffres.");
         }
 
         var user = await _userManager.FindByIdAsync(model.Id);
@@ -144,8 +225,26 @@ public class AdminUsersController : Controller
                 ModelState.AddModelError(nameof(model.Role), "Vous ne pouvez pas retirer votre propre rôle Administrateur.");
         }
 
+        var displayName = model.DisplayName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(displayName))
+            ModelState.AddModelError(nameof(model.DisplayName), "L'identifiant affiché est obligatoire.");
+        else if (await DisplayNameExistsAsync(displayName, excludeUserId: user.Id))
+            ModelState.AddModelError(nameof(model.DisplayName), "Cet identifiant affiché est déjà utilisé.");
+
         if (!ModelState.IsValid)
         {
+            model.IsPinLogin = !isAdminRole;
+            PopulateRoleSelect(model.Role);
+            return View(model);
+        }
+
+        user.DisplayName = displayName;
+        var update = await _userManager.UpdateAsync(user);
+        if (!update.Succeeded)
+        {
+            foreach (var e in update.Errors)
+                ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
+            model.IsPinLogin = !isAdminRole;
             PopulateRoleSelect(model.Role);
             return View(model);
         }
@@ -156,6 +255,7 @@ public class AdminUsersController : Controller
         {
             foreach (var e in remove.Errors)
                 ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
+            model.IsPinLogin = !isAdminRole;
             PopulateRoleSelect(model.Role);
             return View(model);
         }
@@ -165,6 +265,7 @@ public class AdminUsersController : Controller
         {
             foreach (var e in add.Errors)
                 ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
+            model.IsPinLogin = !isAdminRole;
             PopulateRoleSelect(model.Role);
             return View(model);
         }
@@ -178,21 +279,99 @@ public class AdminUsersController : Controller
             await _userManager.ResetAccessFailedCountAsync(user);
         }
 
-        if (!string.IsNullOrWhiteSpace(model.NewPassword))
+        if (isAdminRole)
         {
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var pwd = await _userManager.ResetPasswordAsync(user, token, model.NewPassword!);
-            if (!pwd.Succeeded)
+            user.PinHash = null;
+            await _userManager.UpdateAsync(user);
+
+            if (!string.IsNullOrWhiteSpace(model.NewPassword))
             {
-                foreach (var e in pwd.Errors)
-                    ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
-                PopulateRoleSelect(model.Role);
-                return View(model);
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var pwd = await _userManager.ResetPasswordAsync(user, token, model.NewPassword!);
+                if (!pwd.Succeeded)
+                {
+                    foreach (var e in pwd.Errors)
+                        ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
+                    model.IsPinLogin = false;
+                    PopulateRoleSelect(model.Role);
+                    return View(model);
+                }
             }
         }
+        else if (!string.IsNullOrWhiteSpace(model.NewPin))
+        {
+            user.PinHash = _passwordHasher.HashPassword(user, model.NewPin!);
+            await _userManager.UpdateAsync(user);
+        }
 
-        TempData["Success"] = $"Utilisateur « {user.Email} » mis à jour.";
+        TempData["Success"] = $"Utilisateur « {user.DisplayName} » mis à jour.";
         return RedirectToAction(nameof(Index));
+    }
+
+    private void ValidateCreateModel(AdminUserCreateViewModel model, bool isAdmin)
+    {
+        if (isAdmin)
+        {
+            if (string.IsNullOrWhiteSpace(model.Email))
+                ModelState.AddModelError(nameof(model.Email), "L'adresse email est obligatoire.");
+            if (string.IsNullOrWhiteSpace(model.DisplayName))
+                ModelState.AddModelError(nameof(model.DisplayName), "L'identifiant affiché est obligatoire.");
+            if (string.IsNullOrWhiteSpace(model.Password))
+                ModelState.AddModelError(nameof(model.Password), "Le mot de passe est obligatoire.");
+            if (string.IsNullOrWhiteSpace(model.ConfirmPassword))
+                ModelState.AddModelError(nameof(model.ConfirmPassword), "La confirmation est obligatoire.");
+            else if (model.Password != model.ConfirmPassword)
+                ModelState.AddModelError(nameof(model.ConfirmPassword), "Les mots de passe ne correspondent pas.");
+        }
+        else if (!string.IsNullOrEmpty(model.Role))
+        {
+            if (string.IsNullOrWhiteSpace(model.DisplayName))
+                ModelState.AddModelError(nameof(model.DisplayName), "L'identifiant est obligatoire.");
+            if (string.IsNullOrWhiteSpace(model.Pin))
+                ModelState.AddModelError(nameof(model.Pin), "Le code PIN est obligatoire.");
+            else if (!Regex.IsMatch(model.Pin, @"^\d{4}$"))
+                ModelState.AddModelError(nameof(model.Pin), "Le code PIN doit contenir exactement 4 chiffres.");
+            if (string.IsNullOrWhiteSpace(model.ConfirmPin))
+                ModelState.AddModelError(nameof(model.ConfirmPin), "La confirmation du PIN est obligatoire.");
+            else if (model.Pin != model.ConfirmPin)
+                ModelState.AddModelError(nameof(model.ConfirmPin), "Les codes PIN ne correspondent pas.");
+        }
+    }
+
+    private async Task<bool> DisplayNameExistsAsync(string displayName, string? excludeUserId = null)
+    {
+        var normalized = displayName.Trim().ToUpperInvariant();
+        return await _userManager.Users.AnyAsync(u =>
+            u.DisplayName.ToUpper() == normalized
+            && (excludeUserId == null || u.Id != excludeUserId));
+    }
+
+    private async Task<string> BuildInternalEmailAsync(string displayName)
+    {
+        var local = Regex.Replace(displayName.Trim().ToLowerInvariant(), @"[^a-z0-9]", "");
+        if (string.IsNullOrEmpty(local))
+            local = "user";
+
+        var baseEmail = $"{local}@pharmacie.local";
+        var email = baseEmail;
+        var n = 1;
+        while (await _userManager.FindByEmailAsync(email) != null)
+        {
+            email = $"{local}{n}@pharmacie.local";
+            n++;
+        }
+
+        return email;
+    }
+
+    private static string GenerateInternalPassword()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(24);
+        var token = Convert.ToBase64String(bytes)
+            .Replace('+', 'A')
+            .Replace('/', 'B')
+            .Replace('=', 'C');
+        return $"Aa1!{token}";
     }
 
     private void PopulateRoleSelect(string? selected)
@@ -200,7 +379,7 @@ public class AdminUsersController : Controller
         var items = AppRoles.AllAssignableRoles.Select(r => new SelectListItem
         {
             Value = r,
-            Text = r
+            Text = RoleLabels.GetValueOrDefault(r, r)
         }).ToList();
         ViewBag.Role = new SelectList(items, "Value", "Text", selected);
     }

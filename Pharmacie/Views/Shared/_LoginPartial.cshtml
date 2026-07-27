@@ -1,5 +1,6 @@
 @using Microsoft.AspNetCore.Identity
-@inject SignInManager<IdentityUser> SignInManager
+@using Pharmacie.Models
+@inject SignInManager<ApplicationUser> SignInManager
 
 <ul class="navbar-nav app-nav-user border-top pt-3 pt-xl-0 mt-3 mt-xl-0 align-items-xl-center flex-shrink-0">
 @if (SignInManager.IsSignedIn(User))

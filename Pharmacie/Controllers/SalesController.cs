@@ -219,7 +219,7 @@ public class SalesController : Controller
             .Select(u => new SelectListItem
             {
                 Value = u.Id,
-                Text = UserDisplayResolver.Format(u.Email, u.UserName),
+                Text = UserDisplayResolver.Format(u.Email, u.UserName, u.DisplayName),
                 Selected = u.Id == selectedUserId
             })
             .ToList();

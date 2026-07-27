@@ -6,8 +6,11 @@ namespace Pharmacie.Services;
 /// <summary>Libellés lisibles pour les utilisateurs Identity (traçabilité légère, sans table d’audit dédiée).</summary>
 public static class UserDisplayResolver
 {
-    public static string Format(string? email, string? userName)
+    public static string Format(string? email, string? userName, string? displayName = null)
     {
+        if (!string.IsNullOrWhiteSpace(displayName))
+            return displayName.Trim();
+
         var e = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
         var u = string.IsNullOrWhiteSpace(userName) ? null : userName.Trim();
         if (e != null && u != null && !string.Equals(e, u, StringComparison.OrdinalIgnoreCase))
@@ -33,7 +36,7 @@ public static class UserDisplayResolver
             .Where(u => ids.Contains(u.Id))
             .ToDictionaryAsync(
                 u => u.Id,
-                u => Format(u.Email, u.UserName),
+                u => Format(u.Email, u.UserName, u.DisplayName),
                 cancellationToken);
     }
 

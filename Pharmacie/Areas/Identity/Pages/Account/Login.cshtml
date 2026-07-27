@@ -2,6 +2,7 @@
 @model LoginModel
 @{
     ViewData["Title"] = "Se connecter";
+    var adminTab = Model.ActiveTab != "quick";
 }
 
 <div class="row justify-content-center">
@@ -10,43 +11,86 @@
             <div class="card-body p-4">
                 <h1 class="h3 mb-3">@ViewData["Title"]</h1>
                 <p class="text-muted mb-4">Connexion au compte de la pharmacie</p>
-                <form id="account" method="post">
-                    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
 
-                    <div class="mb-3">
-                        <label asp-for="Input.Email" class="form-label"></label>
-                        <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" />
-                        <span asp-validation-for="Input.Email" class="text-danger"></span>
+                <ul class="nav nav-tabs mb-4" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link @(adminTab ? "active" : "")" id="tab-admin" type="button"
+                                data-bs-toggle="tab" data-bs-target="#pane-admin" role="tab"
+                                aria-controls="pane-admin" aria-selected="@(adminTab ? "true" : "false")">
+                            Connexion Administrateur
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link @(!adminTab ? "active" : "")" id="tab-quick" type="button"
+                                data-bs-toggle="tab" data-bs-target="#pane-quick" role="tab"
+                                aria-controls="pane-quick" aria-selected="@(!adminTab ? "true" : "false")">
+                            Connexion Rapide
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade @(adminTab ? "show active" : "")" id="pane-admin" role="tabpanel" aria-labelledby="tab-admin">
+                        <form id="account" method="post" asp-page-handler="Admin" asp-route-returnUrl="@Model.ReturnUrl">
+                            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+                            <div class="mb-3">
+                                <label asp-for="Input.Email" class="form-label"></label>
+                                <input asp-for="Input.Email" class="form-control" autocomplete="username" />
+                                <span asp-validation-for="Input.Email" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Input.Password" class="form-label"></label>
+                                <div class="input-group">
+                                    <input asp-for="Input.Password" class="form-control" id="password-field-login"
+                                           autocomplete="current-password" />
+                                    <button class="btn btn-outline-secondary" type="button"
+                                            onclick="togglePassword('password-field-login')"
+                                            tabindex="-1"
+                                            title="Afficher/masquer le mot de passe">
+                                        <i class="bi bi-eye" id="eye-icon-login"></i>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="Input.Password" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" asp-for="Input.RememberMe" />
+                                <label asp-for="Input.RememberMe" class="form-check-label"></label>
+                            </div>
+
+                            <button id="login-submit" type="submit" class="w-100 btn btn-lg btn-primary">Se connecter</button>
+
+                            <div class="mt-3">
+                                <p class="mb-1">
+                                    <a id="forgot-password" asp-page="./ForgotPassword">Mot de passe oublié ?</a>
+                                </p>
+                            </div>
+                        </form>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Input.Password" class="form-label"></label>
-                        <div class="input-group">
-                            <input asp-for="Input.Password" class="form-control" id="password-field-login"
-                                   autocomplete="current-password" aria-required="true" />
-                            <button class="btn btn-outline-secondary" type="button"
-                                    onclick="togglePassword('password-field-login')"
-                                    tabindex="-1"
-                                    title="Afficher/masquer le mot de passe">
-                                <i class="bi bi-eye" id="eye-icon-login"></i>
-                            </button>
-                        </div>
-                        <span asp-validation-for="Input.Password" class="text-danger"></span>
-                    </div>
+                    <div class="tab-pane fade @(!adminTab ? "show active" : "")" id="pane-quick" role="tabpanel" aria-labelledby="tab-quick">
+                        <form id="quick-login" method="post" asp-page-handler="Quick" asp-route-returnUrl="@Model.ReturnUrl">
+                            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
 
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" asp-for="Input.RememberMe" />
-                        <label asp-for="Input.RememberMe" class="form-check-label"></label>
-                    </div>
+                            <div class="mb-3">
+                                <label asp-for="QuickInput.DisplayName" class="form-label"></label>
+                                <input asp-for="QuickInput.DisplayName" class="form-control" autocomplete="username" />
+                                <span asp-validation-for="QuickInput.DisplayName" class="text-danger"></span>
+                            </div>
 
-                    <button id="login-submit" type="submit" class="w-100 btn btn-lg btn-primary">Se connecter</button>
+                            <div class="mb-3">
+                                <label asp-for="QuickInput.Pin" class="form-label"></label>
+                                <input asp-for="QuickInput.Pin" class="form-control" type="tel" inputmode="numeric"
+                                       maxlength="4" pattern="[0-9]{4}" autocomplete="one-time-code" />
+                                <span asp-validation-for="QuickInput.Pin" class="text-danger"></span>
+                            </div>
 
-                    <div class="mt-3">
-                        <p class="mb-1">
-                            <a id="forgot-password" asp-page="./ForgotPassword">Mot de passe oublié ?</a>
-                        </p>
+                            <button type="submit" class="w-100 btn btn-lg btn-primary">Connexion rapide</button>
+                        </form>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>

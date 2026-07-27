@@ -4,24 +4,30 @@ namespace Pharmacie.Models;
 
 public class AdminUserCreateViewModel
 {
-    [Required(ErrorMessage = "L’email est obligatoire.")]
-    [EmailAddress]
-    [Display(Name = "Email (identifiant)")]
-    public string Email { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "Le mot de passe est obligatoire.")]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "Le mot de passe doit contenir au moins 6 caractères.")]
-    [DataType(DataType.Password)]
-    [Display(Name = "Mot de passe")]
-    public string Password { get; set; } = string.Empty;
-
-    [Required(ErrorMessage = "La confirmation est obligatoire.")]
-    [DataType(DataType.Password)]
-    [Display(Name = "Confirmer le mot de passe")]
-    [Compare(nameof(Password), ErrorMessage = "Les mots de passe ne correspondent pas.")]
-    public string ConfirmPassword { get; set; } = string.Empty;
-
     [Required(ErrorMessage = "Choisissez un rôle.")]
     [Display(Name = "Rôle")]
     public string Role { get; set; } = string.Empty;
+
+    [EmailAddress(ErrorMessage = "Adresse email invalide.")]
+    [Display(Name = "Adresse email")]
+    public string? Email { get; set; }
+
+    [Display(Name = "Identifiant affiché")]
+    [StringLength(100, ErrorMessage = "L'identifiant ne peut pas dépasser 100 caractères.")]
+    public string? DisplayName { get; set; }
+
+    [DataType(DataType.Password)]
+    [Display(Name = "Mot de passe")]
+    public string? Password { get; set; }
+
+    [DataType(DataType.Password)]
+    [Display(Name = "Confirmer le mot de passe")]
+    public string? ConfirmPassword { get; set; }
+
+    [Display(Name = "Code PIN")]
+    [RegularExpression(@"^\d{4}$", ErrorMessage = "Le code PIN doit contenir exactement 4 chiffres.")]
+    public string? Pin { get; set; }
+
+    [Display(Name = "Confirmer le code PIN")]
+    public string? ConfirmPin { get; set; }
 }

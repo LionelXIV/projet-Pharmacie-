@@ -6,12 +6,19 @@ public class AdminUserEditViewModel
 {
     public string Id { get; set; } = string.Empty;
 
-    [Display(Name = "Email")]
+    [Display(Name = "Adresse email")]
     public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "L'identifiant affiché est obligatoire.")]
+    [Display(Name = "Identifiant affiché")]
+    [StringLength(100, ErrorMessage = "L'identifiant ne peut pas dépasser 100 caractères.")]
+    public string DisplayName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Choisissez un rôle.")]
     [Display(Name = "Rôle")]
     public string Role { get; set; } = string.Empty;
+
+    public bool IsPinLogin { get; set; }
 
     [Display(Name = "Compte verrouillé (connexion impossible)")]
     public bool AccountLocked { get; set; }
@@ -23,6 +30,12 @@ public class AdminUserEditViewModel
 
     [DataType(DataType.Password)]
     [Display(Name = "Confirmer le nouveau mot de passe")]
-    [Compare(nameof(NewPassword), ErrorMessage = "Les mots de passe ne correspondent pas.")]
     public string? ConfirmNewPassword { get; set; }
+
+    [Display(Name = "Nouveau code PIN (optionnel)")]
+    [RegularExpression(@"^(\d{4})?$", ErrorMessage = "Le code PIN doit contenir exactement 4 chiffres.")]
+    public string? NewPin { get; set; }
+
+    [Display(Name = "Confirmer le code PIN")]
+    public string? ConfirmNewPin { get; set; }
 }

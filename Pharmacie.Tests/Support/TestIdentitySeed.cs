@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Data;
+using Pharmacie.Models;
 
 namespace Pharmacie.Tests.Support;
 
@@ -16,13 +17,14 @@ internal static class TestIdentitySeed
         if (await db.Users.AnyAsync(u => u.Id == userId))
             return userId;
 
-        db.Users.Add(new IdentityUser
+        db.Users.Add(new ApplicationUser
         {
             Id = userId,
             UserName = userId,
             NormalizedUserName = userId.ToUpperInvariant(),
             Email = $"{userId}@test.local",
-            NormalizedEmail = $"{userId}@test.local".ToUpperInvariant()
+            NormalizedEmail = $"{userId}@test.local".ToUpperInvariant(),
+            DisplayName = userId
         });
         await db.SaveChangesAsync();
         return userId;

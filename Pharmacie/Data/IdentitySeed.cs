@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Pharmacie.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -27,7 +28,7 @@ public static class IdentitySeed
     /// <see cref="AdminEmailConfigKey"/> et <see cref="AdminPasswordConfigKey"/> dans la configuration.
     /// </summary>
     public static async Task SeedInitialAdminIfMissingAsync(
-        UserManager<IdentityUser> userManager,
+        UserManager<ApplicationUser> userManager,
         IConfiguration configuration,
         IHostEnvironment environment,
         ILogger logger)
@@ -65,11 +66,12 @@ public static class IdentitySeed
         var user = await userManager.FindByEmailAsync(email);
         if (user == null)
         {
-            user = new IdentityUser
+            user = new ApplicationUser
             {
                 UserName = email,
                 Email = email,
-                EmailConfirmed = true
+                EmailConfirmed = true,
+                DisplayName = email.Contains('@') ? email[..email.IndexOf('@')] : email
             };
             var create = await userManager.CreateAsync(user, password);
             if (!create.Succeeded)
@@ -79,6 +81,11 @@ public static class IdentitySeed
             }
 
             logger.LogInformation("Compte administrateur initial créé pour {Email}.", email);
+        }
+        else if (string.IsNullOrWhiteSpace(user.DisplayName))
+        {
+            user.DisplayName = email.Contains('@') ? email[..email.IndexOf('@')] : email;
+            await userManager.UpdateAsync(user);
         }
 
         if (!await userManager.IsInRoleAsync(user, AppRoles.Administrateur))

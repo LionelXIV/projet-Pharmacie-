@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
+using Pharmacie.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
@@ -11,19 +12,19 @@ namespace Pharmacie.Areas.Identity.Pages.Account;
 
 public class RegisterModel : PageModel
 {
-    private readonly SignInManager<IdentityUser> _signInManager;
-    private readonly UserManager<IdentityUser> _userManager;
-    private readonly IUserStore<IdentityUser> _userStore;
-    private readonly IUserEmailStore<IdentityUser> _emailStore;
+    private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IUserStore<ApplicationUser> _userStore;
+    private readonly IUserEmailStore<ApplicationUser> _emailStore;
     private readonly ILogger<RegisterModel> _logger;
-    private readonly IEmailSender<IdentityUser> _emailSender;
+    private readonly IEmailSender<ApplicationUser> _emailSender;
 
     public RegisterModel(
-        UserManager<IdentityUser> userManager,
-        IUserStore<IdentityUser> userStore,
-        SignInManager<IdentityUser> signInManager,
+        UserManager<ApplicationUser> userManager,
+        IUserStore<ApplicationUser> userStore,
+        SignInManager<ApplicationUser> signInManager,
         ILogger<RegisterModel> logger,
-        IEmailSender<IdentityUser> emailSender)
+        IEmailSender<ApplicationUser> emailSender)
     {
         _userManager = userManager;
         _userStore = userStore;
@@ -110,25 +111,25 @@ public class RegisterModel : PageModel
         return Page();
     }
 
-    private IdentityUser CreateUser()
+    private ApplicationUser CreateUser()
     {
         try
         {
-            return Activator.CreateInstance<IdentityUser>();
+            return Activator.CreateInstance<ApplicationUser>();
         }
         catch
         {
-            throw new InvalidOperationException($"Impossible de créer une instance de '{nameof(IdentityUser)}'.");
+            throw new InvalidOperationException($"Impossible de créer une instance de '{nameof(ApplicationUser)}'.");
         }
     }
 
-    private IUserEmailStore<IdentityUser> GetEmailStore()
+    private IUserEmailStore<ApplicationUser> GetEmailStore()
     {
         if (!_userManager.SupportsUserEmail)
         {
             throw new NotSupportedException("L'interface utilisateur nécessite un magasin utilisateur avec support email.");
         }
 
-        return (IUserEmailStore<IdentityUser>)_userStore;
+        return (IUserEmailStore<ApplicationUser>)_userStore;
     }
 }

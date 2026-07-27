@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Pharmacie.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
@@ -30,7 +31,7 @@ builder.Services.Configure<RazorPagesOptions>(options =>
     options.Conventions.AuthorizeAreaPage("Identity", "/Account/Register", "RequireAdministrator");
 });
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options =>
+builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = false;
 
@@ -103,7 +104,7 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     await IdentitySeed.SeedRolesAsync(roleManager);
 
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
     var seedLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
         .CreateLogger("Pharmacie.Data.IdentitySeed");

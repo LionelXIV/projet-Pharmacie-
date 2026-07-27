@@ -5,7 +5,7 @@ using Pharmacie.Models;
 
 namespace Pharmacie.Data;
 
-public class ApplicationDbContext : IdentityDbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -175,15 +175,24 @@ public class ApplicationDbContext : IdentityDbContext
                 .HasForeignKey(l => l.ImportBatchId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne<IdentityUser>()
+            entity.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(b => b.UploadedByUserId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            entity.HasOne<IdentityUser>()
+            entity.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(b => b.ConfirmedByUserId)
                 .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(u => u.DisplayName)
+                .HasMaxLength(100)
+                .HasDefaultValue("");
+
+            entity.HasIndex(u => u.DisplayName);
         });
 
         builder.Entity<ImportLine>(entity =>
