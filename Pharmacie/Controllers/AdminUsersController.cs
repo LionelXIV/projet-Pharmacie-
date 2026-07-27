@@ -7,7 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
+using Pharmacie.Data;
 using Pharmacie.Models;
+using Pharmacie.Reporting;
+using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
@@ -16,6 +19,8 @@ public class AdminUsersController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IPasswordHasher<ApplicationUser> _passwordHasher;
+    private readonly UserActivityReportService _activityReportService;
+    private readonly ApplicationDbContext _context;
 
     private static readonly Dictionary<string, string> RoleLabels = new()
     {
@@ -28,10 +33,14 @@ public class AdminUsersController : Controller
 
     public AdminUsersController(
         UserManager<ApplicationUser> userManager,
-        IPasswordHasher<ApplicationUser> passwordHasher)
+        IPasswordHasher<ApplicationUser> passwordHasher,
+        UserActivityReportService activityReportService,
+        ApplicationDbContext context)
     {
         _userManager = userManager;
         _passwordHasher = passwordHasher;
+        _activityReportService = activityReportService;
+        _context = context;
     }
 
     public async Task<IActionResult> Index()
@@ -306,6 +315,191 @@ public class AdminUsersController : Controller
 
         TempData["Success"] = $"Utilisateur « {user.DisplayName} » mis à jour.";
         return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> DeleteWithReport(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return NotFound();
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (id == currentUserId)
+        {
+            TempData["Error"] = "Vous ne pouvez pas supprimer votre propre compte.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null)
+            return NotFound();
+
+        if (string.IsNullOrEmpty(currentUserId))
+            return Challenge();
+
+        var preview = await _activityReportService.GenerateReportAsync(id, currentUserId);
+        return View(new DeleteWithReportViewModel
+        {
+            UserId = id,
+            Preview = preview
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [ActionName("DeleteWithReport")]
+    public async Task<IActionResult> DeleteWithReportConfirmed(string id, bool confirmed)
+    {
+        if (!confirmed)
+            return RedirectToAction(nameof(Index));
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(currentUserId))
+            return Challenge();
+
+        if (id == currentUserId)
+        {
+            TempData["Error"] = "Vous ne pouvez pas supprimer votre propre compte.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null)
+            return NotFound();
+
+        var report = await _activityReportService.GenerateReportAsync(id, currentUserId);
+        _context.UserActivityReports.Add(report);
+        await _context.SaveChangesAsync();
+
+        var imports = await _context.ImportBatches
+            .Where(b => b.UploadedByUserId == id || b.ConfirmedByUserId == id)
+            .ToListAsync();
+        foreach (var batch in imports)
+        {
+            if (batch.UploadedByUserId == id)
+                batch.UploadedByUserId = null;
+            if (batch.ConfirmedByUserId == id)
+                batch.ConfirmedByUserId = null;
+        }
+
+        if (imports.Count > 0)
+            await _context.SaveChangesAsync();
+
+        var delete = await _userManager.DeleteAsync(user);
+        if (!delete.Succeeded)
+        {
+            TempData["Error"] = "Le rapport a été archivé, mais la suppression du compte a échoué : "
+                + string.Join("; ", delete.Errors.Select(e => e.Description));
+            return RedirectToAction(nameof(ActivityReports));
+        }
+
+        TempData["Success"] = "Utilisateur supprimé. Le rapport d'activité a été archivé.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    public async Task<IActionResult> ActivityReports()
+    {
+        var list = await _context.UserActivityReports
+            .AsNoTracking()
+            .OrderByDescending(r => r.DeletedAt)
+            .ToListAsync();
+        return View("ActivityReports/Index", list);
+    }
+
+    public async Task<IActionResult> ActivityReportDetails(int id)
+    {
+        var report = await _context.UserActivityReports.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (report == null)
+            return NotFound();
+
+        ViewBag.ReportData = UserActivityReportService.Deserialize(report.ActivityReportJson);
+        return View("ActivityReports/Details", report);
+    }
+
+    public async Task<IActionResult> ExportActivityReportCsv(int reportId)
+    {
+        var report = await _context.UserActivityReports.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == reportId);
+        if (report == null)
+            return NotFound();
+
+        var data = UserActivityReportService.Deserialize(report.ActivityReportJson);
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Section"),
+            ReportCsvFormatter.Escape("Id"),
+            ReportCsvFormatter.Escape("Date"),
+            ReportCsvFormatter.Escape("Détail"),
+            ReportCsvFormatter.Escape("Quantité"),
+            ReportCsvFormatter.Escape("Montant"),
+            ReportCsvFormatter.Escape("Notes")));
+
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Utilisateur"),
+            "",
+            ReportCsvFormatter.Escape(report.DeletedAt.ToLocalTime().ToString("g")),
+            ReportCsvFormatter.Escape($"{report.DeletedUserDisplayName} | {report.DeletedUserEmail} | {report.DeletedUserRole} | {report.DeletedUserConnectionType}"),
+            "",
+            "",
+            ReportCsvFormatter.Escape($"Supprimé par {report.DeletedByDisplayName}")));
+
+        if (data?.Sales != null)
+        {
+            foreach (var s in data.Sales)
+            {
+                var products = string.Join(", ", s.Products.Select(p => $"{p.CommercialName} x{p.Quantity}"));
+                sb.AppendLine(ReportCsvFormatter.Join(
+                    ReportCsvFormatter.Escape("Vente"),
+                    ReportCsvFormatter.IntInvariant(s.Id),
+                    ReportCsvFormatter.Escape(s.SoldAt.ToLocalTime().ToString("g")),
+                    ReportCsvFormatter.Escape($"{s.PaymentMethod} — {products}"),
+                    "",
+                    ReportCsvFormatter.FcfaCsvAmount(s.Total),
+                    ""));
+            }
+        }
+
+        if (data?.Movements != null)
+        {
+            foreach (var m in data.Movements)
+            {
+                sb.AppendLine(ReportCsvFormatter.Join(
+                    ReportCsvFormatter.Escape("Mouvement"),
+                    ReportCsvFormatter.IntInvariant(m.Id),
+                    ReportCsvFormatter.Escape(m.OccurredAt.ToLocalTime().ToString("g")),
+                    ReportCsvFormatter.Escape($"{m.Type} — {m.Product}" + (string.IsNullOrEmpty(m.LotNumber) ? "" : $" (lot {m.LotNumber})")),
+                    ReportCsvFormatter.IntInvariant(m.Quantity),
+                    "",
+                    ReportCsvFormatter.Escape(m.Reason)));
+            }
+        }
+
+        if (data?.Imports != null)
+        {
+            foreach (var i in data.Imports)
+            {
+                sb.AppendLine(ReportCsvFormatter.Join(
+                    ReportCsvFormatter.Escape("Import"),
+                    ReportCsvFormatter.IntInvariant(i.Id),
+                    ReportCsvFormatter.Escape(i.UploadedAt.ToLocalTime().ToString("g")),
+                    ReportCsvFormatter.Escape($"{i.FileName} — {i.Role}"),
+                    "",
+                    "",
+                    ReportCsvFormatter.Escape(i.Status)));
+            }
+        }
+
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Résumé"),
+            "",
+            "",
+            ReportCsvFormatter.Escape($"{report.TotalSales} ventes, {report.TotalStockMovements} mouvements"),
+            "",
+            ReportCsvFormatter.FcfaCsvAmount(report.TotalSalesAmount),
+            ""));
+
+        var slug = "rapport_utilisateur_" + Regex.Replace(report.DeletedUserDisplayName, @"[^a-zA-Z0-9_-]+", "_");
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), slug);
     }
 
     private void ValidateCreateModel(AdminUserCreateViewModel model, bool isAdmin)

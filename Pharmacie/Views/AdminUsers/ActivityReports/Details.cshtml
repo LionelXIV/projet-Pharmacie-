@@ -1,0 +1,147 @@
+@model UserActivityReport
+@using Pharmacie.Reporting
+@{
+    ViewData["Title"] = $"Rapport — {Model.DeletedUserDisplayName}";
+    var data = ViewBag.ReportData as UserActivityReportData;
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Rapport — @Model.DeletedUserDisplayName</h1>
+            <nav class="app-breadcrumb mt-2 mb-0 d-inline-block" aria-label="Navigation">
+                <a asp-action="ActivityReports"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Rapports utilisateurs</a>
+            </nav>
+        </div>
+        <a class="btn btn-outline-secondary flex-shrink-0" asp-action="ExportActivityReportCsv" asp-route-reportId="@Model.Id">
+            <i class="bi bi-download me-1" aria-hidden="true"></i>Exporter en CSV
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4"><span class="text-muted small d-block">Email</span>@Model.DeletedUserEmail</div>
+            <div class="col-md-4"><span class="text-muted small d-block">Rôle</span>@Model.DeletedUserRole</div>
+            <div class="col-md-4"><span class="text-muted small d-block">Connexion</span>@Model.DeletedUserConnectionType</div>
+            <div class="col-md-4"><span class="text-muted small d-block">Supprimé par</span>@Model.DeletedByDisplayName</div>
+            <div class="col-md-4"><span class="text-muted small d-block">Date de suppression</span>@Model.DeletedAt.ToLocalTime().ToString("g")</div>
+            <div class="col-md-4"><span class="text-muted small d-block">Total ventes</span>@ReportCsvFormatter.FormatFcfa(Model.TotalSalesAmount)</div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white py-3 border-bottom fw-semibold">Ventes (@Model.TotalSales)</div>
+    <div class="card-body p-0">
+        @if (data?.Sales == null || data.Sales.Count == 0)
+        {
+            <p class="text-muted small p-3 mb-0">Aucune vente.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Paiement</th>
+                            <th>Produits</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in data.Sales)
+                        {
+                            <tr>
+                                <td>@s.Id</td>
+                                <td class="small text-nowrap">@s.SoldAt.ToLocalTime().ToString("g")</td>
+                                <td>@s.PaymentMethod</td>
+                                <td class="small">
+                                    @string.Join(", ", s.Products.Select(p => $"{p.CommercialName} ×{p.Quantity}"))
+                                </td>
+                                <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(s.Total)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white py-3 border-bottom fw-semibold">Mouvements de stock (@Model.TotalStockMovements)</div>
+    <div class="card-body p-0">
+        @if (data?.Movements == null || data.Movements.Count == 0)
+        {
+            <p class="text-muted small p-3 mb-0">Aucun mouvement.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Produit</th>
+                            <th>Qté</th>
+                            <th>Motif</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in data.Movements)
+                        {
+                            <tr>
+                                <td>@m.Id</td>
+                                <td class="small text-nowrap">@m.OccurredAt.ToLocalTime().ToString("g")</td>
+                                <td>@m.Type</td>
+                                <td>@m.Product @(string.IsNullOrEmpty(m.LotNumber) ? "" : $"({m.LotNumber})")</td>
+                                <td>@m.Quantity</td>
+                                <td class="small text-muted">@m.Reason</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@if (data?.Imports != null && data.Imports.Count > 0)
+{
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-3 border-bottom fw-semibold">Imports produits (@data.Imports.Count)</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Fichier</th>
+                            <th>Rôle</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var i in data.Imports)
+                        {
+                            <tr>
+                                <td>@i.Id</td>
+                                <td class="small text-nowrap">@i.UploadedAt.ToLocalTime().ToString("g")</td>
+                                <td>@i.FileName</td>
+                                <td>@i.Role</td>
+                                <td>@i.Status</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

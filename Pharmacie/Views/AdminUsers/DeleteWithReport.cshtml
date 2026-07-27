@@ -1,0 +1,68 @@
+@model DeleteWithReportViewModel
+@using Pharmacie.Reporting
+@{
+    ViewData["Title"] = $"Supprimer l'utilisateur {Model.Preview.DeletedUserDisplayName}";
+    var p = Model.Preview;
+}
+
+<div class="page-header">
+    <h1 class="page-title">Supprimer l'utilisateur « @p.DeletedUserDisplayName »</h1>
+    <nav class="app-breadcrumb mt-2 mb-0 d-inline-block" aria-label="Navigation">
+        <a asp-action="Index"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Utilisateurs</a>
+    </nav>
+</div>
+
+<div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill fs-4" aria-hidden="true"></i>
+    <div>
+        <strong>Cette action est irréversible.</strong>
+        <div class="small mb-0">Le compte sera définitivement supprimé. Un rapport complet d'activité sera archivé avant la suppression.</div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white py-3 border-bottom">
+                <span class="fw-semibold">Résumé de l'activité</span>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Identifiant</dt>
+                    <dd class="col-sm-7">@p.DeletedUserDisplayName</dd>
+                    <dt class="col-sm-5">Email</dt>
+                    <dd class="col-sm-7">@(string.IsNullOrEmpty(p.DeletedUserEmail) ? "—" : p.DeletedUserEmail)</dd>
+                    <dt class="col-sm-5">Rôle</dt>
+                    <dd class="col-sm-7">@p.DeletedUserRole</dd>
+                    <dt class="col-sm-5">Type de connexion</dt>
+                    <dd class="col-sm-7">@p.DeletedUserConnectionType</dd>
+                    <dt class="col-sm-5">Ventes</dt>
+                    <dd class="col-sm-7">@p.TotalSales vente(s) pour un total de @ReportCsvFormatter.FormatFcfa(p.TotalSalesAmount)</dd>
+                    <dt class="col-sm-5">Mouvements de stock</dt>
+                    <dd class="col-sm-7">@p.TotalStockMovements</dd>
+                    <dt class="col-sm-5">Commandes fournisseurs</dt>
+                    <dd class="col-sm-7">@p.TotalPurchaseOrders <span class="text-muted small">(non tracées par utilisateur)</span></dd>
+                    <dt class="col-sm-5">Réceptions</dt>
+                    <dd class="col-sm-7">@p.TotalGoodsReceipts <span class="text-muted small">(non tracées par utilisateur)</span></dd>
+                    <dt class="col-sm-5">Première activité</dt>
+                    <dd class="col-sm-7">@(p.FirstActivityDate?.ToLocalTime().ToString("g") ?? "—")</dd>
+                    <dt class="col-sm-5">Dernière activité</dt>
+                    <dd class="col-sm-7">@(p.LastActivityDate?.ToLocalTime().ToString("g") ?? "—")</dd>
+                </dl>
+            </div>
+        </div>
+
+        <p class="text-muted small mb-3">Un rapport complet sera archivé avant suppression et consultable dans « Rapports utilisateurs ».</p>
+
+        <form asp-action="DeleteWithReport" method="post" class="d-flex flex-wrap gap-2">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.UserId" />
+            <input type="hidden" name="confirmed" value="true" />
+            <button type="submit" class="btn btn-danger"
+                    data-confirm="Confirmer la suppression définitive de « @p.DeletedUserDisplayName » ? Le rapport d'activité sera archivé.">
+                <i class="bi bi-trash me-1" aria-hidden="true"></i>Confirmer la suppression
+            </button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>
+        </form>
+    </div>
+</div>

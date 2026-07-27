@@ -25,6 +25,7 @@
     var routeAction = (ViewContext.RouteData.Values["action"] as string) ?? string.Empty;
     bool IsCtrl(string name) => string.Equals(routeController, name, StringComparison.OrdinalIgnoreCase);
     bool IsAction(string name) => string.Equals(routeAction, name, StringComparison.OrdinalIgnoreCase);
+    bool IsActionAny(params string[] names) => names.Any(n => string.Equals(routeAction, n, StringComparison.OrdinalIgnoreCase));
     bool IsCtrlAny(params string[] names) => names.Any(n => string.Equals(routeController, n, StringComparison.OrdinalIgnoreCase));
     var isHome = IsCtrl("Home") && IsAction("Index");
     var isDashboard = IsCtrl("Dashboard");
@@ -187,8 +188,11 @@
                 {
                     <div class="ph-nav-section">
                         <span class="ph-nav-label">Administration</span>
-                        <a class="nav-link @(isAdminUsers ? "active" : null)" asp-controller="AdminUsers" asp-action="Index" aria-current="@(isAdminUsers ? "page" : null)">
+                        <a class="nav-link @(isAdminUsers && IsActionAny("Index", "Create", "Edit", "DeleteWithReport") ? "active" : null)" asp-controller="AdminUsers" asp-action="Index" aria-current="@(isAdminUsers && IsActionAny("Index", "Create", "Edit", "DeleteWithReport") ? "page" : null)">
                             <i class="bi bi-person-gear" aria-hidden="true"></i>Utilisateurs
+                        </a>
+                        <a class="nav-link @(isAdminUsers && IsActionAny("ActivityReports", "ActivityReportDetails", "ExportActivityReportCsv") ? "active" : null)" asp-controller="AdminUsers" asp-action="ActivityReports" aria-current="@(isAdminUsers && IsActionAny("ActivityReports", "ActivityReportDetails", "ExportActivityReportCsv") ? "page" : null)">
+                            <i class="bi bi-archive" aria-hidden="true"></i>Rapports utilisateurs
                         </a>
                     </div>
                 }

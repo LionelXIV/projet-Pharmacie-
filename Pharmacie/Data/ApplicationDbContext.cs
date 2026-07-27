@@ -29,6 +29,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
     public DbSet<ImportLine> ImportLines => Set<ImportLine>();
     public DbSet<ImportAnomaly> ImportAnomalies => Set<ImportAnomaly>();
+    public DbSet<UserActivityReport> UserActivityReports => Set<UserActivityReport>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -193,6 +194,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .HasDefaultValue("");
 
             entity.HasIndex(u => u.DisplayName);
+        });
+
+        builder.Entity<UserActivityReport>(entity =>
+        {
+            entity.ToTable("UserActivityReports");
+            entity.Property(r => r.TotalSalesAmount).HasColumnType("decimal(18,2)");
+            entity.HasIndex(r => r.DeletedAt);
+            entity.HasIndex(r => r.DeletedUserDisplayName);
         });
 
         builder.Entity<ImportLine>(entity =>

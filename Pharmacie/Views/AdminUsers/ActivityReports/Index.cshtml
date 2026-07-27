@@ -1,0 +1,60 @@
+@model IEnumerable<UserActivityReport>
+@using Pharmacie.Reporting
+@{
+    ViewData["Title"] = "Rapports utilisateurs";
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Rapports utilisateurs</h1>
+            <p class="page-lead mb-0">Archives d'activité des comptes supprimés.</p>
+        </div>
+        <a class="btn btn-outline-secondary flex-shrink-0" asp-action="Index"><i class="bi bi-people me-1" aria-hidden="true"></i>Utilisateurs</a>
+    </div>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="app-empty-state my-3" role="status">
+        <i class="bi bi-archive" aria-hidden="true"></i>
+        <p class="app-empty-state-title mb-1">Aucun rapport</p>
+        <p class="mb-0 small">Les rapports apparaîtront ici après suppression d'un utilisateur.</p>
+    </div>
+}
+else
+{
+    <div class="table-card mb-3">
+        <div class="table-responsive">
+            <table class="table table-striped table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Utilisateur supprimé</th>
+                        <th>Rôle</th>
+                        <th>Supprimé par</th>
+                        <th>Date</th>
+                        <th>Nb ventes</th>
+                        <th>Montant total</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@r.DeletedUserDisplayName</td>
+                            <td>@r.DeletedUserRole</td>
+                            <td class="small">@r.DeletedByDisplayName</td>
+                            <td class="small text-nowrap">@r.DeletedAt.ToLocalTime().ToString("g")</td>
+                            <td>@r.TotalSales</td>
+                            <td class="text-nowrap">@ReportCsvFormatter.FormatFcfa(r.TotalSalesAmount)</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary py-0" asp-action="ActivityReportDetails" asp-route-id="@r.Id">Voir le rapport</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

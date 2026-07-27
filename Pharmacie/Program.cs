@@ -56,6 +56,7 @@ builder.Services.AddScoped<ExcelReaderService>();
 builder.Services.AddScoped<ImportValidationService>();
 builder.Services.AddScoped<ImportMatchingService>();
 builder.Services.AddScoped<ProductImportService>();
+builder.Services.AddScoped<UserActivityReportService>();
 
 var app = builder.Build();
 

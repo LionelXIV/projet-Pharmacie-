@@ -69,8 +69,9 @@ else
                                     <span class="badge bg-success">Actif</span>
                                 }
                             </td>
-                            <td class="text-end">
+                            <td class="text-end text-nowrap">
                                 <a class="btn btn-sm btn-outline-primary py-0" asp-action="Edit" asp-route-id="@u.Id">Modifier</a>
+                                <a class="btn btn-sm btn-outline-danger py-0" asp-action="DeleteWithReport" asp-route-id="@u.Id">Supprimer avec rapport</a>
                             </td>
                         </tr>
                     }
