@@ -55,10 +55,12 @@ public class ProductImportsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Preview(int id, int page = 1)
+    public async Task<IActionResult> Preview(int id, int page = 1, string? filter = null)
     {
         if (page < 1)
             page = 1;
+
+        filter = NormalizePreviewFilter(filter);
 
         ImportBatchPreviewSummary summary;
         try
@@ -82,14 +84,24 @@ public class ProductImportsController : Controller
                 && a.Severity == ImportAnomalySeverity.Bloquante
                 && !a.ResolvedByUser);
 
-        var totalLines = summary.TotalRows;
-        var totalPages = totalLines == 0 ? 1 : (int)Math.Ceiling(totalLines / (double)PreviewPageSize);
+        var linesQuery = _db.ImportLines
+            .AsNoTracking()
+            .Where(l => l.ImportBatchId == id);
+
+        linesQuery = filter switch
+        {
+            "anomalies" => linesQuery.Where(l => l.Anomalies.Count > 0),
+            "creations" => linesQuery.Where(l => l.ResolvedAction == ImportLineAction.CreationProduit),
+            "mises-a-jour" => linesQuery.Where(l => l.ResolvedAction == ImportLineAction.MiseAJourPrix),
+            _ => linesQuery
+        };
+
+        var filteredTotal = await linesQuery.CountAsync();
+        var totalPages = filteredTotal == 0 ? 1 : (int)Math.Ceiling(filteredTotal / (double)PreviewPageSize);
         if (page > totalPages)
             page = totalPages;
 
-        var lines = await _db.ImportLines
-            .AsNoTracking()
-            .Where(l => l.ImportBatchId == id)
+        var lines = await linesQuery
             .OrderBy(l => l.RowNumber)
             .Skip((page - 1) * PreviewPageSize)
             .Take(PreviewPageSize)
@@ -110,6 +122,8 @@ public class ProductImportsController : Controller
             })
             .ToListAsync();
 
+        ViewBag.ActiveFilter = filter;
+
         var vm = new ProductImportPreviewViewModel
         {
             ImportBatchId = id,
@@ -118,10 +132,26 @@ public class ProductImportsController : Controller
             CurrentPage = page,
             TotalPages = totalPages,
             BatchStatus = batchMeta?.Status ?? ImportBatchStatus.EnAttenteValidation,
-            UnresolvedBlockingAnomaliesCount = unresolvedBlocking
+            UnresolvedBlockingAnomaliesCount = unresolvedBlocking,
+            ActiveFilter = filter,
+            FilteredTotalCount = filteredTotal
         };
 
         return View(vm);
+    }
+
+    private static string? NormalizePreviewFilter(string? filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+            return null;
+
+        return filter.Trim().ToLowerInvariant() switch
+        {
+            "anomalies" => "anomalies",
+            "creations" => "creations",
+            "mises-a-jour" => "mises-a-jour",
+            _ => null
+        };
     }
 
     [HttpPost]
@@ -209,7 +239,7 @@ public class ProductImportsController : Controller
             .ToListAsync();
 
         var linesById = batchLines.ToDictionary(l => l.Id);
-        var rowsToProcess = new List<(int Index, ProductImportAnomalyRowViewModel Row, ImportLine Line, List<ImportAnomaly> UnresolvedBlocking, bool RequiresReplacementPph)>();
+        var rowsToProcess = new List<(int Index, ProductImportAnomalyRowViewModel Row, ImportLine Line, List<ImportAnomaly> UnresolvedBlocking, bool RequiresReplacementPph, bool RequiresLibelleCorrection)>();
 
         for (var i = 0; i < model.Lines.Count; i++)
         {
@@ -224,8 +254,17 @@ public class ProductImportsController : Controller
             if (unresolvedBlocking.Count == 0)
                 continue;
 
+            if (!row.Decision.HasValue)
+            {
+                ModelState.AddModelError(
+                    $"{nameof(model.Lines)}[{i}].{nameof(row.Decision)}",
+                    "Choisissez Ignorer ou Importer quand même pour cette ligne.");
+            }
+
             var requiresReplacementPph = unresolvedBlocking
                 .Any(a => a.AnomalyType == ImportAnomalyType.PphZeroOuInferieurAuPrixFab);
+            var requiresLibelleCorrection = unresolvedBlocking
+                .Any(a => a.AnomalyType == ImportAnomalyType.LibelleVide);
 
             if (row.Decision == UserDecision.ForcerImport && requiresReplacementPph)
             {
@@ -233,11 +272,21 @@ public class ProductImportsController : Controller
                 {
                     ModelState.AddModelError(
                         $"{nameof(model.Lines)}[{i}].{nameof(row.ReplacementPph)}",
-                        "Un prix de vente (PPH) strictement positif est obligatoire pour forcer l'import.");
+                        "Saisissez un prix de vente strictement positif pour importer cette ligne.");
                 }
             }
 
-            rowsToProcess.Add((i, row, line, unresolvedBlocking, requiresReplacementPph));
+            if (row.Decision == UserDecision.ForcerImport && requiresLibelleCorrection)
+            {
+                if (string.IsNullOrWhiteSpace(row.LibelleCorrection))
+                {
+                    ModelState.AddModelError(
+                        $"{nameof(model.Lines)}[{i}].{nameof(row.LibelleCorrection)}",
+                        "Saisissez le nom du produit pour importer cette ligne.");
+                }
+            }
+
+            rowsToProcess.Add((i, row, line, unresolvedBlocking, requiresReplacementPph, requiresLibelleCorrection));
         }
 
         if (!ModelState.IsValid)
@@ -247,19 +296,27 @@ public class ProductImportsController : Controller
         }
 
         var processedCount = 0;
-        foreach (var (_, row, line, unresolvedBlocking, requiresReplacementPph) in rowsToProcess.OrderBy(x => x.Line.RowNumber))
+        foreach (var (_, row, line, unresolvedBlocking, requiresReplacementPph, requiresLibelleCorrection) in rowsToProcess.OrderBy(x => x.Line.RowNumber))
         {
+            if (row.Decision == UserDecision.ForcerImport)
+            {
+                if (!string.IsNullOrWhiteSpace(row.LibelleCorrection))
+                    line.RawLibelle = row.LibelleCorrection.Trim();
+
+                if (row.ReplacementPph.HasValue && row.ReplacementPph.Value > 0)
+                    line.RawPph = row.ReplacementPph;
+            }
+
             var resolutionText = row.Decision switch
             {
                 UserDecision.Ignorer => "Ignoré par l'utilisateur",
                 UserDecision.ForcerImport when requiresReplacementPph && row.ReplacementPph.HasValue =>
-                    $"Import forcé — PPH remplacé par {row.ReplacementPph.Value:0.00}",
+                    $"Import forcé — prix de vente remplacé par {row.ReplacementPph.Value:0.00}",
+                UserDecision.ForcerImport when requiresLibelleCorrection && !string.IsNullOrWhiteSpace(row.LibelleCorrection) =>
+                    $"Import forcé — nom corrigé : {row.LibelleCorrection.Trim()}",
                 UserDecision.ForcerImport => "Import forcé par l'utilisateur",
                 _ => "Décision enregistrée"
             };
-
-            if (row.Decision == UserDecision.ForcerImport && requiresReplacementPph)
-                line.RawPph = row.ReplacementPph;
 
             foreach (var anomaly in unresolvedBlocking)
             {
@@ -295,11 +352,11 @@ public class ProductImportsController : Controller
 
         if (remaining > 0)
         {
-            TempData["Warning"] = $"{processedCount} ligne(s) traitée(s). Il reste {remaining} anomalie(s) bloquante(s) à résoudre.";
+            TempData["Warning"] = $"{processedCount} ligne(s) traitée(s). Il reste {remaining} erreur(s) à corriger.";
             return RedirectToAction(nameof(Anomalies), new { id = model.ImportBatchId });
         }
 
-        TempData["Success"] = "Toutes les anomalies bloquantes ont été résolues. Vous pouvez consulter la prévisualisation mise à jour.";
+        TempData["Success"] = "Toutes les erreurs ont été traitées. Vous pouvez consulter la prévisualisation mise à jour.";
         return RedirectToAction(nameof(Preview), new { id = model.ImportBatchId });
     }
 
@@ -326,6 +383,10 @@ public class ProductImportsController : Controller
                 a.Severity == ImportAnomalySeverity.Bloquante
                 && !a.ResolvedByUser
                 && a.AnomalyType == ImportAnomalyType.PphZeroOuInferieurAuPrixFab);
+            row.RequiresLibelleCorrection = line.Anomalies.Any(a =>
+                a.Severity == ImportAnomalySeverity.Bloquante
+                && !a.ResolvedByUser
+                && a.AnomalyType == ImportAnomalyType.LibelleVide);
             row.BlockingAnomalies = line.Anomalies
                 .Where(a => a.Severity == ImportAnomalySeverity.Bloquante && !a.ResolvedByUser)
                 .Select(a => new ProductImportAnomalyItemViewModel
@@ -349,8 +410,11 @@ public class ProductImportsController : Controller
             RowNumber = line.RowNumber,
             RawCip = line.RawCip,
             RawLibelle = line.RawLibelle,
+            Decision = null,
             RequiresReplacementPph = blocking
                 .Any(a => a.AnomalyType == ImportAnomalyType.PphZeroOuInferieurAuPrixFab),
+            RequiresLibelleCorrection = blocking
+                .Any(a => a.AnomalyType == ImportAnomalyType.LibelleVide),
             BlockingAnomalies = blocking
                 .Select(a => new ProductImportAnomalyItemViewModel
                 {

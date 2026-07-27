@@ -1,16 +1,16 @@
 @model ProductImportAnomalyViewModel
 @using Pharmacie.Models
 @{
-    ViewData["Title"] = "Résolution des anomalies";
+    ViewData["Title"] = "Correction des erreurs";
 
     string AnomalyLabel(ImportAnomalyType type) => type switch
     {
-        ImportAnomalyType.PphZeroOuInferieurAuPrixFab => "PPH zéro ou inférieur au prix fab.",
+        ImportAnomalyType.PphZeroOuInferieurAuPrixFab => "Prix de vente manquant ou inférieur au prix d'achat",
         ImportAnomalyType.QuantiteNegative => "Quantité négative",
-        ImportAnomalyType.CipDupliqueDansLeFichier => "CIP dupliqué dans le fichier",
-        ImportAnomalyType.CipManquantOuInvalide => "CIP manquant ou invalide",
-        ImportAnomalyType.LibelleVide => "Libellé vide",
-        ImportAnomalyType.CipIdentiqueLibelleDifferent => "CIP identique, libellé différent",
+        ImportAnomalyType.CipDupliqueDansLeFichier => "Code produit dupliqué dans le fichier",
+        ImportAnomalyType.CipManquantOuInvalide => "Code produit manquant ou invalide",
+        ImportAnomalyType.LibelleVide => "Nom du produit manquant",
+        ImportAnomalyType.CipIdentiqueLibelleDifferent => "Même code produit, nom différent",
         _ => type.ToString()
     };
 }
@@ -18,9 +18,9 @@
 <div class="page-header">
     <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
         <div>
-            <h1 class="page-title">Anomalies bloquantes</h1>
+            <h1 class="page-title">Erreurs à corriger</h1>
             <p class="page-lead mb-0">
-                Lot n° <strong>@Model.ImportBatchId</strong>
+                Lot d'import n° <strong>@Model.ImportBatchId</strong>
                 @if (!string.IsNullOrWhiteSpace(Model.FileName))
                 {
                     <span>— @Model.FileName</span>
@@ -39,41 +39,67 @@
 {
     <div class="alert alert-success" role="status">
         <i class="bi bi-check-circle me-1" aria-hidden="true"></i>
-        Aucune anomalie bloquante en attente pour ce lot.
+        Aucune erreur à corriger pour ce lot d'import.
     </div>
 }
 else
 {
     <p class="text-muted">
-        Pour chaque ligne, choisissez d'ignorer définitivement la ligne ou de forcer son import.
-        Si le PPH est nul, un prix de vente de remplacement est obligatoire pour forcer l'import.
+        Pour chaque ligne, choisissez d'ignorer la ligne ou de l'importer quand même.
+        Vous pouvez aussi corriger directement le prix de vente ou le nom du produit ci-dessous.
     </p>
 
     <form asp-action="Anomalies" method="post" id="anomalies-form">
+        @Html.AntiForgeryToken()
         <input type="hidden" asp-for="ImportBatchId" />
+
+        <div class="card mb-3 border-warning">
+            <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+                <span class="fw-semibold text-warning">
+                    <i class="bi bi-lightning-fill"></i>
+                    Actions groupées :
+                </span>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        id="btn-tout-ignorer">
+                    <i class="bi bi-x-circle"></i> Tout ignorer
+                </button>
+                <button type="button"
+                        class="btn btn-outline-success btn-sm"
+                        id="btn-tout-forcer">
+                    <i class="bi bi-check-circle"></i> Tout forcer
+                </button>
+                <span class="text-muted small ms-auto">
+                    Ces actions s'appliquent aux lignes sans prix de vente à saisir uniquement.
+                </span>
+            </div>
+        </div>
 
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle">
                 <thead class="table-light">
                     <tr>
                         <th scope="col">Ligne</th>
-                        <th scope="col">CIP</th>
-                        <th scope="col">Libellé</th>
-                        <th scope="col">Anomalies</th>
+                        <th scope="col">Code produit</th>
+                        <th scope="col">Nom du produit</th>
+                        <th scope="col">Erreurs</th>
                         <th scope="col" style="min-width: 14rem;">Décision</th>
-                        <th scope="col" style="min-width: 10rem;">PPH de remplacement</th>
+                        <th scope="col" style="min-width: 14rem;">Correction</th>
                     </tr>
                 </thead>
                 <tbody>
                     @for (var i = 0; i < Model.Lines.Count; i++)
                     {
                         var line = Model.Lines[i];
-                        <tr class="anomaly-row" data-requires-pph="@(line.RequiresReplacementPph ? "true" : "false")">
+                        <tr class="anomaly-row"
+                            data-requires-pph="@(line.RequiresReplacementPph ? "true" : "false")"
+                            data-requires-libelle="@(line.RequiresLibelleCorrection ? "true" : "false")">
                             <td>
                                 @line.RowNumber
                                 <input type="hidden" asp-for="Lines[i].ImportLineId" />
                                 <input type="hidden" asp-for="Lines[i].RowNumber" />
                                 <input type="hidden" asp-for="Lines[i].RequiresReplacementPph" />
+                                <input type="hidden" asp-for="Lines[i].RequiresLibelleCorrection" />
                             </td>
                             <td>@(string.IsNullOrWhiteSpace(line.RawCip) ? "—" : line.RawCip)</td>
                             <td>@(string.IsNullOrWhiteSpace(line.RawLibelle) ? "—" : line.RawLibelle)</td>
@@ -98,7 +124,7 @@ else
                                     <div class="form-check">
                                         <input class="form-check-input decision-radio"
                                                type="radio"
-                                               asp-for="Lines[i].Decision"
+                                               name="Lines[@i].Decision"
                                                value="@((int)UserDecision.Ignorer)"
                                                id="decision-@i-ignorer" />
                                         <label class="form-check-label" for="decision-@i-ignorer">Ignorer</label>
@@ -106,32 +132,48 @@ else
                                     <div class="form-check">
                                         <input class="form-check-input decision-radio"
                                                type="radio"
-                                               asp-for="Lines[i].Decision"
+                                               name="Lines[@i].Decision"
                                                value="@((int)UserDecision.ForcerImport)"
                                                id="decision-@i-forcer" />
-                                        <label class="form-check-label" for="decision-@i-forcer">Forcer l'import</label>
+                                        <label class="form-check-label" for="decision-@i-forcer">Importer quand même</label>
                                     </div>
+                                    <span asp-validation-for="Lines[i].Decision" class="text-danger small"></span>
                                 </div>
                             </td>
                             <td>
                                 @if (line.RequiresReplacementPph)
                                 {
-                                    <div class="replacement-pph-field">
-                                        <label class="form-label visually-hidden" asp-for="Lines[i].ReplacementPph">PPH</label>
-                                        <div class="input-group input-group-sm">
+                                    <div class="mt-1 replacement-pph-field">
+                                        <label class="form-label small text-muted" asp-for="Lines[i].ReplacementPph">
+                                            Saisir le prix de vente (FCFA) :
+                                        </label>
+                                        <div class="input-group input-group-sm" style="max-width:200px">
                                             <input asp-for="Lines[i].ReplacementPph"
-                                                   class="form-control replacement-pph-input"
+                                                   class="form-control pph-replacement replacement-pph-input"
                                                    type="number"
-                                                   step="0.01"
-                                                   min="0.01"
-                                                   placeholder="Ex. 12,50" />
+                                                   step="1"
+                                                   min="1"
+                                                   placeholder="Ex: 2500" />
                                             <span class="input-group-text">FCFA</span>
                                         </div>
                                         <span asp-validation-for="Lines[i].ReplacementPph" class="text-danger small"></span>
-                                        <div class="form-text replacement-pph-hint">Obligatoire si import forcé.</div>
+                                        <div class="form-text replacement-pph-hint">Obligatoire pour importer quand même.</div>
                                     </div>
                                 }
-                                else
+                                @if (line.RequiresLibelleCorrection)
+                                {
+                                    <div class="mt-1">
+                                        <label class="form-label small text-muted" asp-for="Lines[i].LibelleCorrection">
+                                            Saisir le nom du produit :
+                                        </label>
+                                        <input asp-for="Lines[i].LibelleCorrection"
+                                               class="form-control form-control-sm libelle-correction"
+                                               style="max-width:300px"
+                                               placeholder="Ex: AMOXICILLINE 500MG BT12" />
+                                        <span asp-validation-for="Lines[i].LibelleCorrection" class="text-danger small"></span>
+                                    </div>
+                                }
+                                @if (!line.RequiresReplacementPph && !line.RequiresLibelleCorrection)
                                 {
                                     <span class="text-muted small">—</span>
                                 }
@@ -154,11 +196,14 @@ else
     <partial name="_ValidationScriptsPartial" />
     <script>
         (function () {
+            var forcerValue = '@((int)UserDecision.ForcerImport)';
+            var ignorerValue = '@((int)UserDecision.Ignorer)';
+
             function updatePphField(row) {
                 var requiresPph = row.dataset.requiresPph === 'true';
                 if (!requiresPph) return;
 
-                var forcerSelected = row.querySelector('input[value="@((int)UserDecision.ForcerImport)"]:checked');
+                var forcerSelected = row.querySelector('input[value="' + forcerValue + '"]:checked');
                 var input = row.querySelector('.replacement-pph-input');
                 var hint = row.querySelector('.replacement-pph-hint');
                 if (!input) return;
@@ -178,6 +223,64 @@ else
                 });
                 updatePphField(row);
             });
+
+            var btnIgnorer = document.getElementById('btn-tout-ignorer');
+            if (btnIgnorer) {
+                btnIgnorer.addEventListener('click', function () {
+                    document.querySelectorAll('input[type="radio"][value="' + ignorerValue + '"]').forEach(function (r) {
+                        r.checked = true;
+                        r.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                });
+            }
+
+            var btnForcer = document.getElementById('btn-tout-forcer');
+            if (btnForcer) {
+                btnForcer.addEventListener('click', function () {
+                    var skipped = 0;
+                    document.querySelectorAll('input[type="radio"][value="' + forcerValue + '"]').forEach(function (r) {
+                        var row = r.closest('tr') || r.closest('.anomaly-row');
+                        var pphInput = row ? row.querySelector('.pph-replacement') : null;
+                        var requiresPph = row && row.dataset.requiresPph === 'true';
+                        if (requiresPph && (!pphInput || !(parseFloat(pphInput.value) > 0))) {
+                            skipped++;
+                            return;
+                        }
+                        r.checked = true;
+                        r.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                    if (skipped > 0 && window.toastr) {
+                        toastr.warning(
+                            skipped + ' ligne(s) avec prix de vente manquant nécessitent un prix de remplacement manuel.',
+                            'Action partielle'
+                        );
+                    }
+                });
+            }
+
+            var form = document.getElementById('anomalies-form');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    var groupes = {};
+                    document.querySelectorAll('input[type="radio"][name$=".Decision"]').forEach(function (r) {
+                        groupes[r.name] = groupes[r.name] || false;
+                        if (r.checked) groupes[r.name] = true;
+                    });
+                    var nonDecidees = 0;
+                    Object.keys(groupes).forEach(function (k) {
+                        if (!groupes[k]) nonDecidees++;
+                    });
+                    if (nonDecidees > 0) {
+                        e.preventDefault();
+                        if (window.toastr) {
+                            toastr.error(
+                                nonDecidees + ' ligne(s) sans décision. Utilisez « Tout ignorer » ou choisissez ligne par ligne.',
+                                'Décision requise'
+                            );
+                        }
+                    }
+                });
+            }
         })();
     </script>
 }

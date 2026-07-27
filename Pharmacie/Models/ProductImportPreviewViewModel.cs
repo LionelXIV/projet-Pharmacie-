@@ -18,6 +18,11 @@ public class ProductImportPreviewViewModel
 
     public int UnresolvedBlockingAnomaliesCount { get; set; }
 
+    public string? ActiveFilter { get; set; }
+
+    /// <summary>Nombre de lignes après application du filtre (pour pagination).</summary>
+    public int FilteredTotalCount { get; set; }
+
     public bool CanConfirmImport =>
         BatchStatus == ImportBatchStatus.EnAttenteValidation && UnresolvedBlockingAnomaliesCount == 0;
 }
