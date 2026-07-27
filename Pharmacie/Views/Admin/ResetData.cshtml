@@ -1,0 +1,69 @@
+@{
+    ViewData["Title"] = "Remise à zéro des données";
+}
+
+<div class="page-header">
+    <h1 class="page-title text-danger">Remise à zéro</h1>
+    <p class="page-lead mb-0">Suppression définitive des données opérationnelles de démonstration / test.</p>
+</div>
+
+<div class="alert alert-danger border-danger">
+    <h4 class="alert-heading">
+        <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+        Action irréversible
+    </h4>
+    <p>
+        Cette action va <strong>supprimer définitivement</strong>
+        toutes les données suivantes :
+    </p>
+    <ul>
+        <li>Tous les produits et le catalogue</li>
+        <li>Tout l'historique des ventes</li>
+        <li>Tout le stock et les lots</li>
+        <li>Toutes les commandes fournisseurs et réceptions</li>
+        <li>Tous les patients et ordonnances</li>
+        <li>Tous les imports précédents</li>
+        <li>Tous les rapports d'activité utilisateur archivés</li>
+    </ul>
+    <p>
+        <strong>Les comptes utilisateurs, les rôles et les vendeurs
+        seront conservés.</strong>
+        Les catégories et fournisseurs restent également en place.
+    </p>
+    <hr>
+    <p class="mb-0 text-danger fw-bold">
+        Cette action est IRRÉVERSIBLE.
+        Assurez-vous d'avoir une sauvegarde avant de continuer.
+    </p>
+</div>
+
+<form method="post" asp-action="ResetAllData">
+    @Html.AntiForgeryToken()
+    <div class="mb-3">
+        <label class="form-label fw-bold" for="confirmation">
+            Pour confirmer, tapez exactement :
+            <code class="text-danger">CONFIRMER</code>
+        </label>
+        <input type="text"
+               id="confirmation"
+               name="confirmation"
+               class="form-control"
+               style="max-width: 28rem;"
+               placeholder="Tapez CONFIRMER"
+               autocomplete="off"
+               required />
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <button type="submit"
+                class="btn btn-danger"
+                data-confirm="Êtes-vous absolument certain ? Cette action supprimera TOUTES les données de manière irréversible.">
+            <i class="bi bi-trash3-fill me-1" aria-hidden="true"></i>
+            Effacer toutes les données
+        </button>
+        <a asp-controller="Dashboard"
+           asp-action="Index"
+           class="btn btn-secondary">
+            Annuler
+        </a>
+    </div>
+</form>
