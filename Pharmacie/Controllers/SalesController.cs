@@ -157,12 +157,8 @@ public class SalesController : Controller
 
     public async Task<IActionResult> Create()
     {
-        var vm = new SaleCreateViewModel
-        {
-            Lines = Enumerable.Range(0, 8).Select(_ => new SaleLineSlotViewModel()).ToList()
-        };
-        await PopulateVendeursAsync();
-        return View(vm);
+        await PopulateVendeursForPosAsync();
+        return View(new SaleCreateViewModel());
     }
 
     [HttpPost]
@@ -212,12 +208,21 @@ public class SalesController : Controller
         }
 
         if (model.Lines == null || model.Lines.Count == 0)
-        {
-            model.Lines = Enumerable.Range(0, 8).Select(_ => new SaleLineSlotViewModel()).ToList();
-        }
+            model.Lines = new List<SaleLineSlotViewModel> { new() };
 
-        await PopulateVendeursAsync(model.VendeurId);
+        await PopulateVendeursForPosAsync(model.VendeurId);
         return View(model);
+    }
+
+    private async Task PopulateVendeursForPosAsync(int? selectedId = null)
+    {
+        ViewBag.Vendeurs = await _context.Vendeurs
+            .AsNoTracking()
+            .Where(v => v.IsActif)
+            .OrderBy(v => v.Nom)
+            .Select(v => new { v.Id, v.Nom, v.CouleurTicket })
+            .ToListAsync();
+        ViewBag.SelectedVendeurId = selectedId;
     }
 
     private async Task PopulateVendeursAsync(int? selectedId = null)

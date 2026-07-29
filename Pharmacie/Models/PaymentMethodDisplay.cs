@@ -16,6 +16,9 @@ public static class PaymentMethodDisplay
     {
         PaymentMethod.Wave => "badge-wave",
         PaymentMethod.OrangeMoney => "text-bg-warning",
+        PaymentMethod.YasMoney => "text-bg-info",
+        PaymentMethod.TPE => "text-bg-dark",
+        PaymentMethod.Especes => "text-bg-success",
         _ => "text-bg-secondary"
     };
 }

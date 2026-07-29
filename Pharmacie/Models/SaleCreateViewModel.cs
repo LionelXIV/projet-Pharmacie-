@@ -20,7 +20,7 @@ public class SaleCreateViewModel
     [Display(Name = "Vendeur")]
     public int? VendeurId { get; set; }
 
-    public List<SaleLineSlotViewModel> Lines { get; set; } = new();
+    public List<SaleLineSlotViewModel> Lines { get; set; } = new() { new SaleLineSlotViewModel() };
 }
 
 public class SaleLineSlotViewModel
@@ -31,5 +31,12 @@ public class SaleLineSlotViewModel
 
     [Display(Name = "Quantité")]
     [Range(0, int.MaxValue)]
-    public int Quantity { get; set; }
+    public int Quantity { get; set; } = 1;
+
+    /// <summary>Affichage uniquement — pas persisté par le POST POS.</summary>
+    [ValidateNever]
+    public decimal DisplayPrice { get; set; }
+
+    [ValidateNever]
+    public string? ProductName { get; set; }
 }
