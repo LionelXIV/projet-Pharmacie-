@@ -39,4 +39,13 @@ public class SaleLineSlotViewModel
 
     [ValidateNever]
     public string? ProductName { get; set; }
+
+    [ValidateNever]
+    public decimal DiscountPercent { get; set; }
+
+    [ValidateNever]
+    public decimal DiscountAmount { get; set; }
+
+    [ValidateNever]
+    public string? DiscountType { get; set; }
 }

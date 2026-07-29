@@ -218,10 +218,32 @@ public class SalesController : Controller
 
                 if (ok && saleId.HasValue)
                 {
-                    var sale = await _context.Sales.FindAsync(saleId.Value);
+                    var sale = await _context.Sales
+                        .Include(s => s.Lines)
+                        .FirstOrDefaultAsync(s => s.Id == saleId.Value);
+
                     if (sale != null)
                     {
                         sale.VendeurId = model.VendeurId;
+
+                        // Appliquer les remises par ligne (hors SaleService)
+                        var orderedSaleLines = sale.Lines.OrderBy(l => l.Id).ToList();
+                        for (var i = 0; i < slots.Count && i < orderedSaleLines.Count; i++)
+                        {
+                            var slot = slots[i];
+                            if (slot.ProductId <= 0 || slot.Quantity <= 0)
+                                continue;
+
+                            var discountType = slot.DiscountType?.Trim() ?? "";
+                            if (discountType is "percent" or "amount")
+                            {
+                                var saleLine = orderedSaleLines[i];
+                                saleLine.DiscountType = discountType;
+                                saleLine.DiscountPercent = discountType == "percent" ? slot.DiscountPercent : 0;
+                                saleLine.DiscountAmount = discountType == "amount" ? slot.DiscountAmount : 0;
+                            }
+                        }
+
                         await _context.SaveChangesAsync();
                     }
 

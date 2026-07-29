@@ -82,16 +82,17 @@
                 <thead class="table-success">
                     <tr>
                         <th>Produit</th>
-                        <th style="width:130px">Prix unit.</th>
+                        <th style="width:120px">Prix unit.</th>
                         <th style="width:140px">Quantité</th>
-                        <th style="width:110px">Total</th>
+                        <th style="width:160px">Remise</th>
+                        <th style="width:120px">Total</th>
                         <th style="width:40px"></th>
                     </tr>
                 </thead>
                 <tbody id="cart-body"></tbody>
                 <tfoot>
                     <tr id="cart-empty-row">
-                        <td colspan="5" class="text-center text-muted py-4">
+                        <td colspan="6" class="text-center text-muted py-4">
                             <i class="bi bi-cart3 fs-2 d-block mb-2" aria-hidden="true"></i>
                             Aucun produit — recherchez ci-dessus
                         </td>
@@ -220,7 +221,9 @@
         productId: id,
         productName: product.text,
         unitPrice: parseFloat(product.salePrice) || 0,
-        quantity: 1
+        quantity: 1,
+        discountValue: 0,
+        discountType: 'percent'
       });
     }
     renderCart();
@@ -245,6 +248,32 @@
     updateSummary();
   };
 
+  function getLineTotal(item) {
+    var base = item.unitPrice * item.quantity;
+    if (!item.discountValue || item.discountValue <= 0) return base;
+    if (item.discountType === 'percent') return base - (base * item.discountValue / 100);
+    return Math.max(0, base - item.discountValue);
+  }
+
+  window.updateDiscount = function (index, input) {
+    cart[index].discountValue = parseFloat(input.value) || 0;
+    renderCart();
+    updateSummary();
+  };
+
+  window.toggleDiscountType = function (index, btn) {
+    var row = btn.closest('tr');
+    row.querySelectorAll('.discount-type-btn').forEach(function (b) {
+      b.classList.remove('active', 'btn-secondary');
+      b.classList.add('btn-outline-secondary');
+    });
+    btn.classList.remove('btn-outline-secondary');
+    btn.classList.add('active', 'btn-secondary');
+    cart[index].discountType = btn.dataset.type;
+    renderCart();
+    updateSummary();
+  };
+
   function renderCart() {
     var tbody = document.getElementById('cart-body');
     var emptyRow = document.getElementById('cart-empty-row');
@@ -264,7 +293,8 @@
     btnValider.disabled = false;
 
     cart.forEach(function (item, i) {
-      var total = item.unitPrice * item.quantity;
+      var baseTotal = item.unitPrice * item.quantity;
+      var lineTotal = getLineTotal(item);
       var tr = document.createElement('tr');
 
       var tdName = document.createElement('td');
@@ -273,31 +303,74 @@
       var tdPrice = document.createElement('td');
       tdPrice.textContent = formatFcfa(item.unitPrice);
 
+      // Quantité
       var tdQty = document.createElement('td');
       var group = document.createElement('div');
       group.className = 'input-group input-group-sm';
       var btnMinus = document.createElement('button');
       btnMinus.type = 'button';
       btnMinus.className = 'btn btn-outline-secondary';
-      btnMinus.textContent = '−';
+      btnMinus.textContent = '\u2212';
       btnMinus.addEventListener('click', function () { updateQty(i, -1); });
-      var span = document.createElement('span');
-      span.className = 'input-group-text px-3';
-      span.textContent = String(item.quantity);
+      var spanQty = document.createElement('span');
+      spanQty.className = 'input-group-text px-3';
+      spanQty.textContent = String(item.quantity);
       var btnPlus = document.createElement('button');
       btnPlus.type = 'button';
       btnPlus.className = 'btn btn-outline-secondary';
       btnPlus.textContent = '+';
       btnPlus.addEventListener('click', function () { updateQty(i, 1); });
       group.appendChild(btnMinus);
-      group.appendChild(span);
+      group.appendChild(spanQty);
       group.appendChild(btnPlus);
       tdQty.appendChild(group);
 
+      // Remise
+      var tdDiscount = document.createElement('td');
+      var dGroup = document.createElement('div');
+      dGroup.className = 'input-group input-group-sm';
+      var dInput = document.createElement('input');
+      dInput.type = 'number';
+      dInput.className = 'form-control text-end';
+      dInput.min = '0';
+      dInput.max = item.discountType === 'percent' ? '100' : '';
+      dInput.step = '0.5';
+      dInput.value = String(item.discountValue || 0);
+      dInput.style.width = '65px';
+      dInput.setAttribute('onchange', 'updateDiscount(' + i + ', this)');
+      dInput.setAttribute('oninput', 'updateDiscount(' + i + ', this)');
+      var btnPct = document.createElement('button');
+      btnPct.type = 'button';
+      btnPct.className = 'btn btn-sm ' + (item.discountType === 'percent' ? 'btn-secondary active' : 'btn-outline-secondary') + ' discount-type-btn';
+      btnPct.dataset.type = 'percent';
+      btnPct.textContent = '%';
+      btnPct.setAttribute('onclick', 'toggleDiscountType(' + i + ', this)');
+      var btnAmt = document.createElement('button');
+      btnAmt.type = 'button';
+      btnAmt.className = 'btn btn-sm ' + (item.discountType === 'amount' ? 'btn-secondary active' : 'btn-outline-secondary') + ' discount-type-btn';
+      btnAmt.dataset.type = 'amount';
+      btnAmt.textContent = 'F';
+      btnAmt.setAttribute('onclick', 'toggleDiscountType(' + i + ', this)');
+      dGroup.appendChild(dInput);
+      dGroup.appendChild(btnPct);
+      dGroup.appendChild(btnAmt);
+      tdDiscount.appendChild(dGroup);
+
+      // Total
       var tdTotal = document.createElement('td');
       tdTotal.className = 'fw-bold';
-      tdTotal.textContent = formatFcfa(total);
+      if (item.discountValue > 0) {
+        tdTotal.innerHTML =
+          '<small class="text-decoration-line-through text-muted d-block">' + formatFcfa(baseTotal) + '</small>' +
+          '<small class="text-danger d-block">-' +
+            (item.discountType === 'percent' ? item.discountValue + '%' : formatFcfa(item.discountValue)) +
+          '</small>' +
+          '<span class="text-success">' + formatFcfa(lineTotal) + '</span>';
+      } else {
+        tdTotal.textContent = formatFcfa(lineTotal);
+      }
 
+      // Supprimer
       var tdDel = document.createElement('td');
       var btnDel = document.createElement('button');
       btnDel.type = 'button';
@@ -309,20 +382,27 @@
       tr.appendChild(tdName);
       tr.appendChild(tdPrice);
       tr.appendChild(tdQty);
+      tr.appendChild(tdDiscount);
       tr.appendChild(tdTotal);
       tr.appendChild(tdDel);
       tbody.appendChild(tr);
 
+      var dpVal = item.discountType === 'percent' ? (item.discountValue || 0) : 0;
+      var daVal = item.discountType === 'amount' ? (item.discountValue || 0) : 0;
+      var dtVal = item.discountValue > 0 ? item.discountType : '';
       hiddenFields.innerHTML +=
         '<input type="hidden" name="Lines[' + i + '].ProductId" value="' + item.productId + '">' +
-        '<input type="hidden" name="Lines[' + i + '].Quantity" value="' + item.quantity + '">';
+        '<input type="hidden" name="Lines[' + i + '].Quantity" value="' + item.quantity + '">' +
+        '<input type="hidden" name="Lines[' + i + '].DiscountPercent" value="' + dpVal + '">' +
+        '<input type="hidden" name="Lines[' + i + '].DiscountAmount" value="' + daVal + '">' +
+        '<input type="hidden" name="Lines[' + i + '].DiscountType" value="' + dtVal + '">';
     });
   }
 
   function updateSummary() {
     var remise = parseFloat(document.getElementById('remise-globale').value) || 0;
     var subtotal = cart.reduce(function (sum, item) {
-      return sum + (item.unitPrice * item.quantity);
+      return sum + getLineTotal(item);
     }, 0);
     var discount = subtotal * remise / 100;
     var total = subtotal - discount;

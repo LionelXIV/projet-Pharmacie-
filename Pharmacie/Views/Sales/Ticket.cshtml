@@ -142,15 +142,45 @@
     }
     @foreach (var line in Model.Lines.OrderBy(l => l.Id))
     {
-        var lineTotal = line.UnitPrice * line.Quantity;
+        var baseTotal = line.UnitPrice * line.Quantity;
+        decimal remiseAmount = 0;
+        var remiseLabel = "";
+
+        if (line.DiscountType == "percent" && line.DiscountPercent > 0)
+        {
+            remiseAmount = baseTotal * line.DiscountPercent / 100;
+            remiseLabel = "-" + line.DiscountPercent.ToString("N1") + "%";
+        }
+        else if (line.DiscountType == "amount" && line.DiscountAmount > 0)
+        {
+            remiseAmount = line.DiscountAmount;
+            remiseLabel = "-" + line.DiscountAmount.ToString("N0") + " FCFA";
+        }
+
+        var lineTotal = baseTotal - remiseAmount;
         total += lineTotal;
+
         <div class="product-name">
             @(line.Product?.CommercialName ?? "Produit")
         </div>
         <div class="product-detail">
             <span>@line.Quantity x @line.UnitPrice.ToString("N0") FCFA</span>
-            <span class="bold">@lineTotal.ToString("N0") FCFA</span>
+            <span>@baseTotal.ToString("N0") FCFA</span>
         </div>
+        @if (remiseAmount > 0)
+        {
+            <div class="product-detail" style="color:#cc0000;">
+                <span>Remise (@remiseLabel)</span>
+                <span>-@remiseAmount.ToString("N0") FCFA</span>
+            </div>
+        }
+        if (remiseAmount > 0)
+        {
+            <div class="product-detail" style="font-weight:bold;">
+                <span>Sous-total</span>
+                <span>@lineTotal.ToString("N0") FCFA</span>
+            </div>
+        }
     }
 
     <div class="separator"></div>

@@ -56,25 +56,51 @@
                                 <th>Produit</th>
                                 <th class="text-end">Prix unit.</th>
                                 <th class="text-end">Qté</th>
+                                <th class="text-end">Remise</th>
                                 <th class="text-end">Sous-total</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var line in Model.Lines.OrderBy(l => l.Id))
                             {
-                                var sub = line.Quantity * line.UnitPrice;
+                                var baseSub = line.Quantity * line.UnitPrice;
+                                decimal discAmt = 0;
+                                var remiseAff = "";
+                                if (line.DiscountType == "percent" && line.DiscountPercent > 0)
+                                {
+                                    discAmt = baseSub * line.DiscountPercent / 100;
+                                    remiseAff = line.DiscountPercent.ToString("N1") + "%";
+                                }
+                                else if (line.DiscountType == "amount" && line.DiscountAmount > 0)
+                                {
+                                    discAmt = line.DiscountAmount;
+                                    remiseAff = ReportCsvFormatter.FormatFcfa(line.DiscountAmount);
+                                }
+                                var sub = baseSub - discAmt;
                                 <tr>
                                     <td>@line.Product?.CommercialName</td>
                                     <td class="text-end">@ReportCsvFormatter.FormatFcfa(line.UnitPrice)</td>
                                     <td class="text-end">@line.Quantity</td>
+                                    <td class="text-end text-danger">@(remiseAff != "" ? "-" + remiseAff : "—")</td>
                                     <td class="text-end">@ReportCsvFormatter.FormatFcfa(sub)</td>
                                 </tr>
                             }
                         </tbody>
                         <tfoot>
+                            @{
+                                var totalWithDiscount = Model.Lines.Sum(l =>
+                                {
+                                    var b = l.Quantity * l.UnitPrice;
+                                    if (l.DiscountType == "percent" && l.DiscountPercent > 0)
+                                        return b - (b * l.DiscountPercent / 100);
+                                    if (l.DiscountType == "amount" && l.DiscountAmount > 0)
+                                        return b - l.DiscountAmount;
+                                    return b;
+                                });
+                            }
                             <tr>
-                                <th colspan="3" class="text-end">Total</th>
-                                <th class="text-end">@ReportCsvFormatter.FormatFcfa(total)</th>
+                                <th colspan="4" class="text-end">Total</th>
+                                <th class="text-end">@ReportCsvFormatter.FormatFcfa(totalWithDiscount)</th>
                             </tr>
                         </tfoot>
                     </table>
