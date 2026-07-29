@@ -177,6 +177,31 @@ public class ProductImportsController : Controller
         }
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForceConfirmAll(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        try
+        {
+            await _importService.ForceConfirmAllAsync(id, userId!);
+            TempData["Success"] =
+                "Import forcé effectué. Vérifiez les produits sans prix dans le catalogue.";
+            return RedirectToAction(nameof(Result), new { id });
+        }
+        catch (ProductImportUnresolvedAnomaliesException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Anomalies), new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Preview), new { id });
+        }
+    }
+
     [HttpGet]
     public async Task<IActionResult> Result(int id)
     {

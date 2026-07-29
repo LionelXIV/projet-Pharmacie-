@@ -245,6 +245,53 @@ public class ProductImportService
         return map;
     }
 
+    /// <summary>
+    /// Marque toutes les anomalies bloquantes comme résolues, recalcule les actions de ligne, puis confirme l'import.
+    /// </summary>
+    public async Task ForceConfirmAllAsync(int importBatchId, string confirmedByUserId)
+    {
+        if (string.IsNullOrWhiteSpace(confirmedByUserId))
+            throw new ArgumentException("L'identifiant utilisateur est obligatoire.", nameof(confirmedByUserId));
+
+        var batch = await _db.ImportBatches
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == importBatchId);
+
+        if (batch == null)
+            throw new InvalidOperationException($"Lot d'import #{importBatchId} introuvable.");
+
+        if (batch.Status != ImportBatchStatus.EnAttenteValidation)
+            throw new InvalidOperationException($"Le lot d'import #{importBatchId} n'est pas en attente de validation.");
+
+        var lines = await _db.ImportLines
+            .Include(l => l.Anomalies)
+            .Where(l => l.ImportBatchId == importBatchId)
+            .OrderBy(l => l.RowNumber)
+            .ToListAsync();
+
+        foreach (var line in lines)
+        {
+            foreach (var anomaly in line.Anomalies
+                         .Where(a => a.Severity == ImportAnomalySeverity.Bloquante && !a.ResolvedByUser))
+            {
+                anomaly.ResolvedByUser = true;
+                anomaly.Resolution = "Import forcé sans vérification";
+            }
+        }
+
+        await _db.SaveChangesAsync();
+
+        foreach (var line in lines)
+        {
+            var (action, matchedProductId) = await ResolveActionAfterAnomalyResolutionAsync(line, lines);
+            line.ResolvedAction = action;
+            line.MatchedProductId = matchedProductId;
+        }
+
+        await _db.SaveChangesAsync();
+        await ConfirmImportAsync(importBatchId, confirmedByUserId);
+    }
+
     public async Task ConfirmImportAsync(int importBatchId, string confirmedByUserId)
     {
         if (string.IsNullOrWhiteSpace(confirmedByUserId))
@@ -286,6 +333,7 @@ public class ProductImportService
             var supplierId = await GetOrCreateSupplierIdAsync(DefaultImportSupplierName);
 
             var productIdByCreationLineId = new Dictionary<int, int>();
+            var productIdByCip = new Dictionary<string, int>(StringComparer.Ordinal);
 
             foreach (var line in lines.Where(l => l.ResolvedAction == ImportLineAction.CreationProduit))
             {
@@ -311,6 +359,18 @@ public class ProductImportService
 
                 productIdByCreationLineId[line.Id] = product.Id;
                 line.MatchedProductId = product.Id;
+
+                var cipKey = line.RawCip?.Trim();
+                if (!string.IsNullOrEmpty(cipKey))
+                    productIdByCip.TryAdd(cipKey, product.Id);
+            }
+
+            foreach (var line in lines.Where(l =>
+                         l.ResolvedAction == ImportLineAction.NouveauLot
+                         && l.MatchedProductId.HasValue
+                         && !string.IsNullOrWhiteSpace(l.RawCip)))
+            {
+                productIdByCip.TryAdd(line.RawCip!.Trim(), line.MatchedProductId!.Value);
             }
 
             // Date d'expiration provisoire : le fichier importé ne fournit pas les vraies dates.
@@ -322,11 +382,10 @@ public class ProductImportService
                     || l.ResolvedAction == ImportLineAction.NouveauLot)
                 && l.RawQtefact > 0))
             {
-                var productId = line.ResolvedAction == ImportLineAction.CreationProduit
-                    ? productIdByCreationLineId[line.Id]
-                    : line.MatchedProductId
-                        ?? throw new InvalidOperationException(
-                            $"La ligne Excel {line.RowNumber} (nouveau lot) n'a pas de produit associé.");
+                var productId = ResolveProductIdForStockLine(
+                    line,
+                    productIdByCreationLineId,
+                    productIdByCip);
 
                 var lotNumber = $"IMPORT-{importBatchId}-{line.RowNumber}";
                 var reason =
@@ -451,6 +510,30 @@ public class ProductImportService
             ResolvedAnomaliesCount = anomalyCounts
                 .FirstOrDefault(x => x.Resolved)?.Count ?? 0
         };
+    }
+
+    private static int ResolveProductIdForStockLine(
+        ImportLine line,
+        IReadOnlyDictionary<int, int> productIdByCreationLineId,
+        IReadOnlyDictionary<string, int> productIdByCip)
+    {
+        if (line.ResolvedAction == ImportLineAction.CreationProduit)
+        {
+            if (productIdByCreationLineId.TryGetValue(line.Id, out var createdId))
+                return createdId;
+        }
+        else if (line.MatchedProductId.HasValue)
+            return line.MatchedProductId.Value;
+
+        var cip = line.RawCip?.Trim();
+        if (!string.IsNullOrEmpty(cip) && productIdByCip.TryGetValue(cip, out var idByCip))
+        {
+            line.MatchedProductId = idByCip;
+            return idByCip;
+        }
+
+        throw new InvalidOperationException(
+            $"La ligne Excel {line.RowNumber} (nouveau lot) n'a pas de produit associé.");
     }
 
     private async Task<int> GetOrCreateCategoryIdAsync(string name)

@@ -117,7 +117,17 @@
         else if (Model.CanConfirmImport)
         {
             <strong>Prêt pour confirmation</strong>
-            <span class="d-block small text-muted mt-1">Aucune erreur en attente. Vous pouvez confirmer l'import dans le catalogue.</span>
+            <span class="d-block small text-muted mt-1">
+                Aucune erreur bloquante en attente.
+                @if (s.WarningAnomaliesCount > 0)
+                {
+                    <span>Les alertes « à vérifier » n'empêchent pas la confirmation.</span>
+                }
+                else
+                {
+                    <span>Vous pouvez confirmer l'import dans le catalogue.</span>
+                }
+            </span>
         }
         else
         {
@@ -138,10 +148,35 @@
                     Elle est irréversible pour ce lot d'import.
                 </p>
             </div>
-            <form asp-action="Confirm" asp-route-id="@Model.ImportBatchId" method="post" class="flex-shrink-0">
+            <form asp-action="Confirm" asp-route-id="@Model.ImportBatchId" method="post" class="flex-shrink-0 js-import-confirm-overlay">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-success">
                     <i class="bi bi-check2-all me-1" aria-hidden="true"></i>Confirmer l'import
+                </button>
+            </form>
+        </div>
+    </div>
+}
+
+@if (Model.BatchStatus == ImportBatchStatus.EnAttenteValidation)
+{
+    <div class="card border-warning-subtle shadow-sm mb-4">
+        <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-md-between gap-3">
+            <div>
+                <h2 class="h6 mb-1 text-warning-emphasis">Import rapide</h2>
+                <p class="small text-muted mb-0">
+                    Ignore les erreurs bloquantes non corrigées et importe toutes les lignes valides.
+                    Les produits sans prix de vente seront enregistrés avec un prix à 0.
+                </p>
+            </div>
+            <form asp-action="ForceConfirmAll" method="post" class="flex-shrink-0 js-import-confirm-overlay">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.ImportBatchId" />
+                <button type="submit"
+                        class="btn btn-warning"
+                        data-confirm="Importer tout le fichier sans vérification ? Les produits sans prix seront importés avec prix = 0.">
+                    <i class="bi bi-lightning-fill" aria-hidden="true"></i>
+                    Tout importer sans vérification
                 </button>
             </form>
         </div>
@@ -255,4 +290,39 @@
             </li>
         </ul>
     </nav>
+}
+
+@section Scripts {
+<script>
+(function () {
+    document.querySelectorAll('form.js-import-confirm-overlay').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            var btn = e.submitter;
+            if (btn && btn.getAttribute('data-confirm')) {
+                if (!window.confirm(btn.getAttribute('data-confirm')))
+                    e.preventDefault();
+                else
+                    showImportOverlay();
+            } else {
+                showImportOverlay();
+            }
+        });
+    });
+
+    function showImportOverlay() {
+        var overlay = document.createElement('div');
+        overlay.style.cssText =
+            'position:fixed;inset:0;' +
+            'background:rgba(15,45,30,0.85);' +
+            'z-index:9999;display:flex;' +
+            'flex-direction:column;' +
+            'align-items:center;justify-content:center;gap:1rem;';
+        overlay.innerHTML =
+            '<div class="spinner-border text-light" style="width:3rem;height:3rem;"></div>' +
+            '<div style="color:#fff;font-size:1.2rem;font-weight:600;">Import en cours...</div>' +
+            '<div style="color:#A9DFBF;font-size:0.9rem;">Ne fermez pas cette page. Cette opération peut prendre 1 à 2 minutes.</div>';
+        document.body.appendChild(overlay);
+    }
+})();
+</script>
 }
