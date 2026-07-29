@@ -1,0 +1,186 @@
+@model Pharmacie.Models.Sale
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Ticket #@Model.Id</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            width: 80mm;
+            max-width: 80mm;
+            padding: 5mm;
+            color: #000;
+            background: #fff;
+        }
+
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .bold { font-weight: bold; }
+        .separator {
+            border-top: 1px dashed #000;
+            margin: 4px 0;
+        }
+        .double-separator {
+            border-top: 2px solid #000;
+            margin: 4px 0;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .header .name {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .header .sub {
+            font-size: 10px;
+            color: #333;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+            font-size: 11px;
+        }
+
+        .product-name {
+            font-size: 11px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+        .product-detail {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            padding-left: 4px;
+        }
+
+        .total-section {
+            margin-top: 6px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: bold;
+            padding: 2px 0;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 10px;
+            color: #333;
+        }
+
+        @@media print {
+            body {
+                width: 80mm;
+                margin: 0;
+                padding: 3mm;
+            }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="text-align:center; margin-bottom:10px;">
+        <button onclick="window.print()"
+                style="background:#4CAF82; color:white; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-size:13px;">
+            &#128424; Imprimer
+        </button>
+        <button onclick="window.close()"
+                style="background:#ccc; color:#333; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-size:13px; margin-left:8px;">
+            &#10005; Fermer
+        </button>
+    </div>
+
+    <div class="header">
+        <div class="name">Pharmacie Saint Jean Paul II</div>
+        <div class="sub">PNR &mdash; Dakar, S&eacute;n&eacute;gal</div>
+        <div class="sub">T&eacute;l : ___________</div>
+    </div>
+
+    <div class="double-separator"></div>
+
+    <div class="info-row">
+        <span>Ticket N&deg;</span>
+        <span class="bold">#@Model.Id</span>
+    </div>
+    <div class="info-row">
+        <span>Date</span>
+        <span>@Model.SoldAt.ToString("dd/MM/yyyy HH:mm")</span>
+    </div>
+    @if (Model.Vendeur != null)
+    {
+        <div class="info-row">
+            <span>Vendeur</span>
+            <span>@Model.Vendeur.Nom</span>
+        </div>
+    }
+
+    <div class="separator"></div>
+
+    @{
+        decimal total = 0;
+    }
+    @foreach (var line in Model.Lines.OrderBy(l => l.Id))
+    {
+        var lineTotal = line.UnitPrice * line.Quantity;
+        total += lineTotal;
+        <div class="product-name">
+            @(line.Product?.CommercialName ?? "Produit")
+        </div>
+        <div class="product-detail">
+            <span>@line.Quantity x @line.UnitPrice.ToString("N0") FCFA</span>
+            <span class="bold">@lineTotal.ToString("N0") FCFA</span>
+        </div>
+    }
+
+    <div class="separator"></div>
+
+    <div class="total-section">
+        <div class="total-row">
+            <span>TOTAL</span>
+            <span>@total.ToString("N0") FCFA</span>
+        </div>
+        <div class="info-row">
+            <span>Paiement</span>
+            <span>@PaymentMethodDisplay.GetName(Model.PaymentMethod)</span>
+        </div>
+    </div>
+
+    <div class="double-separator"></div>
+
+    <div class="footer">
+        <div>Merci de votre visite !</div>
+        <div style="margin-top:4px;">Conservez ce ticket</div>
+    </div>
+
+    <script>
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('auto') === 'true') {
+            window.addEventListener('load', function () {
+                setTimeout(function () { window.print(); }, 500);
+            });
+        }
+    </script>
+
+</body>
+</html>

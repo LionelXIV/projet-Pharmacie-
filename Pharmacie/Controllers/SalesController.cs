@@ -99,6 +99,20 @@ public class SalesController : Controller
         return View(sale);
     }
 
+    public async Task<IActionResult> Ticket(int id)
+    {
+        var sale = await _context.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+                .ThenInclude(l => l.Product)
+            .Include(s => s.Vendeur)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (sale == null) return NotFound();
+
+        return View(sale);
+    }
+
     public async Task<IActionResult> DetailsCsv(int? id)
     {
         if (id == null)
@@ -211,6 +225,7 @@ public class SalesController : Controller
                         await _context.SaveChangesAsync();
                     }
 
+                    TempData["NewSale"] = true;
                     return RedirectToAction(nameof(Details), new { id = saleId.Value });
                 }
 
