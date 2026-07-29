@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Pharmacie.Models;
@@ -6,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
 using Pharmacie.Services;
+
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
 var builder = WebApplication.CreateBuilder(args);
 

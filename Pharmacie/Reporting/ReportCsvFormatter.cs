@@ -5,13 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace Pharmacie.Reporting;
 
 /// <summary>
-/// CSV pour Excel FR : séparateur point-virgule, UTF-8 avec BOM, génération en mémoire.
+/// CSV pour Excel FR : séparateur point-virgule, encodage Windows-1252 (ANSI),
+/// génération en mémoire.
 /// </summary>
 public static class ReportCsvFormatter
 {
     public const char Separator = ';';
 
-    private static readonly UTF8Encoding Utf8WithBom = new(encoderShouldEmitUTF8Identifier: true);
     private static readonly CultureInfo FrFcfa = CultureInfo.GetCultureInfo("fr-FR");
 
     /// <summary>Déclare le séparateur à Excel (FR) sur la première ligne.</summary>
@@ -50,18 +50,20 @@ public static class ReportCsvFormatter
 
     public static string IntInvariant(int n) => n.ToString(CultureInfo.InvariantCulture);
 
-    public static byte[] ToUtf8BytesWithBom(string csvBody)
+    /// <summary>
+    /// Encode le contenu CSV en Windows-1252 (ANSI) pour une compatibilité
+    /// parfaite avec Excel sur Windows (accents français sans corruption).
+    /// </summary>
+    public static byte[] ToCsvBytes(string csvBody)
     {
-        var preamble = Utf8WithBom.GetPreamble();
-        var body = Utf8WithBom.GetBytes(csvBody ?? string.Empty);
-        if (preamble.Length == 0)
-            return body;
-
-        var result = new byte[preamble.Length + body.Length];
-        Buffer.BlockCopy(preamble, 0, result, 0, preamble.Length);
-        Buffer.BlockCopy(body, 0, result, preamble.Length, body.Length);
-        return result;
+        var encoding = Encoding.GetEncoding("Windows-1252");
+        return encoding.GetBytes(csvBody ?? string.Empty);
     }
+
+    /// <summary>
+    /// Ancienne méthode conservée pour compatibilité — redirige vers <see cref="ToCsvBytes"/>.
+    /// </summary>
+    public static byte[] ToUtf8BytesWithBom(string csvBody) => ToCsvBytes(csvBody);
 
     /// <summary>Nom de fichier ASCII horodaté (compatible navigateurs / Azure).</summary>
     public static string FileName(string slug) => $"{slug}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
@@ -69,7 +71,7 @@ public static class ReportCsvFormatter
     public static FileContentResult FileResult(ControllerBase controller, string csvBody, string slug)
     {
         var fileName = FileName(slug);
-        var bytes = ToUtf8BytesWithBom(csvBody);
-        return controller.File(bytes, "text/csv; charset=utf-8", fileName);
+        var bytes = ToCsvBytes(csvBody);
+        return controller.File(bytes, "text/csv; charset=windows-1252", fileName);
     }
 }
