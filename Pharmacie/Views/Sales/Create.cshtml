@@ -418,34 +418,39 @@
       return;
     }
 
-    document.getElementById('field-sold-at').value =
-      new Date().toISOString().slice(0, 16);
-    document.getElementById('field-payment-method').value = String(selectedPayment);
-    document.getElementById('field-notes').value =
-      document.getElementById('notes-input').value || '';
+    // Construire la date au format attendu par ASP.NET model binding
+    var now = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    var soldAt = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) +
+      'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
 
     var form = document.createElement('form');
     form.method = 'POST';
     form.action = postUrl;
 
-    var selectors = [
-      '#hidden-fields input',
-      '#field-sold-at',
-      '#field-payment-method',
-      '#field-notes',
-      'input[name="__RequestVerificationToken"]'
-    ];
-    selectors.forEach(function (sel) {
-      document.querySelectorAll(sel).forEach(function (input) {
-        form.appendChild(input.cloneNode(true));
-      });
-    });
+    function addHidden(name, value) {
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value || '';
+      form.appendChild(input);
+    }
 
-    var vInput = document.createElement('input');
-    vInput.type = 'hidden';
-    vInput.name = 'VendeurId';
-    vInput.value = vendeurId;
-    form.appendChild(vInput);
+    // Token antiforgery — récupéré directement depuis le DOM
+    var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+    if (tokenEl) addHidden('__RequestVerificationToken', tokenEl.value);
+
+    // Champs scalaires
+    addHidden('SoldAt', soldAt);
+    addHidden('PaymentMethod', String(selectedPayment));
+    addHidden('Notes', document.getElementById('notes-input').value || '');
+    addHidden('VendeurId', vendeurId);
+
+    // Lignes du panier
+    cart.forEach(function (item, i) {
+      addHidden('Lines[' + i + '].ProductId', String(item.productId));
+      addHidden('Lines[' + i + '].Quantity', String(item.quantity));
+    });
 
     var overlay = document.createElement('div');
     overlay.style.cssText =

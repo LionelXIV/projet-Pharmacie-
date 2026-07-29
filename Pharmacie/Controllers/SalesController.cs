@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
 using Pharmacie.Models;
@@ -20,11 +21,13 @@ public class SalesController : Controller
 
     private readonly ApplicationDbContext _context;
     private readonly SaleService _sales;
+    private readonly ILogger<SalesController> _logger;
 
-    public SalesController(ApplicationDbContext context, SaleService sales)
+    public SalesController(ApplicationDbContext context, SaleService sales, ILogger<SalesController> logger)
     {
         _context = context;
         _sales = sales;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index([FromQuery] SaleListFilters? filter, int page = 1)
@@ -165,46 +168,60 @@ public class SalesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(SaleCreateViewModel model)
     {
-        var slots = model.Lines ?? new List<SaleLineSlotViewModel>();
-        var lines = slots
-            .Where(l => l.ProductId > 0 && l.Quantity > 0)
-            .Select(l => (l.ProductId, l.Quantity))
-            .ToList();
-
-        if (lines.Count == 0)
-            ModelState.AddModelError(string.Empty, "Ajoutez au moins une ligne avec un produit et une quantité.");
-
-        if (!model.VendeurId.HasValue || model.VendeurId.Value <= 0)
-            ModelState.AddModelError(nameof(model.VendeurId), "Veuillez sélectionner le vendeur.");
-        else
+        try
         {
-            var vendeurOk = await _context.Vendeurs.AnyAsync(v => v.Id == model.VendeurId && v.IsActif);
-            if (!vendeurOk)
-                ModelState.AddModelError(nameof(model.VendeurId), "Vendeur invalide ou inactif.");
-        }
+            // Si SoldAt n'est pas posté / mal parsé, utiliser l'heure serveur
+            if (model.SoldAt == default)
+                model.SoldAt = DateTime.Now;
 
-        if (ModelState.IsValid)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var (ok, error, saleId) = await _sales.RecordSaleAsync(
-                model.SoldAt,
-                model.Notes,
-                lines,
-                userId,
-                model.PaymentMethod);
-            if (ok && saleId.HasValue)
+            var slots = model.Lines ?? new List<SaleLineSlotViewModel>();
+            var lines = slots
+                .Where(l => l.ProductId > 0 && l.Quantity > 0)
+                .Select(l => (l.ProductId, l.Quantity))
+                .ToList();
+
+            if (lines.Count == 0)
+                ModelState.AddModelError(string.Empty, "Ajoutez au moins une ligne avec un produit et une quantité.");
+
+            if (!model.VendeurId.HasValue || model.VendeurId.Value <= 0)
+                ModelState.AddModelError(nameof(model.VendeurId), "Veuillez sélectionner le vendeur.");
+            else
             {
-                var sale = await _context.Sales.FindAsync(saleId.Value);
-                if (sale != null)
-                {
-                    sale.VendeurId = model.VendeurId;
-                    await _context.SaveChangesAsync();
-                }
-
-                return RedirectToAction(nameof(Details), new { id = saleId.Value });
+                var vendeurOk = await _context.Vendeurs.AnyAsync(v => v.Id == model.VendeurId && v.IsActif);
+                if (!vendeurOk)
+                    ModelState.AddModelError(nameof(model.VendeurId), "Vendeur invalide ou inactif.");
             }
 
-            ModelState.AddModelError(string.Empty, error ?? "Vente impossible.");
+            if (ModelState.IsValid)
+            {
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var (ok, error, saleId) = await _sales.RecordSaleAsync(
+                    model.SoldAt,
+                    model.Notes,
+                    lines,
+                    userId,
+                    model.PaymentMethod);
+
+                if (ok && saleId.HasValue)
+                {
+                    var sale = await _context.Sales.FindAsync(saleId.Value);
+                    if (sale != null)
+                    {
+                        sale.VendeurId = model.VendeurId;
+                        await _context.SaveChangesAsync();
+                    }
+
+                    return RedirectToAction(nameof(Details), new { id = saleId.Value });
+                }
+
+                ModelState.AddModelError(string.Empty, error ?? "Vente impossible.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la création de la vente (PaymentMethod={PM}, VendeurId={VId}, Lines={Lines})",
+                model.PaymentMethod, model.VendeurId, model.Lines?.Count ?? 0);
+            ModelState.AddModelError(string.Empty, $"Une erreur inattendue s'est produite : {ex.Message}");
         }
 
         if (model.Lines == null || model.Lines.Count == 0)
