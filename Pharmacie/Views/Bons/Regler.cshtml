@@ -1,0 +1,88 @@
+@model Pharmacie.Models.Bon
+@using Pharmacie.Models
+@{
+    ViewData["Title"] = "Régler " + Model.Numero;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h1 class="h4 mb-0"><i class="bi bi-cash-coin me-2 text-success"></i>Régler le bon</h1>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <dl class="row mb-3 small">
+                    <dt class="col-6">N° Bon</dt><dd class="col-6 fw-bold">@Model.Numero</dd>
+                    <dt class="col-6">Client</dt><dd class="col-6">@Model.ClientNom</dd>
+                    <dt class="col-6">Total bon</dt><dd class="col-6">@Model.MontantTotal.ToString("N0") FCFA</dd>
+                    <dt class="col-6">Déjà réglé</dt><dd class="col-6 text-success">@Model.MontantRegle.ToString("N0") FCFA</dd>
+                    <dt class="col-6 fw-bold">Restant dû</dt>
+                    <dd class="col-6 fw-bold text-danger fs-5">@Model.MontantRestant.ToString("N0") FCFA</dd>
+                </dl>
+
+                <form asp-action="Regler" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Montant à régler (FCFA)</label>
+                        <input type="number" name="montant" id="montant"
+                               value="@Model.MontantRestant.ToString("F0")"
+                               min="1" max="@Model.MontantRestant.ToString("F0")"
+                               class="form-control form-control-lg text-center fw-bold"
+                               step="1" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Mode de paiement</label>
+                        <div id="paymentButtons" class="d-flex flex-wrap gap-2">
+                            @{
+                                var methods = new[] {
+                                    (PaymentMethod.Especes, "Espèces", "bi-cash"),
+                                    (PaymentMethod.Wave, "Wave", "bi-phone"),
+                                    (PaymentMethod.OrangeMoney, "Orange Money", "bi-phone"),
+                                    (PaymentMethod.Cheque, "Chèque", "bi-bank"),
+                                    (PaymentMethod.Virement, "Virement", "bi-arrow-left-right"),
+                                    (PaymentMethod.TPE, "TPE", "bi-credit-card"),
+                                };
+                            }
+                            @foreach (var (method, label, icon) in methods)
+                            {
+                                var isFirst = method == PaymentMethod.Especes;
+                                <button type="button"
+                                        class="btn @(isFirst ? "btn-success" : "btn-outline-secondary") pay-btn"
+                                        data-method="@((int)method)">
+                                    <i class="bi @icon me-1"></i>@label
+                                </button>
+                            }
+                        </div>
+                        <input type="hidden" name="paymentMethod" id="paymentMethod" value="@((int)PaymentMethod.Especes)" />
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100 py-2 fw-bold">
+                        <i class="bi bi-check-circle me-2"></i>Enregistrer le règlement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+document.querySelectorAll('.pay-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        document.querySelectorAll('.pay-btn').forEach(function (b) {
+            b.classList.remove('btn-success', 'btn-primary', 'btn-warning');
+            b.classList.add('btn-outline-secondary');
+        });
+        this.classList.remove('btn-outline-secondary');
+        this.classList.add('btn-success');
+        document.getElementById('paymentMethod').value = this.dataset.method;
+    });
+});
+</script>
+}

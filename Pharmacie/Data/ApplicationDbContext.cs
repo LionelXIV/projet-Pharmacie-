@@ -31,6 +31,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ImportAnomaly> ImportAnomalies => Set<ImportAnomaly>();
     public DbSet<UserActivityReport> UserActivityReports => Set<UserActivityReport>();
     public DbSet<Vendeur> Vendeurs => Set<Vendeur>();
+    public DbSet<Bon> Bons => Set<Bon>();
+    public DbSet<BonLigne> BonLignes => Set<BonLigne>();
+    public DbSet<ReglementBon> ReglementBons => Set<ReglementBon>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -117,6 +120,31 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(v => v.CouleurTicket).HasMaxLength(50);
             entity.HasIndex(v => v.Nom);
             entity.HasIndex(v => v.IsActif);
+        });
+
+        builder.Entity<Bon>(entity =>
+        {
+            entity.HasIndex(b => b.Numero).IsUnique();
+            entity.HasMany(b => b.Lignes)
+                .WithOne(l => l.Bon)
+                .HasForeignKey(l => l.BonId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(b => b.Reglements)
+                .WithOne(r => r.Bon)
+                .HasForeignKey(r => r.BonId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(b => b.Vendeur)
+                .WithMany()
+                .HasForeignKey(b => b.VendeurId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<BonLigne>(entity =>
+        {
+            entity.HasOne(l => l.Product)
+                .WithMany()
+                .HasForeignKey(l => l.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<PurchaseOrder>(entity =>

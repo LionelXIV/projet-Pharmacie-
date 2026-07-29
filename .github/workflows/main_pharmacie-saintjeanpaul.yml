@@ -26,6 +26,9 @@ jobs:
       - name: Build with dotnet
         run: dotnet build ./Pharmacie/Pharmacie.csproj --configuration Release
 
+      - name: Run tests
+        run: dotnet test ./Pharmacie.Tests/Pharmacie.Tests.csproj --configuration Release --verbosity minimal
+
       - name: dotnet publish
         run: dotnet publish ./Pharmacie/Pharmacie.csproj -c Release -o "${{env.DOTNET_ROOT}}/myapp"
 

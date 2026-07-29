@@ -1,0 +1,156 @@
+@model Pharmacie.Models.Bon
+@using Pharmacie.Models
+@{
+    Layout = null;
+    var autoprint = Context.Request.Query["auto"] == "true";
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BON @Model.Numero</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            width: 80mm;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 4mm;
+            color: #000;
+            background: #fff;
+        }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .bold { font-weight: bold; }
+        .sep { border-top: 1px dashed #000; margin: 4px 0; }
+        .sep-solid { border-top: 1px solid #000; margin: 4px 0; }
+        .row { display: flex; justify-content: space-between; align-items: baseline; }
+        .big { font-size: 14px; font-weight: bold; }
+        .statut-solde { background:#000; color:#fff; text-align:center; padding:2px 4px; font-weight:bold; }
+        .statut-part { text-align:center; padding:2px 4px; font-weight:bold; border:1px solid #000; }
+        @@media print {
+            body { margin: 0; padding: 2mm; }
+            @@page { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="center bold" style="font-size:14px;">PHARMACIE</div>
+<div class="center bold" style="font-size:14px;">SAINT JEAN PAUL II</div>
+<div class="center" style="font-size:11px;">PNR - DAKAR</div>
+<div class="sep-solid"></div>
+
+<div class="center bold" style="font-size:16px;">BON</div>
+<div class="sep"></div>
+
+<div class="row">
+    <span>N° Bon :</span>
+    <span class="bold">@Model.Numero</span>
+</div>
+<div class="row">
+    <span>Date :</span>
+    <span>@Model.DateCreation.ToString("dd/MM/yyyy HH:mm")</span>
+</div>
+<div class="row">
+    <span>Client :</span>
+    <span class="bold">@Model.ClientNom</span>
+</div>
+@if (Model.ClientTelephone != null)
+{
+    <div class="row">
+        <span>Tél :</span>
+        <span>@Model.ClientTelephone</span>
+    </div>
+}
+@if (Model.Vendeur != null)
+{
+    <div class="row">
+        <span>Vendeur :</span>
+        <span>@Model.Vendeur.Nom</span>
+    </div>
+}
+
+<div class="sep-solid"></div>
+
+@foreach (var ligne in Model.Lignes)
+{
+    var lineTotal = ligne.LineTotal;
+    var baseTotal = ligne.UnitPrice * ligne.Quantity;
+    <div class="bold" style="word-break:break-word;">@(ligne.Product?.CommercialName ?? $"#{ligne.ProductId}")</div>
+    <div class="row">
+        <span>@ligne.Quantity x @ligne.UnitPrice.ToString("N0")</span>
+        <span>@baseTotal.ToString("N0") FCFA</span>
+    </div>
+    @if ((ligne.DiscountType == "percent" && ligne.DiscountPercent > 0)
+      || (ligne.DiscountType == "amount" && ligne.DiscountAmount > 0))
+    {
+        <div class="row">
+            <span style="padding-left:4mm;">
+                Remise
+                @if (ligne.DiscountType == "percent")
+                {
+                    <text>(-@ligne.DiscountPercent.ToString("N0")%)</text>
+                }
+                else
+                {
+                    <text>(-@ligne.DiscountAmount.ToString("N0") FCFA)</text>
+                }
+            </span>
+            <span>@lineTotal.ToString("N0") FCFA</span>
+        </div>
+    }
+}
+
+<div class="sep-solid"></div>
+<div class="row big">
+    <span>TOTAL BON</span>
+    <span>@Model.MontantTotal.ToString("N0") FCFA</span>
+</div>
+<div class="row">
+    <span>Réglé</span>
+    <span>@Model.MontantRegle.ToString("N0") FCFA</span>
+</div>
+<div class="sep"></div>
+@if (Model.MontantRestant > 0)
+{
+    <div class="row big">
+        <span>RESTANT DÛ</span>
+        <span>@Model.MontantRestant.ToString("N0") FCFA</span>
+    </div>
+}
+else
+{
+    <div class="center bold statut-solde">★ BON SOLDÉ ★</div>
+}
+
+<div class="sep-solid"></div>
+
+@{
+    var statutLabel = Model.Statut switch
+    {
+        BonStatut.Ouvert => "OUVERT",
+        BonStatut.PartiellemntRegle => "PARTIELLEMENT RÉGLÉ",
+        BonStatut.Solde => "SOLDÉ",
+        BonStatut.Annule => "ANNULÉ",
+        _ => Model.Statut.ToString()
+    };
+}
+<div class="center" style="font-size:11px;">Statut : <strong>@statutLabel</strong></div>
+<div class="center" style="font-size:11px; margin-top:4px;">Ce bon est valable 30 jours</div>
+<div class="center" style="margin-top:4px;">Merci de votre confiance !</div>
+
+<div class="sep"></div>
+<div class="center" style="font-size:10px;">@Model.DateCreation.ToString("yyyy-MM-dd HH:mm:ss")</div>
+
+<script>
+@if (autoprint)
+{
+    <text>window.addEventListener('load', function() { window.print(); });</text>
+}
+</script>
+</body>
+</html>

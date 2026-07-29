@@ -149,6 +149,9 @@
                             <a class="nav-link @(isSales ? "active" : null)" asp-controller="Sales" asp-action="Index" aria-current="@(isSales ? "page" : null)">
                                 <i class="bi bi-cash-register" aria-hidden="true"></i>Ventes
                             </a>
+                            <a class="nav-link @(IsCtrl("Bons") ? "active" : null)" asp-controller="Bons" asp-action="Index" aria-current="@(IsCtrl("Bons") ? "page" : null)">
+                                <i class="bi bi-receipt-cutoff" aria-hidden="true"></i>Bons
+                            </a>
                         }
                         @if (AppRoles.CanAccessPurchasing(User!))
                         {

@@ -1,0 +1,78 @@
+Inventaire des anomalies — Pharmacie Saint Jean Paul II PNR (Dakar)
+Date: 2026-07-20
+Sources: signalement client générique post-déploiement + smoke test prod Azure
+         + dettes README_ModuleImport.md + résidus code (pas de ticket détaillé fourni)
+
+================================================================================
+A. BUGS CODE / UI CONFIRMÉS — CORRIGÉS (2026-07-20)
+================================================================================
+
+A1. Politique de confidentialité — placeholders → Pharmacie Saint Jean Paul II PNR, Dakar
+    Fichiers: Pharmacie/Views/Home/Privacy.cshtml
+    Statut: CORRIGÉ (déploiement Azure requis pour prod)
+
+A2. Marque générique → « St Jean Paul II » (sidebar) / « Pharmacie Saint Jean Paul II » (titre, footer)
+    Fichiers: Pharmacie/Views/Shared/_Layout.cshtml
+    Statut: CORRIGÉ (déploiement Azure requis pour prod)
+
+A3. Icône devise euro → bi-cash-coin
+    Fichiers: Pharmacie/Views/Sales/Index.cshtml
+    Statut: CORRIGÉ
+
+A4. Navigation Accueil actif uniquement sur Home/Index
+    Fichiers: Pharmacie/Views/Shared/_Layout.cshtml
+    Statut: CORRIGÉ
+
+A5. CI/CD — étape « Run tests » ajoutée avant publish
+    Fichiers: .github/workflows/main_pharmacie-saintjeanpaul.yml
+    Statut: CORRIGÉ
+
+Vérification locale: dotnet build OK (0/0) ; dotnet test 23/23 verts.
+Prod Azure: smoke test pré-fix OK (site up) ; contenu corrigé visible après push/deploy.
+
+
+================================================================================
+B. DETTES DOCUMENTÉES (pas des bugs code — validation métier client)
+================================================================================
+
+B1. Dates d'expiration provisoires = aujourd'hui + 2 ans à l'import Excel
+    Source: README_ModuleImport.md §6
+    Action: correction manuelle Lots OU évolution future (colonne Excel)
+
+B2. ProductType = Inconnu pour tout produit importé
+    Source: README_ModuleImport.md §3 — décision volontaire
+    Action: classification manuelle via Products/Classify
+
+B3. Sens de QTEFACT non confirmé avec la pharmacie
+    Source: README_ModuleImport.md §7
+    Action: atelier métier client
+
+B4. Mapping PX_FAB / PPH non validé formellement
+    Source: README_ModuleImport.md §7
+    Action: atelier métier client
+
+B5. Volume réel d'import non validé en production
+    Source: README_ModuleImport.md §6
+    Action: import pilote sur fichier réel
+
+B6. Catégorie / fournisseur par défaut après import
+    Source: README_ModuleImport.md §6
+    Action: affinage manuel post-import
+
+================================================================================
+C. DÉJÀ CORRIGÉ AVANT CET AUDIT (ne pas re-traiter)
+================================================================================
+
+C1. Devise EUR → FCFA (commit 1003c23)
+C2. Toastr + soumission commande brouillon (29d0d3d)
+C3. Label 90 jours hardcodé (0cfea75)
+C4. Stabilisation block 1 (réception brouillon, pagination, headers sécu, etc.)
+C5. Déploiement Azure / web.config / migrations startup (commits juillet 2026)
+
+================================================================================
+D. HORS PÉRIMÈTRE IMMÉDIAT (observé, non traité ici)
+================================================================================
+
+D1. MigrateAsync() à chaque démarrage Production — dette ops
+D2. stdoutLogEnabled=true dans web.config — utile debug Azure, à désactiver plus tard
+D3. Couverture tests limitée (pas de tests contrôleurs / patients)
