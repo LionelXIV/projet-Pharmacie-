@@ -21,12 +21,18 @@ public class SalesController : Controller
 
     private readonly ApplicationDbContext _context;
     private readonly SaleService _sales;
+    private readonly CaisseService _caisseService;
     private readonly ILogger<SalesController> _logger;
 
-    public SalesController(ApplicationDbContext context, SaleService sales, ILogger<SalesController> logger)
+    public SalesController(
+        ApplicationDbContext context,
+        SaleService sales,
+        CaisseService caisseService,
+        ILogger<SalesController> logger)
     {
         _context = context;
         _sales = sales;
+        _caisseService = caisseService;
         _logger = logger;
     }
 
@@ -174,6 +180,15 @@ public class SalesController : Controller
 
     public async Task<IActionResult> Create()
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var session = await _caisseService.GetSessionOuverteAsync(userId);
+        if (session == null)
+        {
+            TempData["Error"] = "Ouvrez votre caisse avant d'enregistrer une vente.";
+            return RedirectToAction("Index", "Caisse");
+        }
+
+        ViewBag.SessionCaisse = session;
         await PopulateVendeursForPosAsync();
         return View(new SaleCreateViewModel());
     }
@@ -184,6 +199,14 @@ public class SalesController : Controller
     {
         try
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var session = await _caisseService.GetSessionOuverteAsync(userId);
+            if (session == null)
+            {
+                TempData["Error"] = "Ouvrez votre caisse avant d'enregistrer une vente.";
+                return RedirectToAction("Index", "Caisse");
+            }
+
             // Si SoldAt n'est pas posté / mal parsé, utiliser l'heure serveur
             if (model.SoldAt == default)
                 model.SoldAt = DateTime.Now;
@@ -208,7 +231,6 @@ public class SalesController : Controller
 
             if (ModelState.IsValid)
             {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 var (ok, error, saleId) = await _sales.RecordSaleAsync(
                     model.SoldAt,
                     model.Notes,
@@ -246,6 +268,8 @@ public class SalesController : Controller
 
                         await _context.SaveChangesAsync();
                     }
+
+                    await _caisseService.LierVenteAsync(session.Id, saleId.Value);
 
                     TempData["NewSale"] = true;
                     return RedirectToAction(nameof(Details), new { id = saleId.Value });

@@ -1,0 +1,108 @@
+@using Pharmacie.Models
+@using Pharmacie.Services
+@{
+    ViewData["Title"] = "Caisses";
+    var caisse1 = ViewBag.Caisse1 as SessionCaisse;
+    var caisse2 = ViewBag.Caisse2 as SessionCaisse;
+    var labels = ViewBag.Labels as Dictionary<string, string> ?? new Dictionary<string, string>();
+    bool isAdmin = ViewBag.IsAdminOrPharmacien == true;
+    string currentUserId = ViewBag.CurrentUserId as string ?? "";
+    var caisses = new[] { (1, caisse1, "Caisse 1 — Matin", "bg-success", "btn-success"), (2, caisse2, "Caisse 2 — Soir", "bg-primary", "btn-primary") };
+
+    string Nom(SessionCaisse? s) =>
+        s == null ? "—" : UserDisplayResolver.Resolve(labels, s.CaissierUserId);
+
+    (int nb, decimal ca) Stats(SessionCaisse? s)
+    {
+        if (s == null) return (0, 0);
+        var sales = s.Ventes.Select(v => v.Sale).Where(x => x != null).Cast<Sale>().ToList();
+        return (sales.Count, sales.Sum(CaisseService.CalculerTotalSale));
+    }
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="h4 mb-0"><i class="bi bi-safe me-2 text-success"></i>Caisses du jour</h1>
+    @if (isAdmin)
+    {
+        <a asp-action="RapportConsolide" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-bar-chart me-1"></i>Rapport consolidé
+        </a>
+    }
+</div>
+
+@if (TempData["Success"] is string succ)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@succ
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        @err
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-3">
+@foreach (var (numero, session, titre, headerCss, btnCss) in caisses)
+{
+    var isOpen = session != null && session.Statut == SessionCaisseStatut.Ouverte;
+    var isClosed = session != null && session.Statut == SessionCaisseStatut.Fermee;
+    var isMine = session != null && session.CaissierUserId == currentUserId;
+    var canSeeDetails = isAdmin || isMine;
+    var (nb, ca) = Stats(session);
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100 @(isOpen ? "border-success" : "border-secondary")">
+            <div class="card-header @headerCss text-white fw-bold">
+                <i class="bi bi-cash-register me-1"></i>@titre
+            </div>
+            <div class="card-body">
+                @if (isOpen && session != null)
+                {
+                    <p class="mb-1"><span class="text-muted">Statut :</span> <span class="badge bg-success">Ouverte</span></p>
+                    <p class="mb-1"><span class="text-muted">Caissier :</span> <strong>@Nom(session)</strong></p>
+                    <p class="mb-1"><span class="text-muted">Ouverture :</span> @session.HeureOuverture.ToString("HH:mm")</p>
+                    @if (canSeeDetails)
+                    {
+                        <p class="mb-1"><span class="text-muted">Fond départ :</span> @session.FondDepart.ToString("N0") FCFA</p>
+                        <p class="mb-1"><span class="text-muted">Ventes :</span> @nb</p>
+                        <p class="mb-3"><span class="text-muted">CA :</span> <strong class="text-success">@ca.ToString("N0") FCFA</strong></p>
+                        @if (isMine || isAdmin)
+                        {
+                            <a asp-action="Fermer" asp-route-id="@session.Id" class="btn btn-warning w-100 mb-2">
+                                <i class="bi bi-lock me-1"></i>Fermer la caisse
+                            </a>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted small mb-0">Session ouverte — détails réservés au caissier / admin.</p>
+                    }
+                }
+                else if (isClosed && session != null)
+                {
+                    <p class="mb-1"><span class="badge bg-secondary">Fermée</span></p>
+                    <p class="mb-1"><span class="text-muted">Caissier :</span> @Nom(session)</p>
+                    <p class="mb-1"><span class="text-muted">Clôture :</span> @session.HeureFermeture?.ToString("HH:mm")</p>
+                    @if (canSeeDetails)
+                    {
+                        <p class="mb-3"><span class="text-muted">Billetage :</span> @(session.BilletageTotal?.ToString("N0") ?? "—") FCFA</p>
+                        <a asp-action="Rapport" asp-route-id="@session.Id" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-file-earmark-text me-1"></i>Voir le rapport
+                        </a>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted mb-3">Non ouverte</p>
+                    <a asp-action="Ouvrir" asp-route-numero="@numero" class="btn @btnCss w-100">
+                        <i class="bi bi-unlock me-1"></i>Ouvrir @(numero == 1 ? "Caisse Matin" : "Caisse Soir")
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+}
+</div>

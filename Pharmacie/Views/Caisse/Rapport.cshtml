@@ -1,0 +1,176 @@
+@model Pharmacie.Models.SessionCaisse
+@using Pharmacie.Models
+@using Pharmacie.Services
+@{
+    ViewData["Title"] = "Rapport " + Model.NomCaisse;
+    var sales = ViewBag.Sales as List<Sale> ?? new List<Sale>();
+    decimal caEspeces = ViewBag.CaEspeces ?? 0m;
+    decimal caWave = ViewBag.CaWave ?? 0m;
+    decimal caOM = ViewBag.CaOM ?? 0m;
+    decimal caAutre = ViewBag.CaAutre ?? 0m;
+    decimal bonsTotal = ViewBag.BonsTotal ?? 0m;
+    decimal theoriqueEspeces = ViewBag.TheoriqueEspeces ?? 0m;
+    decimal totalCa = ViewBag.TotalCa ?? 0m;
+    decimal ecart = ViewBag.Ecart ?? 0m;
+    var billetage = ViewBag.Billetage as BilletageDetail;
+    string caissierNom = ViewBag.CaissierNom as string ?? "—";
+
+    var coupures = new (string Label, int Count, int Valeur)[]
+    {
+        ("Billet 10 000 F", billetage?.Billet10000 ?? 0, 10000),
+        ("Billet 5 000 F", billetage?.Billet5000 ?? 0, 5000),
+        ("Billet 2 000 F", billetage?.Billet2000 ?? 0, 2000),
+        ("Billet 1 000 F", billetage?.Billet1000 ?? 0, 1000),
+        ("Pièce 500 F", billetage?.Piece500 ?? 0, 500),
+        ("Pièce 250 F", billetage?.Piece250 ?? 0, 250),
+        ("Pièce 200 F", billetage?.Piece200 ?? 0, 200),
+        ("Pièce 100 F", billetage?.Piece100 ?? 0, 100),
+        ("Pièce 50 F", billetage?.Piece50 ?? 0, 50),
+        ("Pièce 25 F", billetage?.Piece25 ?? 0, 25),
+        ("Pièce 10 F", billetage?.Piece10 ?? 0, 10),
+        ("Pièce 5 F", billetage?.Piece5 ?? 0, 5),
+    };
+}
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <h1 class="h4 mb-0">Rapport — @Model.NomCaisse</h1>
+    <button type="button" class="btn btn-outline-secondary btn-sm ms-auto" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>Imprimer le rapport
+    </button>
+</div>
+
+@if (TempData["Success"] is string succ)
+{
+    <div class="alert alert-success py-2">@succ</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <dl class="row mb-0 small">
+            <dt class="col-sm-3">Caisse</dt><dd class="col-sm-9 fw-bold">@Model.NomCaisse</dd>
+            <dt class="col-sm-3">Date</dt><dd class="col-sm-9">@Model.DateSession.ToString("dd/MM/yyyy")</dd>
+            <dt class="col-sm-3">Caissier</dt><dd class="col-sm-9">@caissierNom</dd>
+            <dt class="col-sm-3">Horaires</dt>
+            <dd class="col-sm-9">
+                @Model.HeureOuverture.ToString("HH:mm")
+                → @(Model.HeureFermeture?.ToString("HH:mm") ?? "—")
+            </dd>
+            <dt class="col-sm-3">Statut</dt>
+            <dd class="col-sm-9">
+                <span class="badge @(Model.Statut == SessionCaisseStatut.Fermee ? "bg-secondary" : "bg-success")">
+                    @Model.Statut
+                </span>
+            </dd>
+        </dl>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header fw-bold">Résumé financier</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-1"><span>Fond de départ</span><span>@Model.FondDepart.ToString("N0") FCFA</span></div>
+                <div class="d-flex justify-content-between mb-1"><span>CA Espèces</span><span>@caEspeces.ToString("N0") FCFA</span></div>
+                <div class="d-flex justify-content-between mb-1"><span>CA Wave</span><span>@caWave.ToString("N0") FCFA</span></div>
+                <div class="d-flex justify-content-between mb-1"><span>CA Orange Money</span><span>@caOM.ToString("N0") FCFA</span></div>
+                @if (caAutre > 0)
+                {
+                    <div class="d-flex justify-content-between mb-1"><span>CA Autres</span><span>@caAutre.ToString("N0") FCFA</span></div>
+                }
+                <div class="d-flex justify-content-between mb-1"><span>Bons / Crédits</span><span>@bonsTotal.ToString("N0") FCFA</span></div>
+                <hr />
+                <div class="d-flex justify-content-between mb-1"><span class="fw-bold">TOTAL CA ventes</span><span class="fw-bold">@totalCa.ToString("N0") FCFA</span></div>
+                <div class="d-flex justify-content-between mb-1"><span class="fw-bold">TOTAL THÉORIQUE espèces</span><span class="fw-bold">@theoriqueEspeces.ToString("N0") FCFA</span></div>
+                <div class="d-flex justify-content-between mb-1"><span class="fw-bold">BILLETAGE RÉEL</span><span class="fw-bold">@(Model.BilletageTotal?.ToString("N0") ?? "—") FCFA</span></div>
+                <hr />
+                <div class="d-flex justify-content-between fs-5">
+                    <span class="fw-bold">ÉCART</span>
+                    <span class="fw-bold @(ecart == 0 ? "text-success" : ecart > 0 ? "text-warning" : "text-danger")">
+                        @(ecart >= 0 ? "+" : "")@ecart.ToString("N0") FCFA
+                    </span>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.Notes))
+                {
+                    <hr />
+                    <p class="mb-0 small"><span class="text-muted">Notes :</span> @Model.Notes</p>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header fw-bold">Détail billetage</div>
+            <div class="card-body p-0">
+                @if (billetage == null)
+                {
+                    <p class="text-muted p-3 mb-0">Aucun billetage enregistré.</p>
+                }
+                else
+                {
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr><th>Coupure</th><th class="text-center">Nb</th><th class="text-end">Montant</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (label, count, valeur) in coupures.Where(c => c.Count > 0))
+                            {
+                                <tr>
+                                    <td>@label</td>
+                                    <td class="text-center">@count</td>
+                                    <td class="text-end">@((count * valeur).ToString("N0")) FCFA</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-warning fw-bold">
+                            <tr>
+                                <td colspan="2">Total</td>
+                                <td class="text-end">@billetage.Total.ToString("N0") FCFA</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header fw-bold">Liste des ventes (@sales.Count)</div>
+    <div class="card-body p-0">
+        @if (!sales.Any())
+        {
+            <p class="text-muted p-3 mb-0">Aucune vente liée à cette session.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Heure</th>
+                            <th>Produits</th>
+                            <th class="text-end">Montant</th>
+                            <th>Paiement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sale in sales)
+                        {
+                            var total = CaisseService.CalculerTotalSale(sale);
+                            var produits = string.Join(", ",
+                                sale.Lines.Select(l => (l.Product?.CommercialName ?? $"#{l.ProductId}") + "×" + l.Quantity));
+                            <tr>
+                                <td class="text-nowrap">@sale.SoldAt.ToString("HH:mm")</td>
+                                <td class="small">@produits</td>
+                                <td class="text-end fw-bold">@total.ToString("N0") FCFA</td>
+                                <td>@PaymentMethodDisplay.GetName(sale.PaymentMethod)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

@@ -36,6 +36,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ReglementBon> ReglementBons => Set<ReglementBon>();
     public DbSet<Avoir> Avoirs => Set<Avoir>();
     public DbSet<AvoirLigne> AvoirLignes => Set<AvoirLigne>();
+    public DbSet<SessionCaisse> SessionCaisses => Set<SessionCaisse>();
+    public DbSet<VenteCaisse> VenteCaisses => Set<VenteCaisse>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -167,6 +169,24 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(l => l.Product)
                 .WithMany()
                 .HasForeignKey(l => l.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<SessionCaisse>(entity =>
+        {
+            entity.HasIndex(s => new { s.NumeroCaisse, s.DateSession, s.Statut });
+            entity.HasMany(s => s.Ventes)
+                .WithOne(v => v.SessionCaisse)
+                .HasForeignKey(v => v.SessionCaisseId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<VenteCaisse>(entity =>
+        {
+            entity.HasIndex(v => new { v.SessionCaisseId, v.SaleId }).IsUnique();
+            entity.HasOne(v => v.Sale)
+                .WithMany()
+                .HasForeignKey(v => v.SaleId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

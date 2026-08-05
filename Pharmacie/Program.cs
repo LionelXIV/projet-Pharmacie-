@@ -88,6 +88,7 @@ builder.Services.AddScoped<ProductImportService>();
 builder.Services.AddScoped<UserActivityReportService>();
 builder.Services.AddScoped<BonService>();
 builder.Services.AddScoped<AvoirService>();
+builder.Services.AddScoped<CaisseService>();
 
 var app = builder.Build();
 

@@ -43,7 +43,8 @@
     var isSales = IsCtrl("Sales");
     var isBons = IsCtrl("Bons");
     var isAvoirs = IsCtrl("Avoirs");
-    var isCommerce = isSales || isPurchasing || isBons || isAvoirs;
+    var isCaisse = IsCtrl("Caisse");
+    var isCommerce = isSales || isPurchasing || isBons || isAvoirs || isCaisse;
     var isPatients = IsCtrlAny("Patients", "PatientPrescriptions", "PatientReminders", "PatientRemindersAlerts");
     var isAlerts = IsCtrl("Alerts");
     var isAdminUsers = IsCtrl("AdminUsers");
@@ -156,6 +157,9 @@
                             </a>
                             <a class="nav-link @(IsCtrl("Avoirs") ? "active" : null)" asp-controller="Avoirs" asp-action="Index" aria-current="@(IsCtrl("Avoirs") ? "page" : null)">
                                 <i class="bi bi-arrow-return-left" aria-hidden="true"></i>Avoirs
+                            </a>
+                            <a class="nav-link @(IsCtrl("Caisse") ? "active" : null)" asp-controller="Caisse" asp-action="Index" aria-current="@(IsCtrl("Caisse") ? "page" : null)">
+                                <i class="bi bi-safe" aria-hidden="true"></i>Caisses
                             </a>
                         }
                         @if (AppRoles.CanAccessPurchasing(User!))
