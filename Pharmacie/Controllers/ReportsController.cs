@@ -389,6 +389,166 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> RapportCA(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRapportCAAsync(dateDebut, dateFin);
+        return View(vm);
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> ExportRapportCACSV(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRapportCAAsync(dateDebut, dateFin);
+        var sb = ReportCsvFormatter.CreateBuilder();
+
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Rapport CA"),
+            ReportCsvFormatter.Escape($"{vm.DateDebut:yyyy-MM-dd} → {vm.DateFin:yyyy-MM-dd}")));
+        sb.AppendLine();
+
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Indicateur"),
+            ReportCsvFormatter.Escape("Valeur")));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("CA Total (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.CATotal)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Prix d'achat total PA (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.PATotal)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Marge brute (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.MargeBrute)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Taux de marge (%)"), ReportCsvFormatter.DecimalInvariant(vm.TauxMarge)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Panier moyen (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.PanierMoyen)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Nb ventes"), ReportCsvFormatter.IntInvariant(vm.NombreVentes)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("TVA collectée (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.TVACollectee)));
+        sb.AppendLine();
+
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Mode de paiement"),
+            ReportCsvFormatter.Escape("CA (FCFA)"),
+            ReportCsvFormatter.Escape("%")));
+        void AppendPm(string label, decimal ca)
+        {
+            var pct = vm.CATotal > 0 ? ca / vm.CATotal * 100 : 0;
+            sb.AppendLine(ReportCsvFormatter.Join(
+                ReportCsvFormatter.Escape(label),
+                ReportCsvFormatter.FcfaCsvAmount(ca),
+                ReportCsvFormatter.DecimalInvariant(pct)));
+        }
+        AppendPm("Espèces", vm.CAEspeces);
+        AppendPm("Wave", vm.CAWave);
+        AppendPm("Orange Money", vm.CAOrangeMoney);
+        AppendPm("Autres", vm.CAAutres);
+        sb.AppendLine();
+
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Date"),
+            ReportCsvFormatter.Escape("CA (FCFA)"),
+            ReportCsvFormatter.Escape("Nb ventes")));
+        foreach (var j in vm.CAParJour)
+        {
+            sb.AppendLine(ReportCsvFormatter.Join(
+                ReportCsvFormatter.Escape(j.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                ReportCsvFormatter.FcfaCsvAmount(j.CA),
+                ReportCsvFormatter.IntInvariant(j.NbVentes)));
+        }
+        sb.AppendLine();
+
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Vendeur"),
+            ReportCsvFormatter.Escape("Nb ventes"),
+            ReportCsvFormatter.Escape("CA (FCFA)"),
+            ReportCsvFormatter.Escape("Panier moyen (FCFA)")));
+        foreach (var v in vm.CAParVendeur)
+        {
+            sb.AppendLine(ReportCsvFormatter.Join(
+                ReportCsvFormatter.Escape(v.NomVendeur),
+                ReportCsvFormatter.IntInvariant(v.NbVentes),
+                ReportCsvFormatter.FcfaCsvAmount(v.CA),
+                ReportCsvFormatter.FcfaCsvAmount(v.PanierMoyen)));
+        }
+
+        return ReportCsvFormatter.FileResult(this, sb.ToString(),
+            $"rapport-ca_{vm.DateDebut:yyyyMMdd}_{vm.DateFin:yyyyMMdd}");
+    }
+
+    private async Task<RapportCAViewModel> BuildRapportCAAsync(DateTime? dateDebut, DateTime? dateFin)
+    {
+        var debut = (dateDebut ?? DateTime.Today.AddDays(-30)).Date;
+        var fin = (dateFin ?? DateTime.Today).Date;
+        if (fin < debut)
+            (debut, fin) = (fin, debut);
+
+        var start = debut;
+        var endExclusive = fin.AddDays(1);
+
+        var ventes = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product)
+            .Include(s => s.Vendeur)
+            .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive)
+            .OrderBy(s => s.SoldAt)
+            .ToListAsync();
+
+        static decimal LineCa(SaleLine l) => l.UnitPrice * l.Quantity;
+        static decimal LinePa(SaleLine l) => (l.Product?.PurchasePrice ?? 0m) * l.Quantity;
+
+        decimal SumPm(PaymentMethod pm) =>
+            ventes.Where(s => s.PaymentMethod == pm).SelectMany(s => s.Lines).Sum(LineCa);
+
+        var caTotal = ventes.SelectMany(s => s.Lines).Sum(LineCa);
+        var paTotal = ventes.SelectMany(s => s.Lines).Sum(LinePa);
+        var marge = caTotal - paTotal;
+        var caEspeces = SumPm(PaymentMethod.Especes);
+        var caWave = SumPm(PaymentMethod.Wave);
+        var caOm = SumPm(PaymentMethod.OrangeMoney);
+        var caAutres = ventes
+            .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
+            .SelectMany(s => s.Lines)
+            .Sum(LineCa);
+
+        var tvaCollectee = ventes
+            .SelectMany(s => s.Lines)
+            .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantTVA);
+
+        return new RapportCAViewModel
+        {
+            DateDebut = debut,
+            DateFin = fin,
+            NombreVentes = ventes.Count,
+            CATotal = caTotal,
+            PATotal = paTotal,
+            MargeBrute = marge,
+            TauxMarge = caTotal > 0 ? marge / caTotal * 100 : 0,
+            PanierMoyen = ventes.Count > 0 ? caTotal / ventes.Count : 0,
+            TVACollectee = tvaCollectee,
+            CAEspeces = caEspeces,
+            CAWave = caWave,
+            CAOrangeMoney = caOm,
+            CAAutres = caAutres,
+            CAParJour = ventes
+                .GroupBy(s => s.SoldAt.Date)
+                .OrderBy(g => g.Key)
+                .Select(g => new CAJourViewModel
+                {
+                    Date = g.Key,
+                    CA = g.SelectMany(s => s.Lines).Sum(LineCa),
+                    NbVentes = g.Count()
+                })
+                .ToList(),
+            CAParVendeur = ventes
+                .GroupBy(s => new
+                {
+                    s.VendeurId,
+                    Nom = s.Vendeur != null ? s.Vendeur.Nom : "Non attribué"
+                })
+                .Select(g => new CAVendeurViewModel
+                {
+                    NomVendeur = g.Key.Nom,
+                    CA = g.SelectMany(s => s.Lines).Sum(LineCa),
+                    NbVentes = g.Count()
+                })
+                .OrderByDescending(v => v.CA)
+                .ToList()
+        };
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
     public async Task<IActionResult> VendeursDuJour(DateTime? date = null)
     {
         var targetDate = (date ?? DateTime.Today).Date;
