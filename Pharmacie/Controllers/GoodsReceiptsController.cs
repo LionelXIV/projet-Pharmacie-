@@ -9,7 +9,7 @@ using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = AppRoles.Purchasing)]
+[Authorize(Roles = AppRoles.GoodsReceipt)]
 public class GoodsReceiptsController : Controller
 {
     private readonly ApplicationDbContext _context;

@@ -27,7 +27,7 @@
                         <button class="nav-link @(adminTab ? "active" : "")" id="tab-admin" type="button"
                                 data-bs-toggle="tab" data-bs-target="#pane-admin" role="tab"
                                 aria-controls="pane-admin" aria-selected="@(adminTab ? "true" : "false")">
-                            Connexion Administrateur
+                            Connexion Pharmacien Titulaire
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -77,6 +77,13 @@
                     </div>
 
                     <div class="tab-pane fade @(!adminTab ? "show active" : "")" id="pane-quick" role="tabpanel" aria-labelledby="tab-quick">
+                        <div class="alert alert-secondary small py-2 mb-3">
+                            Connexion rapide disponible pour :
+                            Pharmacien, Vendeur, Caissier,
+                            Assistant Pharmacien, Stagiaire.
+                            <br />
+                            Le Pharmacien Titulaire utilise uniquement la connexion email.
+                        </div>
                         <form id="quick-login" method="post" asp-page-handler="Quick" asp-route-returnUrl="@Model.ReturnUrl">
                             <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
 

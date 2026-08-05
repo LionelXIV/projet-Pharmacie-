@@ -23,13 +23,16 @@
             <p class="page-lead mb-0">La quantité en stock suit les <a asp-controller="Batches" asp-action="Index">lots</a> et les <a asp-controller="StockMovements" asp-action="Index">mouvements</a>.</p>
         </div>
         <div class="d-flex flex-wrap gap-2 flex-shrink-0">
-            @if (User.IsInRole(AppRoles.Administrateur) || User.IsInRole(AppRoles.Pharmacien))
+            @if (AppRoles.CanManageUsersAccounts(User))
             {
                 <a asp-action="Classify" class="btn btn-outline-warning btn-sm">
                     <i class="bi bi-tags"></i> Classifier les produits
                 </a>
             }
-            <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nouveau produit</a>
+            @if (AppRoles.CanManageCatalog(User))
+            {
+                <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nouveau produit</a>
+            }
         </div>
     </div>
 </div>
@@ -287,7 +290,10 @@
         <i class="bi bi-inbox" aria-hidden="true"></i>
         <p class="app-empty-state-title mb-1">Aucun produit</p>
         <p class="mb-0 small">Aucun résultat pour ces critères, ou catalogue vide.</p>
-        <a class="btn btn-primary btn-sm mt-3" asp-action="Create"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nouveau produit</a>
+        @if (AppRoles.CanManageCatalog(User))
+        {
+            <a class="btn btn-primary btn-sm mt-3" asp-action="Create"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Nouveau produit</a>
+        }
     </div>
 }
 

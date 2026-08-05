@@ -10,7 +10,7 @@ using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
+[Authorize(Roles = $"{AppRoles.CanManageUsers},{AppRoles.Administrateur}")]
 public class ProductImportsController : Controller
 {
     private const int PreviewPageSize = 50;

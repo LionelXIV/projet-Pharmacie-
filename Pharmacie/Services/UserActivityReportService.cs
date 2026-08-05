@@ -16,11 +16,15 @@ public class UserActivityReportService
 
     private static readonly Dictionary<string, string> RoleLabels = new()
     {
-        [AppRoles.Administrateur] = "Administrateur",
+        [AppRoles.PharmacienTitulaire] = "Pharmacien Titulaire",
+        [AppRoles.Administrateur] = "Pharmacien Titulaire",
         [AppRoles.Pharmacien] = "Pharmacien",
-        [AppRoles.GestionnaireStock] = "Gestionnaire de stock",
-        [AppRoles.Assistant] = "Assistant",
-        [AppRoles.Caissier] = "Caissier"
+        [AppRoles.Vendeur] = "Vendeur",
+        [AppRoles.GestionnaireStock] = "Vendeur",
+        [AppRoles.AssistantPharmacien] = "Assistant Pharmacien",
+        [AppRoles.Assistant] = "Assistant Pharmacien",
+        [AppRoles.Caissier] = "Caissier",
+        [AppRoles.Stagiaire] = "Stagiaire"
     };
 
     private readonly ApplicationDbContext _context;
@@ -41,10 +45,11 @@ public class UserActivityReportService
 
         var deletedBy = await _userManager.FindByIdAsync(deletedByUserId);
         var roles = await _userManager.GetRolesAsync(user);
-        var roleKey = roles.FirstOrDefault() ?? "";
-        var roleLabel = RoleLabels.GetValueOrDefault(roleKey, roleKey);
-        var isAdmin = roles.Contains(AppRoles.Administrateur);
+        var isAdmin = AppRoles.HasTitulaireRole(roles);
         var connectionType = isAdmin || string.IsNullOrEmpty(user.PinHash) ? "Email" : "PIN";
+        var roleLabel = string.Join(", ", roles.Select(AppRoles.GetRoleLabel).Distinct().OrderBy(r => r));
+        if (string.IsNullOrEmpty(roleLabel))
+            roleLabel = "—";
 
         var sales = await _context.Sales
             .AsNoTracking()

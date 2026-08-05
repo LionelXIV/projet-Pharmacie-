@@ -8,7 +8,7 @@ using Pharmacie.Models;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = AppRoles.FinancesAccess)]
+[Authorize(Roles = $"{AppRoles.CanManageUsers},{AppRoles.Administrateur}")]
 public class VendeursController : Controller
 {
     private static readonly string[] CouleursTicket =

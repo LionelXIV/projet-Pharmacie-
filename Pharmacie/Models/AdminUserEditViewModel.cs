@@ -14,9 +14,10 @@ public class AdminUserEditViewModel
     [StringLength(100, ErrorMessage = "L'identifiant ne peut pas dépasser 100 caractères.")]
     public string DisplayName { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Choisissez un rôle.")]
-    [Display(Name = "Rôle")]
-    public string Role { get; set; } = string.Empty;
+    [Display(Name = "Rôles")]
+    public List<string> RolesSelectionnes { get; set; } = new();
+
+    public bool IsTitulaireAccount { get; set; }
 
     public bool IsPinLogin { get; set; }
 

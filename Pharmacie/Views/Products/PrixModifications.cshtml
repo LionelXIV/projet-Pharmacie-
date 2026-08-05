@@ -1,0 +1,67 @@
+@model IEnumerable<PrixModification>
+@using Pharmacie.Reporting
+@{
+    ViewData["Title"] = "Modifications de prix";
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Modifications de prix</h1>
+            <p class="page-lead mb-0">Historique des 200 dernières modifications du prix de vente.</p>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">
+            <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Retour aux produits
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Produit</th>
+                        <th class="text-end">Ancien</th>
+                        <th class="text-end">Nouveau</th>
+                        <th>Par</th>
+                        <th>Raison</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-muted text-center py-4">Aucune modification enregistrée.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var m in Model)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@m.ModifiedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @if (m.Product != null)
+                                {
+                                    <a asp-action="Details" asp-route-id="@m.ProductId">@m.Product.CommercialName</a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">#@m.ProductId</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(m.AncienPrix)</td>
+                            <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(m.NouveauPrix)</td>
+                            <td>@(string.IsNullOrWhiteSpace(m.ModifiedByDisplayName) ? "—" : m.ModifiedByDisplayName)</td>
+                            <td>@(string.IsNullOrWhiteSpace(m.Raison) ? "—" : m.Raison)</td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

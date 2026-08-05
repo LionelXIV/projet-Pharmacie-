@@ -50,14 +50,14 @@
     var isAdminUsers = IsCtrl("AdminUsers");
     var isVendeurs = IsCtrl("Vendeurs");
     var showPrincipalSection = true;
-    var showCatalogueSection = true;
-    var showStockSection = true;
+    var showCatalogueSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessCatalog(User);
+    var showStockSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessStock(User);
     var showCommerceSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanSeeCommerceMenu(User);
     var showPatientsSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessPatientsRead(User);
     var showDonneesSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessReports(User);
-    var showAdminSection = User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur);
-    var showVendeursMenu = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessFinances(User);
-    var showPerformanceVendeurs = showVendeursMenu;
+    var showAdminSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanManageUsersAccounts(User);
+    var showVendeursMenu = showAdminSection;
+    var showPerformanceVendeurs = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessFinances(User);
     var antiforgeryTokens = Antiforgery.GetAndStoreTokens(Context);
 }
 <body>
@@ -99,9 +99,19 @@
                                 </a>
                             }
                         }
-                        <a class="nav-link @(isAlerts ? "active" : null)" asp-controller="Alerts" asp-action="Index" aria-current="@(isAlerts ? "page" : null)">
-                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Alertes
-                        </a>
+                        @if (User?.Identity?.IsAuthenticated == true
+                             && (AppRoles.IsTitulaire(User)
+                                 || User.IsInRole(AppRoles.Pharmacien)
+                                 || User.IsInRole(AppRoles.Vendeur)
+                                 || User.IsInRole(AppRoles.Caissier)
+                                 || User.IsInRole(AppRoles.AssistantPharmacien)
+                                 || User.IsInRole(AppRoles.Assistant)
+                                 || User.IsInRole(AppRoles.GestionnaireStock)))
+                        {
+                            <a class="nav-link @(isAlerts ? "active" : null)" asp-controller="Alerts" asp-action="Index" aria-current="@(isAlerts ? "page" : null)">
+                                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Alertes
+                            </a>
+                        }
                     </div>
                 }
 
@@ -112,7 +122,7 @@
                         <a class="nav-link @(IsCtrl("Products") ? "active" : null)" asp-controller="Products" asp-action="Index" aria-current="@(IsCtrl("Products") ? "page" : null)">
                             <i class="bi bi-capsule" aria-hidden="true"></i>Produits
                         </a>
-                        @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessCatalog(User))
+                        @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanManageCatalog(User))
                         {
                             <a class="nav-link @(IsCtrl("Categories") ? "active" : null)" asp-controller="Categories" asp-action="Index" aria-current="@(IsCtrl("Categories") ? "page" : null)">
                                 <i class="bi bi-bookmark" aria-hidden="true"></i>Catégories
@@ -121,7 +131,7 @@
                                 <i class="bi bi-building" aria-hidden="true"></i>Fournisseurs
                             </a>
                         }
-                        @if (User?.Identity?.IsAuthenticated == true && (User.IsInRole(AppRoles.Administrateur) || User.IsInRole(AppRoles.Pharmacien)))
+                        @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanManageUsersAccounts(User))
                         {
                             <a class="nav-link @(IsCtrl("ProductImports") ? "active" : null)" asp-controller="ProductImports" asp-action="Upload" aria-current="@(IsCtrl("ProductImports") ? "page" : null)">
                                 <i class="bi bi-file-earmark-spreadsheet" aria-hidden="true"></i>Import produits
@@ -158,6 +168,9 @@
                             <a class="nav-link @(IsCtrl("Avoirs") ? "active" : null)" asp-controller="Avoirs" asp-action="Index" aria-current="@(IsCtrl("Avoirs") ? "page" : null)">
                                 <i class="bi bi-arrow-return-left" aria-hidden="true"></i>Avoirs
                             </a>
+                        }
+                        @if (AppRoles.CanAccessCaisseMenu(User!))
+                        {
                             <a class="nav-link @(IsCtrl("Caisse") ? "active" : null)" asp-controller="Caisse" asp-action="Index" aria-current="@(IsCtrl("Caisse") ? "page" : null)">
                                 <i class="bi bi-safe" aria-hidden="true"></i>Caisses
                             </a>
@@ -167,6 +180,9 @@
                             <a class="nav-link @(IsCtrl("PurchaseOrders") ? "active" : null)" asp-controller="PurchaseOrders" asp-action="Index" aria-current="@(IsCtrl("PurchaseOrders") ? "page" : null)">
                                 <i class="bi bi-bag-check" aria-hidden="true"></i>Commandes fournisseurs
                             </a>
+                        }
+                        @if (AppRoles.CanAccessGoodsReceipts(User!))
+                        {
                             <a class="nav-link @(IsCtrl("GoodsReceipts") ? "active" : null)" asp-controller="GoodsReceipts" asp-action="Index" aria-current="@(IsCtrl("GoodsReceipts") ? "page" : null)">
                                 <i class="bi bi-box-seam" aria-hidden="true"></i>Bons de livraison
                             </a>
@@ -266,7 +282,7 @@
                 <h6 class="ph-page-title mb-0">@ViewData["Title"]</h6>
                 <span class="ph-mobile-nav-hint text-muted small">Menu latéral sur grand écran</span>
                 <div class="ph-topbar-actions">
-                    @if (User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur))
+                    @if (User?.Identity?.IsAuthenticated == true && AppRoles.IsTitulaire(User))
                     {
                         <button type="button"
                                 id="btn-install"
@@ -489,7 +505,7 @@ function togglePassword(fieldId) {
 }
     </script>
     <script>
-      var isAdmin = @(User?.Identity?.IsAuthenticated == true && User.IsInRole(AppRoles.Administrateur) ? "true" : "false");
+      var isAdmin = @(User?.Identity?.IsAuthenticated == true && AppRoles.IsTitulaire(User) ? "true" : "false");
       var btnInstall = document.getElementById('btn-install');
       var deferredPrompt;
 

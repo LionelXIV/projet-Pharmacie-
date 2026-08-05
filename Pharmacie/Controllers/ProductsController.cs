@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,7 +27,7 @@ public class ProductsController : Controller
         _context = context;
     }
 
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CatalogRead)]
     public async Task<IActionResult> Index([FromQuery] ProductListFilters? filter, int page = 1)
     {
         filter ??= new ProductListFilters();
@@ -91,7 +92,7 @@ public class ProductsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CanModifyPrice)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateQuick([FromForm] QuickProductDto dto)
     {
@@ -152,7 +153,7 @@ public class ProductsController : Controller
         return supplier.Id;
     }
 
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CatalogRead)]
     public async Task<IActionResult> IndexCsv([FromQuery] ProductListFilters? filter)
     {
         filter ??= new ProductListFilters();
@@ -197,7 +198,7 @@ public class ProductsController : Controller
         return ReportCsvFormatter.FileResult(this, sb.ToString(), "export-catalogue-produits");
     }
 
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CatalogRead)]
     public async Task<IActionResult> Details(int? id)
     {
         if (id == null)
@@ -213,7 +214,7 @@ public class ProductsController : Controller
         return View(product);
     }
 
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> Create()
     {
         await PopulateLookupsAsync();
@@ -222,7 +223,7 @@ public class ProductsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> Create(
         [Bind(
             "CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive,TarifType")]
@@ -242,7 +243,7 @@ public class ProductsController : Controller
         return View(product);
     }
 
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> Edit(int? id)
     {
         if (id == null)
@@ -258,7 +259,7 @@ public class ProductsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> Edit(int id,
         [Bind(
             "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive,TarifType")]
@@ -283,6 +284,22 @@ public class ProductsController : Controller
 
             TVACalculator.AppliquerTarif(product);
 
+            if (product.SalePrice != existing.SalePrice)
+            {
+                _context.PrixModifications.Add(new PrixModification
+                {
+                    ProductId = product.Id,
+                    AncienPrix = existing.SalePrice,
+                    NouveauPrix = product.SalePrice,
+                    ModifiedAt = DateTime.Now,
+                    ModifiedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "",
+                    ModifiedByDisplayName = User.Identity?.Name
+                        ?? User.FindFirstValue(ClaimTypes.Name)
+                        ?? "",
+                    Raison = "Modification produit"
+                });
+            }
+
             try
             {
                 _context.Update(product);
@@ -303,7 +320,7 @@ public class ProductsController : Controller
         return View(product);
     }
 
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> Delete(int? id)
     {
         if (id == null)
@@ -321,7 +338,7 @@ public class ProductsController : Controller
 
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = AppRoles.Catalog)]
+    [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var product = await _context.Products.FindAsync(id);
@@ -345,7 +362,21 @@ public class ProductsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> PrixModifications()
+    {
+        var list = await _context.PrixModifications
+            .AsNoTracking()
+            .Include(p => p.Product)
+            .OrderByDescending(p => p.ModifiedAt)
+            .Take(200)
+            .ToListAsync();
+
+        return View(list);
+    }
+
+    [HttpGet]
+    [Authorize(Roles = $"{AppRoles.CanManageUsers},{AppRoles.Administrateur}")]
     public async Task<IActionResult> Classify(string? term = null, int? filterType = null, int page = 1)
     {
         if (page < 1)
@@ -416,7 +447,7 @@ public class ProductsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
+    [Authorize(Roles = $"{AppRoles.CanManageUsers},{AppRoles.Administrateur}")]
     public async Task<IActionResult> ClassifyBulk(
         List<int> productIds,
         int newType,

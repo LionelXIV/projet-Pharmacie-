@@ -283,7 +283,7 @@ public class BonsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
     public async Task<IActionResult> AnnulerBon(int id)
     {
         var bon = await _context.Bons.FindAsync(id);

@@ -142,9 +142,20 @@ public class LoginModel : PageModel
 
         if (user == null
             || string.IsNullOrEmpty(user.PinHash)
+            || await _userManager.IsInRoleAsync(user, AppRoles.PharmacienTitulaire)
             || await _userManager.IsInRoleAsync(user, AppRoles.Administrateur))
         {
-            ModelState.AddModelError(string.Empty, "Identifiant ou code PIN incorrect");
+            if (user != null
+                && (await _userManager.IsInRoleAsync(user, AppRoles.PharmacienTitulaire)
+                    || await _userManager.IsInRoleAsync(user, AppRoles.Administrateur)))
+            {
+                ModelState.AddModelError(string.Empty,
+                    "Le Pharmacien Titulaire doit utiliser la connexion email.");
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "Identifiant ou code PIN incorrect");
+            }
             return Page();
         }
 

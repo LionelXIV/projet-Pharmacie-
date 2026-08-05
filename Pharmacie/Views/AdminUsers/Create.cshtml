@@ -1,9 +1,12 @@
 @model AdminUserCreateViewModel
+@using Pharmacie.Authorization
 @{
     ViewData["Title"] = "Créer un utilisateur";
-    var role = Model.Role ?? string.Empty;
-    var showAdmin = role == "Administrateur";
-    var showQuick = !string.IsNullOrEmpty(role) && role != "Administrateur";
+    var roleChoices = ViewBag.Roles as List<RoleChoixViewModel> ?? new List<RoleChoixViewModel>();
+    var titulaireChecked = Model.RolesSelectionnes?.Contains(AppRoles.PharmacienTitulaire) == true;
+    var anyRole = Model.RolesSelectionnes?.Count > 0;
+    var showAdmin = titulaireChecked;
+    var showQuick = anyRole && !titulaireChecked;
 }
 
 <div class="page-header">
@@ -18,23 +21,47 @@
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white py-3 border-bottom d-flex align-items-center gap-2">
                 <i class="bi bi-person-plus text-primary fs-5" aria-hidden="true"></i>
-                <span class="fw-semibold">Compte et rôle</span>
+                <span class="fw-semibold">Compte et rôles</span>
             </div>
             <div class="card-body p-3 p-md-4">
                 <form asp-action="Create" method="post" id="create-user-form">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
                     <div class="mb-4">
-                        <label asp-for="Role" class="form-label"></label>
-                        <select asp-for="Role" id="roleSelect" class="form-select" asp-items="ViewBag.Role">
-                            <option value="">-- Choisir un rôle --</option>
-                        </select>
-                        <span asp-validation-for="Role" class="text-danger"></span>
-                        <div class="form-text">Le rôle détermine le type de connexion (email ou PIN).</div>
+                        <label class="form-label fw-bold">
+                            Rôles *
+                            <small class="text-muted fw-normal">(plusieurs choix possibles)</small>
+                        </label>
+                        <div class="row g-2">
+                            @foreach (var role in roleChoices)
+                            {
+                                <div class="col-md-6">
+                                    <div class="card border h-100">
+                                        <div class="card-body py-2">
+                                            <div class="form-check">
+                                                <input type="checkbox"
+                                                       name="RolesSelectionnes"
+                                                       value="@role.Nom"
+                                                       id="role-@role.Nom"
+                                                       class="form-check-input role-choice"
+                                                       data-titulaire="@(role.Nom == AppRoles.PharmacienTitulaire ? "true" : "false")"
+                                                       @(role.Selectionne || (Model.RolesSelectionnes?.Contains(role.Nom) == true) ? "checked" : null) />
+                                                <label class="form-check-label fw-bold" for="role-@role.Nom">
+                                                    @role.Label
+                                                </label>
+                                                <div class="text-muted small">@role.Description</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <span asp-validation-for="RolesSelectionnes" class="text-danger"></span>
+                        <div class="form-text">Au moins un rôle est obligatoire. Le Pharmacien Titulaire utilise email + mot de passe ; les autres rôles utilisent un code PIN.</div>
                     </div>
 
                     <div id="admin-fields" class="@(showAdmin ? "" : "d-none")">
-                        <p class="form-section-title">Compte administrateur</p>
+                        <p class="form-section-title">Compte Pharmacien Titulaire</p>
                         <div class="mb-3">
                             <label asp-for="Email" class="form-label"></label>
                             <input asp-for="Email" class="form-control" autocomplete="off" />
@@ -112,11 +139,11 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
 (function () {
-  var roleSelect = document.getElementById('roleSelect');
   var adminSection = document.getElementById('admin-fields');
   var quickSection = document.getElementById('quick-fields');
   var adminDisplay = adminSection.querySelector('[name="DisplayName"]');
   var quickDisplay = document.getElementById('QuickDisplayName');
+  var titulaireValue = '@AppRoles.PharmacienTitulaire';
 
   function setDisabled(section, disabled) {
     section.querySelectorAll('input, select, textarea').forEach(function (el) {
@@ -124,19 +151,26 @@
     });
   }
 
-  function syncRole() {
-    var role = roleSelect.value;
-    if (role === 'Administrateur') {
+  function selectedRoles() {
+    return Array.prototype.slice.call(document.querySelectorAll('.role-choice:checked'))
+      .map(function (el) { return el.value; });
+  }
+
+  function syncRoleFields() {
+    var roles = selectedRoles();
+    var isTitulaire = roles.indexOf(titulaireValue) !== -1;
+    var any = roles.length > 0;
+
+    if (isTitulaire) {
       adminSection.classList.remove('d-none');
       quickSection.classList.add('d-none');
       setDisabled(adminSection, false);
       setDisabled(quickSection, true);
-    } else if (role !== '') {
+    } else if (any) {
       adminSection.classList.add('d-none');
       quickSection.classList.remove('d-none');
       setDisabled(adminSection, true);
       setDisabled(quickSection, false);
-      // Bind DisplayName from the quick field into the posted admin field name
       adminDisplay.disabled = false;
       adminDisplay.value = quickDisplay.value;
     } else {
@@ -148,21 +182,26 @@
   }
 
   quickDisplay.addEventListener('input', function () {
-    if (roleSelect.value && roleSelect.value !== 'Administrateur') {
+    var roles = selectedRoles();
+    if (roles.length && roles.indexOf(titulaireValue) === -1) {
       adminDisplay.disabled = false;
       adminDisplay.value = quickDisplay.value;
     }
   });
 
   document.getElementById('create-user-form').addEventListener('submit', function () {
-    if (roleSelect.value && roleSelect.value !== 'Administrateur') {
+    var roles = selectedRoles();
+    if (roles.length && roles.indexOf(titulaireValue) === -1) {
       adminDisplay.disabled = false;
       adminDisplay.value = quickDisplay.value;
     }
   });
 
-  roleSelect.addEventListener('change', syncRole);
-  syncRole();
+  document.querySelectorAll('.role-choice').forEach(function (cb) {
+    cb.addEventListener('change', syncRoleFields);
+  });
+
+  syncRoleFields();
 })();
     </script>
 }

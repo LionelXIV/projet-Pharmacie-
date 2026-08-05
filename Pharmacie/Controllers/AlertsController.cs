@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Pharmacie.Authorization;
 using Pharmacie.Data;
 using Pharmacie.Models;
 
 namespace Pharmacie.Controllers;
 
-[Authorize]
+[Authorize(Roles = AppRoles.AlertsAccess)]
 public class AlertsController : Controller
 {
     private readonly ApplicationDbContext _context;

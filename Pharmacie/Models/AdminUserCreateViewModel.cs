@@ -4,9 +4,8 @@ namespace Pharmacie.Models;
 
 public class AdminUserCreateViewModel
 {
-    [Required(ErrorMessage = "Choisissez un rôle.")]
-    [Display(Name = "Rôle")]
-    public string Role { get; set; } = string.Empty;
+    [Display(Name = "Rôles")]
+    public List<string> RolesSelectionnes { get; set; } = new();
 
     [EmailAddress(ErrorMessage = "Adresse email invalide.")]
     [Display(Name = "Adresse email")]

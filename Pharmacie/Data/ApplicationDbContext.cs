@@ -39,6 +39,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SessionCaisse> SessionCaisses => Set<SessionCaisse>();
     public DbSet<VenteCaisse> VenteCaisses => Set<VenteCaisse>();
     public DbSet<DepotCaisse> DepotCaisses => Set<DepotCaisse>();
+    public DbSet<PrixModification> PrixModifications => Set<PrixModification>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -334,6 +335,19 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.ToTable("ImportAnomalies");
             entity.Property(a => a.ResolvedByUser)
                 .HasDefaultValue(false);
+        });
+
+        builder.Entity<PrixModification>(entity =>
+        {
+            entity.ToTable("PrixModifications");
+            entity.Property(m => m.AncienPrix).HasColumnType("decimal(18,2)");
+            entity.Property(m => m.NouveauPrix).HasColumnType("decimal(18,2)");
+            entity.HasIndex(m => m.ModifiedAt);
+            entity.HasIndex(m => m.ProductId);
+            entity.HasOne(m => m.Product)
+                .WithMany()
+                .HasForeignKey(m => m.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

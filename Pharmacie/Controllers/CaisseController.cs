@@ -10,7 +10,7 @@ using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = AppRoles.Sales)]
+[Authorize(Roles = AppRoles.CanAccessCaisse)]
 public class CaisseController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -23,7 +23,7 @@ public class CaisseController : Controller
     }
 
     private bool IsAdminOrPharmacien =>
-        User.IsInRole(AppRoles.Administrateur) || User.IsInRole(AppRoles.Pharmacien);
+        AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien);
 
     private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
 
@@ -300,7 +300,7 @@ public class CaisseController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
     public async Task<IActionResult> RapportConsolide(DateTime? date)
     {
         var d = (date ?? DateTime.Today).Date;

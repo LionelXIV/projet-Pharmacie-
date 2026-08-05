@@ -21,7 +21,7 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireAdministrator", policy =>
-        policy.RequireRole(AppRoles.Administrateur));
+        policy.RequireRole(AppRoles.PharmacienTitulaire, AppRoles.Administrateur));
 
     options.AddPolicy("ProductSearch", policy =>
         policy.RequireAssertion(context =>
@@ -256,6 +256,7 @@ using (var scope = app.Services.CreateScope())
         .CreateLogger("Pharmacie.Data.IdentitySeed");
     await IdentitySeed.SeedInitialAdminIfMissingAsync(
         userManager, configuration, app.Environment, seedLogger);
+    await IdentitySeed.MigrateLegacyRoleAssignmentsAsync(userManager, seedLogger);
 
     if (app.Environment.IsDevelopment())
     {

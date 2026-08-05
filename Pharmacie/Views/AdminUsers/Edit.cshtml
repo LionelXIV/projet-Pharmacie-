@@ -1,6 +1,8 @@
 @model AdminUserEditViewModel
+@using Pharmacie.Authorization
 @{
     ViewData["Title"] = "Modifier un utilisateur";
+    var roleChoices = ViewBag.Roles as List<RoleChoixViewModel> ?? new List<RoleChoixViewModel>();
 }
 
 <div class="page-header">
@@ -21,6 +23,7 @@
                 <form asp-action="Edit" method="post">
                     <input type="hidden" asp-for="Id" />
                     <input type="hidden" asp-for="IsPinLogin" />
+                    <input type="hidden" asp-for="IsTitulaireAccount" />
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
                     <div class="mb-3">
@@ -35,10 +38,36 @@
                         <span asp-validation-for="DisplayName" class="text-danger"></span>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Role" class="form-label"></label>
-                        <select asp-for="Role" class="form-select" asp-items="ViewBag.Role"></select>
-                        <span asp-validation-for="Role" class="text-danger"></span>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            Rôles *
+                            <small class="text-muted fw-normal">(plusieurs choix possibles)</small>
+                        </label>
+                        <div class="row g-2">
+                            @foreach (var role in roleChoices)
+                            {
+                                var isChecked = role.Selectionne || (Model.RolesSelectionnes?.Contains(role.Nom) == true);
+                                <div class="col-md-6">
+                                    <div class="card border h-100">
+                                        <div class="card-body py-2">
+                                            <div class="form-check">
+                                                <input type="checkbox"
+                                                       name="RolesSelectionnes"
+                                                       value="@role.Nom"
+                                                       id="role-@role.Nom"
+                                                       class="form-check-input"
+                                                       @(isChecked ? "checked" : null) />
+                                                <label class="form-check-label fw-bold" for="role-@role.Nom">
+                                                    @role.Label
+                                                </label>
+                                                <div class="text-muted small">@role.Description</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <span asp-validation-for="RolesSelectionnes" class="text-danger"></span>
                     </div>
 
                     <div class="mb-3 form-check">
@@ -47,10 +76,10 @@
                         <span asp-validation-for="AccountLocked" class="text-danger d-block"></span>
                     </div>
 
-                    @if (Model.Role == "Administrateur" || !Model.IsPinLogin)
+                    @if (Model.IsTitulaireAccount)
                     {
                         <p class="form-section-title">Réinitialisation du mot de passe</p>
-                        <p class="text-muted small">Laisser vide pour ne pas changer.</p>
+                        <p class="text-muted small">Laisser vide pour ne pas changer. Compte Pharmacien Titulaire : connexion email.</p>
 
                         <div class="mb-3">
                             <label asp-for="NewPassword" class="form-label"></label>
@@ -82,8 +111,7 @@
                             <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
                         </div>
                     }
-
-                    @if (Model.IsPinLogin || Model.Role != "Administrateur")
+                    else
                     {
                         <p class="form-section-title">Réinitialisation du code PIN</p>
                         <p class="text-muted small">Laisser vide pour ne pas changer.</p>

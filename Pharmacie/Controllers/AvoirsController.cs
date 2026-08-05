@@ -177,7 +177,7 @@ public class AvoirsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
     public async Task<IActionResult> AnnulerAvoir(int id)
     {
         var (success, error) = await _avoirService.AnnulerAvoirAsync(id);

@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
@@ -14,22 +13,13 @@ using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = AppRoles.Administrateur)]
+[Authorize(Roles = AppRoles.CanManageUsers)]
 public class AdminUsersController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IPasswordHasher<ApplicationUser> _passwordHasher;
     private readonly UserActivityReportService _activityReportService;
     private readonly ApplicationDbContext _context;
-
-    private static readonly Dictionary<string, string> RoleLabels = new()
-    {
-        [AppRoles.Administrateur] = "Administrateur",
-        [AppRoles.Pharmacien] = "Pharmacien",
-        [AppRoles.GestionnaireStock] = "Gestionnaire de stock",
-        [AppRoles.Assistant] = "Assistant",
-        [AppRoles.Caissier] = "Caissier"
-    };
 
     public AdminUsersController(
         UserManager<ApplicationUser> userManager,
@@ -45,16 +35,27 @@ public class AdminUsersController : Controller
 
     public async Task<IActionResult> Index()
     {
+        var hideTitulaires = User.IsInRole(AppRoles.Pharmacien) && !AppRoles.IsTitulaire(User);
         var list = new List<AdminUserRowViewModel>();
         var users = await _userManager.Users.AsNoTracking()
             .OrderBy(u => u.DisplayName)
             .ThenBy(u => u.Email)
             .ToListAsync();
+
         foreach (var u in users)
         {
             var roles = await _userManager.GetRolesAsync(u);
+            if (hideTitulaires && AppRoles.HasTitulaireRole(roles))
+                continue;
+
             var locked = u.LockoutEnd.HasValue && u.LockoutEnd > DateTimeOffset.UtcNow;
-            var isAdmin = roles.Contains(AppRoles.Administrateur);
+            var isTitulaire = AppRoles.HasTitulaireRole(roles);
+            var roleLabels = roles
+                .Select(AppRoles.GetRoleLabel)
+                .Distinct()
+                .OrderBy(r => r)
+                .ToList();
+
             list.Add(new AdminUserRowViewModel
             {
                 Id = u.Id,
@@ -62,9 +63,11 @@ public class AdminUsersController : Controller
                     ? (u.Email ?? u.UserName ?? u.Id)
                     : u.DisplayName,
                 Email = u.Email ?? "—",
-                RolesDisplay = string.Join(", ", roles.Select(r => RoleLabels.GetValueOrDefault(r, r)).OrderBy(r => r)),
-                LoginType = isAdmin || string.IsNullOrEmpty(u.PinHash) ? "Email" : "PIN",
-                IsLockedOut = locked
+                RoleLabels = roleLabels,
+                RolesDisplay = string.Join(", ", roleLabels),
+                LoginType = isTitulaire || string.IsNullOrEmpty(u.PinHash) ? "Email" : "PIN",
+                IsLockedOut = locked,
+                IsTitulaire = isTitulaire
             });
         }
 
@@ -73,33 +76,44 @@ public class AdminUsersController : Controller
 
     public IActionResult Create()
     {
-        var vm = new AdminUserCreateViewModel();
-        PopulateRoleSelect(vm.Role);
-        return View(vm);
+        ViewBag.Roles = BuildRoleChoices(User, null);
+        return View(new AdminUserCreateViewModel());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(AdminUserCreateViewModel model)
     {
-        if (!AppRoles.AllAssignableRoles.Contains(model.Role))
-            ModelState.AddModelError(nameof(model.Role), "Rôle invalide.");
+        model.RolesSelectionnes ??= new List<string>();
+        var roles = model.RolesSelectionnes
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        model.RolesSelectionnes = roles;
 
-        var isAdmin = model.Role == AppRoles.Administrateur;
-        ValidateCreateModel(model, isAdmin);
+        if (roles.Count == 0)
+            ModelState.AddModelError(nameof(model.RolesSelectionnes), "Au moins un rôle est obligatoire.");
+        else if (roles.Any(r => !AppRoles.AllAssignableRoles.Contains(r)))
+            ModelState.AddModelError(nameof(model.RolesSelectionnes), "Rôle invalide.");
+
+        if (!AppRoles.IsTitulaire(User) && roles.Contains(AppRoles.PharmacienTitulaire))
+            ModelState.AddModelError(nameof(model.RolesSelectionnes), "Vous ne pouvez pas attribuer le rôle Pharmacien Titulaire.");
+
+        var isTitulaireAccount = roles.Contains(AppRoles.PharmacienTitulaire);
+        ValidateCreateModel(model, isTitulaireAccount);
 
         if (ModelState.IsValid)
         {
             IdentityResult create;
             ApplicationUser user;
 
-            if (isAdmin)
+            if (isTitulaireAccount)
             {
                 var displayName = model.DisplayName!.Trim();
                 if (await DisplayNameExistsAsync(displayName))
                 {
                     ModelState.AddModelError(nameof(model.DisplayName), "Cet identifiant affiché est déjà utilisé.");
-                    PopulateRoleSelect(model.Role);
+                    ViewBag.Roles = BuildRoleChoices(User, roles);
                     return View(model);
                 }
 
@@ -119,7 +133,7 @@ public class AdminUsersController : Controller
                 if (await DisplayNameExistsAsync(displayName))
                 {
                     ModelState.AddModelError(nameof(model.DisplayName), "Cet identifiant est déjà utilisé.");
-                    PopulateRoleSelect(model.Role);
+                    ViewBag.Roles = BuildRoleChoices(User, roles);
                     return View(model);
                 }
 
@@ -137,24 +151,28 @@ public class AdminUsersController : Controller
 
             if (create.Succeeded)
             {
-                var addRole = await _userManager.AddToRoleAsync(user, model.Role);
-                if (addRole.Succeeded)
+                foreach (var role in roles)
                 {
-                    TempData["Success"] = $"Utilisateur « {user.DisplayName} » créé avec le rôle {RoleLabels.GetValueOrDefault(model.Role, model.Role)}.";
-                    return RedirectToAction(nameof(Index));
+                    var addRole = await _userManager.AddToRoleAsync(user, role);
+                    if (!addRole.Succeeded)
+                    {
+                        foreach (var e in addRole.Errors)
+                            ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
+                        ViewBag.Roles = BuildRoleChoices(User, roles);
+                        return View(model);
+                    }
                 }
 
-                foreach (var e in addRole.Errors)
-                    ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
+                var labels = string.Join(", ", roles.Select(AppRoles.GetRoleLabel));
+                TempData["Success"] = $"Utilisateur « {user.DisplayName} » créé avec le(s) rôle(s) {labels}.";
+                return RedirectToAction(nameof(Index));
             }
-            else
-            {
-                foreach (var e in create.Errors)
-                    ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
-            }
+
+            foreach (var e in create.Errors)
+                ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
         }
 
-        PopulateRoleSelect(model.Role);
+        ViewBag.Roles = BuildRoleChoices(User, roles);
         return View(model);
     }
 
@@ -168,24 +186,30 @@ public class AdminUsersController : Controller
             return NotFound();
 
         var roles = await _userManager.GetRolesAsync(user);
-        var currentRole = AppRoles.AllAssignableRoles.FirstOrDefault(r => roles.Contains(r))
-            ?? roles.OrderBy(r => r).FirstOrDefault()
-            ?? AppRoles.Assistant;
+        if (AppRoles.HasTitulaireRole(roles) && !AppRoles.IsTitulaire(User))
+            return Forbid();
+
+        var rolesSelectionnes = roles
+            .Select(MapToAssignableRole)
+            .Where(r => AppRoles.AllAssignableRoles.Contains(r))
+            .Distinct()
+            .ToList();
 
         var locked = user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow;
-        var isAdmin = currentRole == AppRoles.Administrateur;
+        var isTitulaireAccount = AppRoles.HasTitulaireRole(roles);
 
         var vm = new AdminUserEditViewModel
         {
             Id = user.Id,
             Email = user.Email ?? user.UserName ?? user.Id,
             DisplayName = user.DisplayName ?? string.Empty,
-            Role = AppRoles.AllAssignableRoles.Contains(currentRole) ? currentRole : AppRoles.Assistant,
+            RolesSelectionnes = rolesSelectionnes,
             AccountLocked = locked,
-            IsPinLogin = !isAdmin && !string.IsNullOrEmpty(user.PinHash)
+            IsTitulaireAccount = isTitulaireAccount,
+            IsPinLogin = !isTitulaireAccount && !string.IsNullOrEmpty(user.PinHash)
         };
 
-        PopulateRoleSelect(vm.Role);
+        ViewBag.Roles = BuildRoleChoices(User, rolesSelectionnes);
         return View(vm);
     }
 
@@ -195,12 +219,34 @@ public class AdminUsersController : Controller
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        if (!AppRoles.AllAssignableRoles.Contains(model.Role))
-            ModelState.AddModelError(nameof(model.Role), "Rôle invalide.");
+        model.RolesSelectionnes ??= new List<string>();
+        var roles = model.RolesSelectionnes
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        model.RolesSelectionnes = roles;
 
-        var isAdminRole = model.Role == AppRoles.Administrateur;
+        var user = await _userManager.FindByIdAsync(model.Id);
+        if (user == null)
+            return NotFound();
 
-        if (isAdminRole)
+        var existingRoles = await _userManager.GetRolesAsync(user);
+        if (AppRoles.HasTitulaireRole(existingRoles) && !AppRoles.IsTitulaire(User))
+            return Forbid();
+
+        if (roles.Count == 0)
+            ModelState.AddModelError(nameof(model.RolesSelectionnes), "Au moins un rôle est obligatoire.");
+        else if (roles.Any(r => !AppRoles.AllAssignableRoles.Contains(r)))
+            ModelState.AddModelError(nameof(model.RolesSelectionnes), "Rôle invalide.");
+
+        if (!AppRoles.IsTitulaire(User) && roles.Contains(AppRoles.PharmacienTitulaire))
+            ModelState.AddModelError(nameof(model.RolesSelectionnes), "Vous ne pouvez pas attribuer le rôle Pharmacien Titulaire.");
+
+        var isTitulaireAccount = roles.Contains(AppRoles.PharmacienTitulaire);
+        model.IsTitulaireAccount = isTitulaireAccount;
+        model.IsPinLogin = !isTitulaireAccount;
+
+        if (isTitulaireAccount)
         {
             if (!string.IsNullOrWhiteSpace(model.NewPassword) || !string.IsNullOrWhiteSpace(model.ConfirmNewPassword))
             {
@@ -222,16 +268,12 @@ public class AdminUsersController : Controller
                 ModelState.AddModelError(nameof(model.NewPin), "Le code PIN doit contenir exactement 4 chiffres.");
         }
 
-        var user = await _userManager.FindByIdAsync(model.Id);
-        if (user == null)
-            return NotFound();
-
         if (model.Id == currentUserId)
         {
             if (model.AccountLocked)
                 ModelState.AddModelError(nameof(model.AccountLocked), "Vous ne pouvez pas verrouiller votre propre compte.");
-            if (model.Role != AppRoles.Administrateur)
-                ModelState.AddModelError(nameof(model.Role), "Vous ne pouvez pas retirer votre propre rôle Administrateur.");
+            if (AppRoles.IsTitulaire(User) && !roles.Contains(AppRoles.PharmacienTitulaire))
+                ModelState.AddModelError(nameof(model.RolesSelectionnes), "Vous ne pouvez pas retirer votre propre rôle Pharmacien Titulaire.");
         }
 
         var displayName = model.DisplayName?.Trim() ?? string.Empty;
@@ -242,8 +284,7 @@ public class AdminUsersController : Controller
 
         if (!ModelState.IsValid)
         {
-            model.IsPinLogin = !isAdminRole;
-            PopulateRoleSelect(model.Role);
+            ViewBag.Roles = BuildRoleChoices(User, roles);
             return View(model);
         }
 
@@ -253,30 +294,33 @@ public class AdminUsersController : Controller
         {
             foreach (var e in update.Errors)
                 ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
-            model.IsPinLogin = !isAdminRole;
-            PopulateRoleSelect(model.Role);
+            ViewBag.Roles = BuildRoleChoices(User, roles);
             return View(model);
         }
 
         var userRoles = await _userManager.GetRolesAsync(user);
-        var remove = await _userManager.RemoveFromRolesAsync(user, userRoles);
-        if (!remove.Succeeded)
+        if (userRoles.Count > 0)
         {
-            foreach (var e in remove.Errors)
-                ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
-            model.IsPinLogin = !isAdminRole;
-            PopulateRoleSelect(model.Role);
-            return View(model);
+            var remove = await _userManager.RemoveFromRolesAsync(user, userRoles);
+            if (!remove.Succeeded)
+            {
+                foreach (var e in remove.Errors)
+                    ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
+                ViewBag.Roles = BuildRoleChoices(User, roles);
+                return View(model);
+            }
         }
 
-        var add = await _userManager.AddToRoleAsync(user, model.Role);
-        if (!add.Succeeded)
+        foreach (var role in roles)
         {
-            foreach (var e in add.Errors)
-                ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
-            model.IsPinLogin = !isAdminRole;
-            PopulateRoleSelect(model.Role);
-            return View(model);
+            var add = await _userManager.AddToRoleAsync(user, role);
+            if (!add.Succeeded)
+            {
+                foreach (var e in add.Errors)
+                    ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
+                ViewBag.Roles = BuildRoleChoices(User, roles);
+                return View(model);
+            }
         }
 
         await _userManager.SetLockoutEnabledAsync(user, true);
@@ -288,7 +332,7 @@ public class AdminUsersController : Controller
             await _userManager.ResetAccessFailedCountAsync(user);
         }
 
-        if (isAdminRole)
+        if (isTitulaireAccount)
         {
             user.PinHash = null;
             await _userManager.UpdateAsync(user);
@@ -302,7 +346,7 @@ public class AdminUsersController : Controller
                     foreach (var e in pwd.Errors)
                         ModelState.AddModelError(string.Empty, $"{e.Code}: {e.Description}");
                     model.IsPinLogin = false;
-                    PopulateRoleSelect(model.Role);
+                    ViewBag.Roles = BuildRoleChoices(User, roles);
                     return View(model);
                 }
             }
@@ -502,9 +546,76 @@ public class AdminUsersController : Controller
         return ReportCsvFormatter.FileResult(this, sb.ToString(), slug);
     }
 
-    private void ValidateCreateModel(AdminUserCreateViewModel model, bool isAdmin)
+    private static List<RoleChoixViewModel> BuildRoleChoices(ClaimsPrincipal current, IEnumerable<string>? selected)
     {
-        if (isAdmin)
+        var selectedSet = new HashSet<string>(
+            (selected ?? Enumerable.Empty<string>()).Select(MapToAssignableRole),
+            StringComparer.Ordinal);
+
+        var roles = new List<RoleChoixViewModel>
+        {
+            new()
+            {
+                Nom = AppRoles.Pharmacien,
+                Label = AppRoles.GetRoleLabel(AppRoles.Pharmacien),
+                Description = "Accès complet sauf finances",
+                Selectionne = selectedSet.Contains(AppRoles.Pharmacien)
+            },
+            new()
+            {
+                Nom = AppRoles.Vendeur,
+                Label = AppRoles.GetRoleLabel(AppRoles.Vendeur),
+                Description = "Gestion stock et catalogue",
+                Selectionne = selectedSet.Contains(AppRoles.Vendeur)
+            },
+            new()
+            {
+                Nom = AppRoles.Caissier,
+                Label = AppRoles.GetRoleLabel(AppRoles.Caissier),
+                Description = "Ventes et caisse",
+                Selectionne = selectedSet.Contains(AppRoles.Caissier)
+            },
+            new()
+            {
+                Nom = AppRoles.AssistantPharmacien,
+                Label = AppRoles.GetRoleLabel(AppRoles.AssistantPharmacien),
+                Description = "Ventes et patients",
+                Selectionne = selectedSet.Contains(AppRoles.AssistantPharmacien)
+            },
+            new()
+            {
+                Nom = AppRoles.Stagiaire,
+                Label = AppRoles.GetRoleLabel(AppRoles.Stagiaire),
+                Description = "Catalogue lecture + réception BL",
+                Selectionne = selectedSet.Contains(AppRoles.Stagiaire)
+            }
+        };
+
+        if (AppRoles.IsTitulaire(current) || selectedSet.Contains(AppRoles.PharmacienTitulaire))
+        {
+            roles.Insert(0, new RoleChoixViewModel
+            {
+                Nom = AppRoles.PharmacienTitulaire,
+                Label = AppRoles.GetRoleLabel(AppRoles.PharmacienTitulaire),
+                Description = "Accès complet",
+                Selectionne = selectedSet.Contains(AppRoles.PharmacienTitulaire)
+            });
+        }
+
+        return roles;
+    }
+
+    private static string MapToAssignableRole(string role) => role switch
+    {
+        AppRoles.Administrateur => AppRoles.PharmacienTitulaire,
+        AppRoles.Assistant => AppRoles.AssistantPharmacien,
+        AppRoles.GestionnaireStock => AppRoles.Vendeur,
+        _ => role
+    };
+
+    private void ValidateCreateModel(AdminUserCreateViewModel model, bool isTitulaireAccount)
+    {
+        if (isTitulaireAccount)
         {
             if (string.IsNullOrWhiteSpace(model.Email))
                 ModelState.AddModelError(nameof(model.Email), "L'adresse email est obligatoire.");
@@ -517,7 +628,7 @@ public class AdminUsersController : Controller
             else if (model.Password != model.ConfirmPassword)
                 ModelState.AddModelError(nameof(model.ConfirmPassword), "Les mots de passe ne correspondent pas.");
         }
-        else if (!string.IsNullOrEmpty(model.Role))
+        else if (model.RolesSelectionnes.Count > 0)
         {
             if (string.IsNullOrWhiteSpace(model.DisplayName))
                 ModelState.AddModelError(nameof(model.DisplayName), "L'identifiant est obligatoire.");
@@ -566,15 +677,5 @@ public class AdminUsersController : Controller
             .Replace('/', 'B')
             .Replace('=', 'C');
         return $"Aa1!{token}";
-    }
-
-    private void PopulateRoleSelect(string? selected)
-    {
-        var items = AppRoles.AllAssignableRoles.Select(r => new SelectListItem
-        {
-            Value = r,
-            Text = RoleLabels.GetValueOrDefault(r, r)
-        }).ToList();
-        ViewBag.Role = new SelectList(items, "Value", "Text", selected);
     }
 }
