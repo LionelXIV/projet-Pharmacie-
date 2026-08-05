@@ -1,0 +1,92 @@
+@model EtatTVAViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>État TVA @Model.MoisAnnee</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 11pt;
+            color: #000;
+            margin: 0;
+            padding: 16mm;
+            background: #fff;
+        }
+        h1 { font-size: 14pt; text-align: center; margin: 0 0 4px; }
+        h2 { font-size: 12pt; text-align: center; margin: 0 0 16px; font-weight: normal; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+        }
+        th { background: #222; color: #fff; font-size: 10pt; }
+        td.text-end, th.text-end { text-align: right; }
+        tfoot td { font-weight: bold; background: #fff3cd; }
+        .no-print { margin-top: 16px; text-align: center; }
+        @@media print {
+            body { padding: 10mm; }
+            .no-print { display: none !important; }
+            @@page { size: A4 portrait; margin: 12mm; }
+        }
+    </style>
+</head>
+<body>
+    <h1>PHARMACIE SAINT JEAN PAUL II PNR</h1>
+    <h2>
+        ÉTAT DE TVA DU @Model.DebutPeriode.ToString("dd/MM/yyyy")
+        AU @Model.FinPeriode.ToString("dd/MM/yyyy")
+    </h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>DATE</th>
+                <th class="text-end">MONTANT EXONÉRÉ</th>
+                <th class="text-end">MONTANT HT</th>
+                <th class="text-end">TVA 18%</th>
+                <th class="text-end">MONTANT TTC</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ligne in Model.Lignes)
+            {
+                <tr>
+                    <td>@ligne.Date.ToString("dd/MM/yyyy")</td>
+                    <td class="text-end">@ligne.MontantExonere.ToString("N0") F</td>
+                    <td class="text-end">@ligne.MontantHT.ToString("N0") F</td>
+                    <td class="text-end">@ligne.MontantTVA.ToString("N0") F</td>
+                    <td class="text-end">@ligne.MontantTTC.ToString("N0") F</td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td>TOTAL</td>
+                <td class="text-end">@Model.TotalExonere.ToString("N0") F</td>
+                <td class="text-end">@Model.TotalHT.ToString("N0") F</td>
+                <td class="text-end">@Model.TotalTVA.ToString("N0") F</td>
+                <td class="text-end">@Model.TotalTTC.ToString("N0") F</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="no-print">
+        <button type="button" onclick="window.print()">Imprimer / PDF</button>
+        <a href="/Reports/EtatTVA?mois=@Model.Mois&amp;annee=@Model.Annee">Retour</a>
+    </div>
+
+    <script>
+      window.addEventListener('load', function () { window.print(); });
+    </script>
+</body>
+</html>

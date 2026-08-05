@@ -1,0 +1,99 @@
+@model EtatTVAViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "État de TVA — DGID";
+    var fr = new CultureInfo("fr-FR");
+}
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+    <div>
+        <h1 class="page-title">État de TVA — Déclaration DGID</h1>
+        <p class="page-lead mb-0">Tableau mensuel pour déclaration au 15 du mois suivant.</p>
+    </div>
+</div>
+
+<form method="get" asp-action="EtatTVA" class="row g-2 mb-3 align-items-end">
+    <div class="col-auto">
+        <label class="form-label small mb-1">Mois</label>
+        <select name="mois" class="form-select">
+            @for (var i = 1; i <= 12; i++)
+            {
+                <option value="@i" selected="@(i == Model.Mois)">
+                    @(new DateTime(2026, i, 1).ToString("MMMM", fr))
+                </option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">Année</label>
+        <select name="annee" class="form-select">
+            @for (var y = 2024; y <= DateTime.Now.Year + 1; y++)
+            {
+                <option value="@y" selected="@(y == Model.Annee)">@y</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Afficher</button>
+    </div>
+    <div class="col-auto">
+        <a asp-action="ExportTVAPdf"
+           asp-route-mois="@Model.Mois"
+           asp-route-annee="@Model.Annee"
+           class="btn btn-success"
+           target="_blank">
+            <i class="bi bi-printer me-1"></i>Exporter PDF
+        </a>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <h2 class="h5 text-center mb-1">PHARMACIE SAINT JEAN PAUL II PNR</h2>
+        <p class="text-center text-muted mb-0">
+            ÉTAT DE TVA DU @Model.DebutPeriode.ToString("dd/MM/yyyy")
+            AU @Model.FinPeriode.ToString("dd/MM/yyyy")
+        </p>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-sm table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>DATE</th>
+                <th class="text-end">MONTANT EXONÉRÉ</th>
+                <th class="text-end">MONTANT HT</th>
+                <th class="text-end">TVA 18%</th>
+                <th class="text-end">MONTANT TTC</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var ligne in Model.Lignes)
+            {
+                <tr>
+                    <td>@ligne.Date.ToString("dd/MM/yyyy")</td>
+                    <td class="text-end">@ligne.MontantExonere.ToString("N0") F</td>
+                    <td class="text-end">@ligne.MontantHT.ToString("N0") F</td>
+                    <td class="text-end">@ligne.MontantTVA.ToString("N0") F</td>
+                    <td class="text-end fw-bold">@ligne.MontantTTC.ToString("N0") F</td>
+                </tr>
+            }
+        </tbody>
+        <tfoot class="table-warning fw-bold">
+            <tr>
+                <td>TOTAL</td>
+                <td class="text-end">@Model.TotalExonere.ToString("N0") F</td>
+                <td class="text-end">@Model.TotalHT.ToString("N0") F</td>
+                <td class="text-end">@Model.TotalTVA.ToString("N0") F</td>
+                <td class="text-end">@Model.TotalTTC.ToString("N0") F</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<div class="alert alert-info small">
+    <i class="bi bi-info-circle me-1"></i>
+    Exonéré = PPH + parapharmacie sans TVA.
+    HT / TVA = consommables (TVA extraite du TTC) + parapharmacie assujettie.
+</div>

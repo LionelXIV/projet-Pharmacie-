@@ -30,4 +30,41 @@
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+    (function () {
+      var tarifInfos = {
+        0: "Prix public fixé (PPH). Prix de vente = PPH. Exonéré de TVA.",
+        1: "Consommable. Prix de vente = Prix achat × 1.436. TVA 18% incluse dans le coefficient.",
+        2: "Parapharmacie sans TVA. Prix de vente = Prix achat × 1.5. Exonéré de TVA.",
+        3: "Parapharmacie avec TVA. Prix de vente = Prix achat × 1.5 + 18%. TVA collectée à déclarer."
+      };
+
+      function updateTarifInfo(select) {
+        var el = document.getElementById('tarif-info');
+        if (el) el.textContent = tarifInfos[select.value] || "";
+      }
+
+      function previewSalePrice() {
+        var type = parseInt(document.getElementById('tarif-type-select')?.value || '0', 10);
+        var pa = parseFloat(document.getElementById('purchase-price-input')?.value || '0') || 0;
+        var saleInput = document.getElementById('sale-price-input');
+        if (!saleInput || pa <= 0) return;
+        if (type === 1) saleInput.value = Math.round(pa * 1.436);
+        else if (type === 2) saleInput.value = Math.round(pa * 1.5);
+        else if (type === 3) saleInput.value = Math.round(pa * 1.5 * 1.18);
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        var sel = document.getElementById('tarif-type-select');
+        if (!sel) return;
+        updateTarifInfo(sel);
+        sel.addEventListener('change', function () {
+          updateTarifInfo(sel);
+          previewSalePrice();
+        });
+        var pa = document.getElementById('purchase-price-input');
+        if (pa) pa.addEventListener('input', previewSalePrice);
+      });
+    })();
+    </script>
 }

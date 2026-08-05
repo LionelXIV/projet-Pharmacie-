@@ -85,6 +85,20 @@ public class Product
     [Range(0, 999_999_999.99)]
     public decimal? RegulatedSalePrice { get; set; }
 
+    [Display(Name = "Type de tarification")]
+    public TarifType TarifType { get; set; } = TarifType.PrixPublicPPH;
+
+    [Column(TypeName = "decimal(18,4)")]
+    [Display(Name = "Coefficient")]
+    public decimal? Coefficient { get; set; }
+
+    [Display(Name = "Assujetti TVA")]
+    public bool AssujettiTVA { get; set; } = false;
+
+    [Column(TypeName = "decimal(5,2)")]
+    [Display(Name = "Taux TVA (%)")]
+    public decimal TauxTVA { get; set; } = 0;
+
     public ICollection<ProductBatch> Batches { get; set; } = new List<ProductBatch>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

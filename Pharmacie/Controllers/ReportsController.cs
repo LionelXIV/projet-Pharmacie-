@@ -314,6 +314,81 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> EtatTVA(int? mois = null, int? annee = null)
+    {
+        var vm = await BuildEtatTVAAsync(mois, annee);
+        return View(vm);
+    }
+
+    /// <summary>Page imprimable (export PDF via impression navigateur).</summary>
+    [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> ExportTVAPdf(int? mois = null, int? annee = null)
+    {
+        var vm = await BuildEtatTVAAsync(mois, annee);
+        return View("EtatTVAPrint", vm);
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> EtatTVAPrint(int? mois = null, int? annee = null)
+    {
+        var vm = await BuildEtatTVAAsync(mois, annee);
+        return View(vm);
+    }
+
+    private async Task<EtatTVAViewModel> BuildEtatTVAAsync(int? mois, int? annee)
+    {
+        var m = mois ?? DateTime.Now.Month;
+        var a = annee ?? DateTime.Now.Year;
+        if (m < 1 || m > 12) m = DateTime.Now.Month;
+        if (a < 2020 || a > 2100) a = DateTime.Now.Year;
+
+        var debut = new DateTime(a, m, 1);
+        var finExclusive = debut.AddMonths(1);
+
+        var ventes = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product)
+            .Where(s => s.SoldAt >= debut && s.SoldAt < finExclusive)
+            .ToListAsync();
+
+        var lignesParJour = ventes
+            .GroupBy(s => s.SoldAt.Date)
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var (exonere, ht, tva, ttc) = TVACalculator.CalculerTVAJournee(g);
+                return new EtatTVALigneViewModel
+                {
+                    Date = g.Key,
+                    MontantExonere = exonere,
+                    MontantHT = ht,
+                    MontantTVA = tva,
+                    MontantTTC = ttc
+                };
+            })
+            .ToList();
+
+        // Jours du mois sans vente : afficher 0 pour compléter le tableau DGID
+        var joursComplets = new List<EtatTVALigneViewModel>();
+        for (var day = debut; day < finExclusive; day = day.AddDays(1))
+        {
+            var existing = lignesParJour.FirstOrDefault(l => l.Date == day);
+            joursComplets.Add(existing ?? new EtatTVALigneViewModel { Date = day });
+        }
+
+        return new EtatTVAViewModel
+        {
+            Mois = m,
+            Annee = a,
+            Lignes = joursComplets,
+            TotalExonere = joursComplets.Sum(l => l.MontantExonere),
+            TotalHT = joursComplets.Sum(l => l.MontantHT),
+            TotalTVA = joursComplets.Sum(l => l.MontantTVA),
+            TotalTTC = joursComplets.Sum(l => l.MontantTTC)
+        };
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
     public async Task<IActionResult> VendeursDuJour(DateTime? date = null)
     {
         var targetDate = (date ?? DateTime.Today).Date;

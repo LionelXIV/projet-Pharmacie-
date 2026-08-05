@@ -9,6 +9,7 @@ using Pharmacie.Data;
 using Pharmacie.Models;
 using Pharmacie.Models.Dto;
 using Pharmacie.Reporting;
+using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
@@ -224,12 +225,13 @@ public class ProductsController : Controller
     [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Create(
         [Bind(
-            "CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive")]
+            "CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive,TarifType")]
         Product product)
     {
         if (ModelState.IsValid)
         {
             product.StockQuantity = 0;
+            TVACalculator.AppliquerTarif(product);
             _context.Add(product);
             await _context.SaveChangesAsync();
             TempData["Success"] = "Produit créé.";
@@ -259,7 +261,7 @@ public class ProductsController : Controller
     [Authorize(Roles = AppRoles.Catalog)]
     public async Task<IActionResult> Edit(int id,
         [Bind(
-            "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive")]
+            "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive,TarifType")]
         Product product)
     {
         if (id != product.Id)
@@ -268,12 +270,18 @@ public class ProductsController : Controller
         if (ModelState.IsValid)
         {
             var existing = await _context.Products.AsNoTracking()
-                .Select(p => new { p.Id, p.StockQuantity })
                 .FirstOrDefaultAsync(p => p.Id == id);
             if (existing == null)
                 return NotFound();
 
             product.StockQuantity = existing.StockQuantity;
+            product.Cip = existing.Cip;
+            product.Refha = existing.Refha;
+            product.ProductType = existing.ProductType;
+            product.ReferencePurchasePrice = existing.ReferencePurchasePrice;
+            product.RegulatedSalePrice = existing.RegulatedSalePrice;
+
+            TVACalculator.AppliquerTarif(product);
 
             try
             {
