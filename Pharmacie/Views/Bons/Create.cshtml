@@ -42,6 +42,11 @@
                                placeholder="77 123 45 67" />
                     </div>
                     <div class="col-sm-6">
+                        <label class="form-label small">N° pièce d'identité (optionnel)</label>
+                        <input type="text" id="numeroIdentite" name="numeroIdentite" class="form-control"
+                               placeholder="Ex: 1 234 567 89" maxlength="50" />
+                    </div>
+                    <div class="col-sm-6">
                         <label class="form-label small">Vendeur</label>
                         <select id="vendeurId" name="vendeurId" class="form-select">
                             <option value="">— Aucun vendeur —</option>
@@ -332,6 +337,7 @@
 
         addHidden('clientNom', clientNom);
         addHidden('clientTelephone', document.getElementById('clientTelephone').value);
+        addHidden('numeroIdentite', document.getElementById('numeroIdentite').value);
         addHidden('notes', document.getElementById('bonNotes').value);
         var vendeurId = document.getElementById('vendeurId').value;
         if (vendeurId) addHidden('vendeurId', vendeurId);

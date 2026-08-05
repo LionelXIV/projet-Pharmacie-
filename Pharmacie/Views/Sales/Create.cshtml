@@ -205,6 +205,14 @@
                                placeholder="Ex: 77 123 45 67"
                                autocomplete="tel">
                     </div>
+                    <div class="mb-2">
+                        <label class="form-label" for="credit-client-identite">N° pièce d'identité (optionnel)</label>
+                        <input type="text"
+                               id="credit-client-identite"
+                               class="form-control"
+                               placeholder="Ex: 1 234 567 89"
+                               maxlength="50">
+                    </div>
                     <div class="alert alert-warning py-2 mb-0">
                         <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
                         <small>Le stock sera mis à jour immédiatement. Le client paiera plus tard.</small>
@@ -614,6 +622,7 @@
 
       addHiddenBon('ClientNom', clientNom);
       addHiddenBon('ClientTelephone', document.getElementById('credit-client-tel').value || '');
+      addHiddenBon('NumeroIdentite', document.getElementById('credit-client-identite').value || '');
       addHiddenBon('VendeurId', vendeurId);
 
       cart.forEach(function (item, i) {

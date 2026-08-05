@@ -82,6 +82,10 @@
                     {
                         <dt class="col-5">Téléphone</dt><dd class="col-7">@Model.ClientTelephone</dd>
                     }
+                    @if (!string.IsNullOrEmpty(Model.NumeroIdentite))
+                    {
+                        <dt class="col-5">N° pièce d'identité</dt><dd class="col-7">@Model.NumeroIdentite</dd>
+                    }
                     <dt class="col-5">Date</dt><dd class="col-7">@Model.DateCreation.ToString("dd/MM/yyyy HH:mm")</dd>
                     @if (Model.Vendeur != null)
                     {

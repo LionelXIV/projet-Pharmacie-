@@ -66,6 +66,13 @@
         <span>@Model.ClientTelephone</span>
     </div>
 }
+@if (!string.IsNullOrEmpty(Model.NumeroIdentite))
+{
+    <div class="row">
+        <span>Pièce ID :</span>
+        <span>@Model.NumeroIdentite</span>
+    </div>
+}
 @if (Model.Vendeur != null)
 {
     <div class="row">

@@ -4,6 +4,7 @@ public class BonCreateFromVenteViewModel
 {
     public string ClientNom { get; set; } = "";
     public string? ClientTelephone { get; set; }
+    public string? NumeroIdentite { get; set; }
     public int? VendeurId { get; set; }
     public List<BonLigneSlotViewModel> Lines { get; set; } = new();
 }

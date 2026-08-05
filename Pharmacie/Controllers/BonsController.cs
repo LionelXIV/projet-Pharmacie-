@@ -86,6 +86,7 @@ public class BonsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(
         string clientNom, string? clientTelephone, string? notes, int? vendeurId,
+        string? numeroIdentite,
         List<int>? productIds, List<int>? quantities,
         List<decimal>? discountPercents, List<decimal>? discountAmounts, List<string>? discountTypes)
     {
@@ -134,7 +135,7 @@ public class BonsController : Controller
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
             var (success, error, bonId) = await _bonService.CreateBonAsync(
-                clientNom, clientTelephone, notes, lignes, userId, vendeurId);
+                clientNom, clientTelephone, notes, lignes, userId, vendeurId, numeroIdentite);
 
             if (success)
             {
@@ -192,7 +193,8 @@ public class BonsController : Controller
             null,
             lignes,
             userId,
-            model.VendeurId);
+            model.VendeurId,
+            model.NumeroIdentite);
 
         if (!success)
         {

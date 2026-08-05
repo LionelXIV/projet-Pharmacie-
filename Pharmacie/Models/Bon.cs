@@ -20,6 +20,10 @@ public class Bon
     [Display(Name = "Téléphone client")]
     public string? ClientTelephone { get; set; }
 
+    [StringLength(50)]
+    [Display(Name = "N° pièce d'identité")]
+    public string? NumeroIdentite { get; set; }
+
     [Display(Name = "Date de création")]
     public DateTime DateCreation { get; set; } = DateTime.Now;
 

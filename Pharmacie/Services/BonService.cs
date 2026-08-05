@@ -31,7 +31,8 @@ public class BonService
         string? notes,
         List<(int ProductId, int Quantity, decimal DiscountPercent, decimal DiscountAmount, string DiscountType)> lignes,
         string userId,
-        int? vendeurId)
+        int? vendeurId,
+        string? numeroIdentite = null)
     {
         await using var tx = await _db.Database.BeginTransactionAsync();
         try
@@ -45,6 +46,7 @@ public class BonService
                 Numero = numero,
                 ClientNom = clientNom.Trim(),
                 ClientTelephone = string.IsNullOrWhiteSpace(clientTel) ? null : clientTel.Trim(),
+                NumeroIdentite = string.IsNullOrWhiteSpace(numeroIdentite) ? null : numeroIdentite.Trim(),
                 Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
                 DateCreation = now,
                 CreatedByUserId = userId,
