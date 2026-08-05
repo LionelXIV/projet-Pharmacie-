@@ -7,9 +7,9 @@
     var c2 = ViewBag.Caisse2 as SessionCaisse;
     var labels = ViewBag.Labels as Dictionary<string, string> ?? new Dictionary<string, string>();
 
-    (int nb, decimal ca, decimal especes, decimal wave, decimal om, decimal autre) Stats(SessionCaisse? s)
+    (int nb, decimal ca, decimal especes, decimal wave, decimal om, decimal autre, decimal depots) Stats(SessionCaisse? s)
     {
-        if (s == null) return (0, 0, 0, 0, 0, 0);
+        if (s == null) return (0, 0, 0, 0, 0, 0, 0);
         var sales = s.Ventes.Select(v => v.Sale).Where(x => x != null).Cast<Sale>().ToList();
         decimal SumPm(PaymentMethod pm) => sales.Where(x => x.PaymentMethod == pm).Sum(CaisseService.CalculerTotalSale);
         var especes = SumPm(PaymentMethod.Especes);
@@ -18,7 +18,8 @@
         var autre = sales
             .Where(x => x.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
             .Sum(CaisseService.CalculerTotalSale);
-        return (sales.Count, especes + wave + om + autre, especes, wave, om, autre);
+        var depots = s.Depots.Sum(x => x.MontantDepose);
+        return (sales.Count, especes + wave + om + autre, especes, wave, om, autre, depots);
     }
 
     var s1 = Stats(c1);
@@ -63,6 +64,7 @@
                         <p class="mb-1">Fond : @session.FondDepart.ToString("N0") FCFA</p>
                         <p class="mb-1">Ventes : @st.nb</p>
                         <p class="mb-1">CA total : <strong>@st.ca.ToString("N0") FCFA</strong></p>
+                        <p class="mb-1">Total dépôts : <strong class="text-primary">@st.depots.ToString("N0") FCFA</strong></p>
                         <p class="mb-1 small text-muted">Espèces @st.especes.ToString("N0") · Wave @st.wave.ToString("N0") · OM @st.om.ToString("N0")</p>
                         @if (session.BilletageTotal.HasValue)
                         {
@@ -89,12 +91,12 @@
                 <div class="fs-4 fw-bold text-success">@((s1.ca + s2.ca).ToString("N0")) FCFA</div>
             </div>
             <div class="col-6 col-md-3 mb-2">
-                <div class="text-muted small">Espèces</div>
-                <div class="fs-5 fw-bold">@((s1.especes + s2.especes).ToString("N0"))</div>
+                <div class="text-muted small">Total dépôts</div>
+                <div class="fs-4 fw-bold text-primary">@((s1.depots + s2.depots).ToString("N0")) FCFA</div>
             </div>
             <div class="col-6 col-md-3 mb-2">
-                <div class="text-muted small">Wave + OM</div>
-                <div class="fs-5 fw-bold">@((s1.wave + s2.wave + s1.om + s2.om).ToString("N0"))</div>
+                <div class="text-muted small">Espèces</div>
+                <div class="fs-5 fw-bold">@((s1.especes + s2.especes).ToString("N0"))</div>
             </div>
         </div>
         <hr />
@@ -103,6 +105,7 @@
             <span>Orange Money : <strong>@((s1.om + s2.om).ToString("N0")) FCFA</strong></span>
             <span>Autres : <strong>@((s1.autre + s2.autre).ToString("N0")) FCFA</strong></span>
             <span>Fonds départ : <strong>@(((c1?.FondDepart ?? 0) + (c2?.FondDepart ?? 0)).ToString("N0")) FCFA</strong></span>
+            <span>Wave + OM : <strong>@((s1.wave + s2.wave + s1.om + s2.om).ToString("N0")) FCFA</strong></span>
         </div>
     </div>
 </div>

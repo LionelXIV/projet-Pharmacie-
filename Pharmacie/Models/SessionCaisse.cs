@@ -43,6 +43,7 @@ public class SessionCaisse
     public string? BilletageJson { get; set; }
 
     public ICollection<VenteCaisse> Ventes { get; set; } = new List<VenteCaisse>();
+    public ICollection<DepotCaisse> Depots { get; set; } = new List<DepotCaisse>();
 }
 
 public enum SessionCaisseStatut

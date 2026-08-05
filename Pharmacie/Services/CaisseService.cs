@@ -7,6 +7,8 @@ namespace Pharmacie.Services;
 
 public class CaisseService
 {
+    public const decimal SeuilDepotFcfa = 200_000m;
+
     private readonly ApplicationDbContext _db;
 
     public CaisseService(ApplicationDbContext db)
@@ -119,6 +121,83 @@ public class CaisseService
             SaleId = saleId
         });
         await _db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Solde théorique espèces : fond + CA espèces − dépôts déjà effectués.
+    /// </summary>
+    public async Task<decimal> GetSoldeTheoriqueAsync(int sessionId)
+    {
+        var session = await _db.SessionCaisses
+            .AsNoTracking()
+            .Include(s => s.Ventes).ThenInclude(v => v.Sale).ThenInclude(sale => sale!.Lines)
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+        if (session == null) return 0;
+
+        var caEspeces = session.Ventes
+            .Select(v => v.Sale)
+            .Where(s => s != null && s.PaymentMethod == PaymentMethod.Especes)
+            .Cast<Sale>()
+            .Sum(CalculerTotalSale);
+
+        var totalDepots = await _db.DepotCaisses
+            .Where(d => d.SessionCaisseId == sessionId)
+            .SumAsync(d => (decimal?)d.MontantDepose) ?? 0;
+
+        return session.FondDepart + caEspeces - totalDepots;
+    }
+
+    public async Task<(bool Success, string Error, int DepotId)> EnregistrerDepotAsync(
+        int sessionId,
+        decimal montant,
+        DepotCaisseType type,
+        string userId,
+        bool isAdminOrPharmacien = false)
+    {
+        var session = await _db.SessionCaisses.FirstOrDefaultAsync(s => s.Id == sessionId);
+        if (session == null)
+            return (false, "Session introuvable.", 0);
+
+        if (session.Statut != SessionCaisseStatut.Ouverte)
+            return (false, "La caisse est fermée — dépôt impossible.", 0);
+
+        if (!isAdminOrPharmacien && session.CaissierUserId != userId)
+            return (false, "Vous ne pouvez déposer que depuis votre propre caisse.", 0);
+
+        if (montant <= 0)
+            return (false, "Le montant doit être supérieur à 0.", 0);
+
+        var soldeAvant = await GetSoldeTheoriqueAsync(sessionId);
+        if (montant > soldeAvant)
+            return (false, $"Montant supérieur au solde disponible ({soldeAvant:N0} FCFA).", 0);
+
+        var depot = new DepotCaisse
+        {
+            SessionCaisseId = sessionId,
+            HeureDepot = DateTime.Now,
+            MontantDepose = montant,
+            SoldeAvantDepot = soldeAvant,
+            SoldeApresDepot = soldeAvant - montant,
+            Type = type,
+            EffectueParUserId = userId
+        };
+
+        _db.DepotCaisses.Add(depot);
+        await _db.SaveChangesAsync();
+        return (true, "", depot.Id);
+    }
+
+    public static decimal CalculerSoldeTheorique(
+        SessionCaisse session,
+        IEnumerable<DepotCaisse>? depots = null)
+    {
+        var sales = session.Ventes.Select(v => v.Sale).Where(s => s != null).Cast<Sale>().ToList();
+        var caEspeces = sales
+            .Where(s => s.PaymentMethod == PaymentMethod.Especes)
+            .Sum(CalculerTotalSale);
+        var totalDepots = (depots ?? session.Depots).Sum(d => d.MontantDepose);
+        return session.FondDepart + caEspeces - totalDepots;
     }
 
     public static decimal CalculerTotalSale(Sale sale)

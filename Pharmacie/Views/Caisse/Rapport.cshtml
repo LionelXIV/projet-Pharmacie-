@@ -14,6 +14,8 @@
     decimal ecart = ViewBag.Ecart ?? 0m;
     var billetage = ViewBag.Billetage as BilletageDetail;
     string caissierNom = ViewBag.CaissierNom as string ?? "—";
+    var depots = ViewBag.Depots as List<DepotCaisse> ?? new List<DepotCaisse>();
+    decimal totalDepots = ViewBag.TotalDepots ?? depots.Sum(d => d.MontantDepose);
 
     var coupures = new (string Label, int Count, int Valeur)[]
     {
@@ -80,6 +82,7 @@
                     <div class="d-flex justify-content-between mb-1"><span>CA Autres</span><span>@caAutre.ToString("N0") FCFA</span></div>
                 }
                 <div class="d-flex justify-content-between mb-1"><span>Bons / Crédits</span><span>@bonsTotal.ToString("N0") FCFA</span></div>
+                <div class="d-flex justify-content-between mb-1"><span>Total dépôts</span><span class="text-primary">− @totalDepots.ToString("N0") FCFA</span></div>
                 <hr />
                 <div class="d-flex justify-content-between mb-1"><span class="fw-bold">TOTAL CA ventes</span><span class="fw-bold">@totalCa.ToString("N0") FCFA</span></div>
                 <div class="d-flex justify-content-between mb-1"><span class="fw-bold">TOTAL THÉORIQUE espèces</span><span class="fw-bold">@theoriqueEspeces.ToString("N0") FCFA</span></div>
@@ -133,6 +136,59 @@
                 }
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header fw-bold">Dépôts effectués (@depots.Count)</div>
+    <div class="card-body p-0">
+        @if (!depots.Any())
+        {
+            <p class="text-muted p-3 mb-0">Aucun dépôt enregistré.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Heure</th>
+                            <th>Type</th>
+                            <th class="text-end">Montant</th>
+                            <th class="text-end">Reste après</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var depot in depots)
+                        {
+                            <tr>
+                                <td>@depot.HeureDepot.ToString("HH:mm")</td>
+                                <td>
+                                    <span class="badge @(depot.Type == DepotCaisseType.Normal ? "bg-primary" : "bg-warning text-dark")">
+                                        @(depot.Type == DepotCaisseType.Normal ? "Dépôt" : "Dépôt final")
+                                    </span>
+                                </td>
+                                <td class="text-end">@depot.MontantDepose.ToString("N0") F</td>
+                                <td class="text-end">@depot.SoldeApresDepot.ToString("N0") F</td>
+                                <td>
+                                    <a asp-action="TicketDepot" asp-route-id="@depot.Id" class="btn btn-sm btn-outline-secondary" target="_blank" title="Ticket">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-warning fw-bold">
+                        <tr>
+                            <td colspan="2">Total dépôts</td>
+                            <td class="text-end">@totalDepots.ToString("N0") F</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
     </div>
 </div>
 

@@ -34,6 +34,7 @@ public class CaisseController : Controller
         var sessions = await _context.SessionCaisses
             .AsNoTracking()
             .Include(s => s.Ventes).ThenInclude(v => v.Sale).ThenInclude(sale => sale!.Lines)
+            .Include(s => s.Depots)
             .Where(s => s.DateSession == today)
             .ToListAsync();
 
@@ -126,14 +127,20 @@ public class CaisseController : Controller
         }
 
         var sales = session.Ventes.Select(v => v.Sale).Where(s => s != null).Cast<Sale>().ToList();
+        var caEspeces = sales.Where(s => s.PaymentMethod == PaymentMethod.Especes).Sum(CaisseService.CalculerTotalSale);
         ViewBag.NbVentes = sales.Count;
-        ViewBag.CaEspeces = sales.Where(s => s.PaymentMethod == PaymentMethod.Especes).Sum(CaisseService.CalculerTotalSale);
+        ViewBag.CaEspeces = caEspeces;
         ViewBag.CaWave = sales.Where(s => s.PaymentMethod == PaymentMethod.Wave).Sum(CaisseService.CalculerTotalSale);
         ViewBag.CaOM = sales.Where(s => s.PaymentMethod == PaymentMethod.OrangeMoney).Sum(CaisseService.CalculerTotalSale);
         ViewBag.CaAutre = sales
             .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
             .Sum(CaisseService.CalculerTotalSale);
-        ViewBag.AttenduEspeces = session.FondDepart + (decimal)ViewBag.CaEspeces;
+
+        var totalDepots = await _context.DepotCaisses
+            .Where(d => d.SessionCaisseId == id)
+            .SumAsync(d => (decimal?)d.MontantDepose) ?? 0;
+        ViewBag.TotalDepots = totalDepots;
+        ViewBag.AttenduEspeces = session.FondDepart + caEspeces - totalDepots;
 
         return View(session);
     }
@@ -163,6 +170,7 @@ public class CaisseController : Controller
             .AsNoTracking()
             .Include(s => s.Ventes).ThenInclude(v => v.Sale).ThenInclude(sale => sale!.Lines)
             .ThenInclude(l => l.Product)
+            .Include(s => s.Depots)
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (session == null) return NotFound();
@@ -189,11 +197,14 @@ public class CaisseController : Controller
                         && b.Statut != BonStatut.Annule)
             .SumAsync(b => (decimal?)b.MontantTotal) ?? 0;
 
+        var depots = session.Depots.OrderBy(d => d.HeureDepot).ToList();
+        var totalDepots = depots.Sum(d => d.MontantDepose);
+
         var billetage = string.IsNullOrEmpty(session.BilletageJson)
             ? null
             : JsonSerializer.Deserialize<BilletageDetail>(session.BilletageJson);
 
-        var theoriqueEspeces = session.FondDepart + caEspeces;
+        var theoriqueEspeces = session.FondDepart + caEspeces - totalDepots;
         var billetageTotal = session.BilletageTotal ?? billetage?.Total ?? 0;
         var ecart = billetageTotal - theoriqueEspeces;
 
@@ -201,6 +212,8 @@ public class CaisseController : Controller
 
         ViewBag.CaissierNom = UserDisplayResolver.Resolve(labels, session.CaissierUserId);
         ViewBag.Sales = sales;
+        ViewBag.Depots = depots;
+        ViewBag.TotalDepots = totalDepots;
         ViewBag.CaEspeces = caEspeces;
         ViewBag.CaWave = caWave;
         ViewBag.CaOM = caOM;
@@ -215,6 +228,78 @@ public class CaisseController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> Depot(int sessionId, DepotCaisseType type = DepotCaisseType.Normal)
+    {
+        var session = await _context.SessionCaisses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+        if (session == null) return NotFound();
+
+        if (session.Statut != SessionCaisseStatut.Ouverte)
+        {
+            TempData["Error"] = "Impossible de déposer : la caisse est fermée.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!IsAdminOrPharmacien && session.CaissierUserId != CurrentUserId)
+        {
+            TempData["Error"] = "Vous ne pouvez déposer que depuis votre propre caisse.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var solde = await _caisseService.GetSoldeTheoriqueAsync(sessionId);
+        ViewBag.Session = session;
+        ViewBag.SoldeTheorique = solde;
+        ViewBag.Type = type;
+        ViewBag.SeuilAtteint = solde >= CaisseService.SeuilDepotFcfa;
+        ViewBag.Seuil = CaisseService.SeuilDepotFcfa;
+
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Depot(int sessionId, decimal montant, DepotCaisseType type)
+    {
+        var (success, error, depotId) = await _caisseService.EnregistrerDepotAsync(
+            sessionId, montant, type, CurrentUserId, IsAdminOrPharmacien);
+
+        if (!success)
+        {
+            TempData["Error"] = error;
+            return RedirectToAction(nameof(Depot), new { sessionId, type });
+        }
+
+        TempData["Success"] = "Dépôt enregistré avec succès.";
+        return RedirectToAction(nameof(TicketDepot), new { id = depotId });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> TicketDepot(int id)
+    {
+        var depot = await _context.DepotCaisses
+            .AsNoTracking()
+            .Include(d => d.SessionCaisse)
+            .FirstOrDefaultAsync(d => d.Id == id);
+
+        if (depot == null) return NotFound();
+
+        if (!IsAdminOrPharmacien && depot.EffectueParUserId != CurrentUserId
+            && depot.SessionCaisse.CaissierUserId != CurrentUserId)
+        {
+            TempData["Error"] = "Accès refusé à ce ticket.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var labels = await UserDisplayResolver.LoadLabelsByIdAsync(
+            _context, new[] { depot.EffectueParUserId, depot.SessionCaisse.CaissierUserId });
+        ViewBag.CaissierNom = UserDisplayResolver.Resolve(labels, depot.EffectueParUserId);
+
+        return View(depot);
+    }
+
+    [HttpGet]
     [Authorize(Roles = $"{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
     public async Task<IActionResult> RapportConsolide(DateTime? date)
     {
@@ -222,6 +307,7 @@ public class CaisseController : Controller
         var sessions = await _context.SessionCaisses
             .AsNoTracking()
             .Include(s => s.Ventes).ThenInclude(v => v.Sale).ThenInclude(sale => sale!.Lines)
+            .Include(s => s.Depots)
             .Where(s => s.DateSession == d)
             .OrderBy(s => s.NumeroCaisse)
             .ThenByDescending(s => s.Id)

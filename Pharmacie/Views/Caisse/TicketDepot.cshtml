@@ -1,0 +1,105 @@
+@model Pharmacie.Models.DepotCaisse
+@using Pharmacie.Models
+@{
+    Layout = null;
+    var isFinal = Model.Type == DepotCaisseType.Final;
+    var titre = isFinal ? "DÉPÔT FINAL — FIN DE SERVICE" : "DÉPÔT DE CAISSE";
+    var caissierNom = ViewBag.CaissierNom as string ?? "—";
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DEP-@Model.Id</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            width: 80mm;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 4mm;
+            color: #000;
+            background: #fff;
+        }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .sep { border-top: 1px dashed #000; margin: 4px 0; }
+        .sep-solid { border-top: 1px solid #000; margin: 4px 0; }
+        .row { display: flex; justify-content: space-between; align-items: baseline; }
+        .ticket { page-break-after: always; margin-bottom: 8mm; }
+        .ticket:last-of-type { page-break-after: auto; }
+        .cut {
+            border-top: 2px dashed #000;
+            margin: 8mm 0;
+            text-align: center;
+            font-size: 10px;
+            padding-top: 2px;
+        }
+        @@media print {
+            body { margin: 0; padding: 2mm; }
+            @@page { margin: 0; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="ticket">
+    <div class="center bold" style="font-size:14px;">PHARMACIE</div>
+    <div class="center bold" style="font-size:14px;">SAINT JEAN PAUL II</div>
+    <div class="center" style="font-size:11px;">PNR - DAKAR</div>
+    <div class="sep-solid"></div>
+    <div class="center bold" style="font-size:13px;">@titre</div>
+    <div class="sep"></div>
+    <div class="row"><span>N° Dépôt :</span><span class="bold">DEP-@Model.Id</span></div>
+    <div class="row"><span>Date :</span><span>@Model.HeureDepot.ToString("dd/MM/yyyy HH:mm")</span></div>
+    <div class="row"><span>Caisse :</span><span>@Model.SessionCaisse.NomCaisse</span></div>
+    <div class="row"><span>Caissier :</span><span>@caissierNom</span></div>
+    <div class="sep-solid"></div>
+    <div class="row"><span>Solde avant :</span><span>@Model.SoldeAvantDepot.ToString("N0") FCFA</span></div>
+    <div class="row bold"><span>Déposé :</span><span>@Model.MontantDepose.ToString("N0") FCFA</span></div>
+    <div class="row"><span>Reste caisse :</span><span>@Model.SoldeApresDepot.ToString("N0") FCFA</span></div>
+    <div class="sep-solid"></div>
+    <div style="margin-top:8px;">Signature : ___________________</div>
+    <div class="sep"></div>
+    <div class="center bold">*** EXEMPLAIRE 1 — ENVELOPPE ***</div>
+</div>
+
+<div class="cut no-print">✂ couper ici</div>
+
+<div class="ticket">
+    <div class="center bold" style="font-size:14px;">PHARMACIE</div>
+    <div class="center bold" style="font-size:14px;">SAINT JEAN PAUL II</div>
+    <div class="center" style="font-size:11px;">PNR - DAKAR</div>
+    <div class="sep-solid"></div>
+    <div class="center bold" style="font-size:13px;">@titre</div>
+    <div class="sep"></div>
+    <div class="row"><span>N° Dépôt :</span><span class="bold">DEP-@Model.Id</span></div>
+    <div class="row"><span>Date :</span><span>@Model.HeureDepot.ToString("dd/MM/yyyy HH:mm")</span></div>
+    <div class="row"><span>Caisse :</span><span>@Model.SessionCaisse.NomCaisse</span></div>
+    <div class="row"><span>Caissier :</span><span>@caissierNom</span></div>
+    <div class="sep-solid"></div>
+    <div class="row"><span>Solde avant :</span><span>@Model.SoldeAvantDepot.ToString("N0") FCFA</span></div>
+    <div class="row bold"><span>Déposé :</span><span>@Model.MontantDepose.ToString("N0") FCFA</span></div>
+    <div class="row"><span>Reste caisse :</span><span>@Model.SoldeApresDepot.ToString("N0") FCFA</span></div>
+    <div class="sep-solid"></div>
+    <div style="margin-top:8px;">Signature : ___________________</div>
+    <div class="sep"></div>
+    <div class="center bold">*** EXEMPLAIRE 2 — CAISSIER ***</div>
+</div>
+
+<div class="no-print center" style="margin-top:12px;">
+    <a href="/Caisse/Index" style="font-family:sans-serif;font-size:14px;">Retour aux caisses</a>
+</div>
+
+<script>
+window.addEventListener('load', function () { window.print(); });
+window.addEventListener('afterprint', function () {
+  window.location.href = '/Caisse/Index';
+});
+</script>
+</body>
+</html>

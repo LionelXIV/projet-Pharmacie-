@@ -7,6 +7,7 @@
     var labels = ViewBag.Labels as Dictionary<string, string> ?? new Dictionary<string, string>();
     bool isAdmin = ViewBag.IsAdminOrPharmacien == true;
     string currentUserId = ViewBag.CurrentUserId as string ?? "";
+    var seuil = CaisseService.SeuilDepotFcfa;
     var caisses = new[] { (1, caisse1, "Caisse 1 — Matin", "bg-success", "btn-success"), (2, caisse2, "Caisse 2 — Soir", "bg-primary", "btn-primary") };
 
     string Nom(SessionCaisse? s) =>
@@ -53,8 +54,11 @@
     var isMine = session != null && session.CaissierUserId == currentUserId;
     var canSeeDetails = isAdmin || isMine;
     var (nb, ca) = Stats(session);
+    var solde = session != null ? CaisseService.CalculerSoldeTheorique(session) : 0m;
+    var pct = seuil > 0 ? Math.Min((double)(solde / seuil * 100m), 100d) : 0d;
+    var seuilAtteint = solde >= seuil;
     <div class="col-md-6">
-        <div class="card shadow-sm h-100 @(isOpen ? "border-success" : "border-secondary")">
+        <div class="card shadow-sm h-100 @(isOpen ? (seuilAtteint ? "border-danger" : "border-success") : "border-secondary")">
             <div class="card-header @headerCss text-white fw-bold">
                 <i class="bi bi-cash-register me-1"></i>@titre
             </div>
@@ -68,12 +72,46 @@
                     {
                         <p class="mb-1"><span class="text-muted">Fond départ :</span> @session.FondDepart.ToString("N0") FCFA</p>
                         <p class="mb-1"><span class="text-muted">Ventes :</span> @nb</p>
-                        <p class="mb-3"><span class="text-muted">CA :</span> <strong class="text-success">@ca.ToString("N0") FCFA</strong></p>
+                        <p class="mb-2"><span class="text-muted">CA :</span> <strong class="text-success">@ca.ToString("N0") FCFA</strong></p>
+
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Solde en caisse</small>
+                                <strong class="@(seuilAtteint ? "text-danger" : "text-success")">
+                                    @solde.ToString("N0") FCFA
+                                </strong>
+                            </div>
+                            <div class="progress" style="height:8px">
+                                <div class="progress-bar @(seuilAtteint ? "bg-danger" : "bg-success")"
+                                     style="width:@pct.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"
+                                     role="progressbar"></div>
+                            </div>
+                            <small class="text-muted">Seuil : @seuil.ToString("N0") FCFA</small>
+                        </div>
+
+                        @if (seuilAtteint)
+                        {
+                            <div class="alert alert-danger py-2 mb-2">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Seuil atteint — Effectuez un dépôt
+                            </div>
+                        }
+
                         @if (isMine || isAdmin)
                         {
-                            <a asp-action="Fermer" asp-route-id="@session.Id" class="btn btn-warning w-100 mb-2">
-                                <i class="bi bi-lock me-1"></i>Fermer la caisse
-                            </a>
+                            <div class="d-grid gap-2 mb-2">
+                                <a asp-action="Depot" asp-route-sessionId="@session.Id" asp-route-type="0"
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-safe me-1"></i>Dépôt
+                                </a>
+                                <a asp-action="Depot" asp-route-sessionId="@session.Id" asp-route-type="1"
+                                   class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-safe-fill me-1"></i>Dépôt final
+                                </a>
+                                <a asp-action="Fermer" asp-route-id="@session.Id" class="btn btn-warning">
+                                    <i class="bi bi-lock me-1"></i>Fermer la caisse
+                                </a>
+                            </div>
                         }
                     }
                     else
@@ -88,6 +126,7 @@
                     <p class="mb-1"><span class="text-muted">Clôture :</span> @session.HeureFermeture?.ToString("HH:mm")</p>
                     @if (canSeeDetails)
                     {
+                        <p class="mb-1"><span class="text-muted">Dépôts :</span> @session.Depots.Sum(d => d.MontantDepose).ToString("N0") FCFA</p>
                         <p class="mb-3"><span class="text-muted">Billetage :</span> @(session.BilletageTotal?.ToString("N0") ?? "—") FCFA</p>
                         <a asp-action="Rapport" asp-route-id="@session.Id" class="btn btn-outline-primary w-100">
                             <i class="bi bi-file-earmark-text me-1"></i>Voir le rapport

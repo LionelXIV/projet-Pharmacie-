@@ -1,0 +1,94 @@
+@using Pharmacie.Models
+@using Pharmacie.Services
+@{
+    ViewData["Title"] = ViewBag.Type is DepotCaisseType.Final ? "Dépôt final" : "Dépôt de caisse";
+    var session = ViewBag.Session as SessionCaisse
+        ?? throw new InvalidOperationException("Session manquante.");
+    decimal solde = ViewBag.SoldeTheorique ?? 0m;
+    var type = ViewBag.Type is DepotCaisseType t ? t : DepotCaisseType.Normal;
+    bool seuilAtteint = ViewBag.SeuilAtteint == true;
+    decimal seuil = ViewBag.Seuil ?? CaisseService.SeuilDepotFcfa;
+    bool isFinal = type == DepotCaisseType.Final;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+    <h1 class="h4 mb-0">@(isFinal ? "Dépôt final" : "Dépôt de caisse")</h1>
+</div>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger py-2">@err</div>
+}
+
+<div class="card shadow-sm mx-auto" style="max-width:500px">
+    <div class="card-header fw-bold @(isFinal ? "bg-warning text-dark" : "bg-primary text-white")">
+        <i class="bi bi-safe me-1"></i>
+        @(isFinal ? "Dépôt final — Fin de service" : "Dépôt de caisse")
+        <span class="float-end small opacity-75">@session.NomCaisse</span>
+    </div>
+    <div class="card-body">
+        <div class="alert @(seuilAtteint ? "alert-danger" : "alert-info") text-center mb-3">
+            <div class="fs-6 fw-bold">Solde actuel en caisse</div>
+            <div class="fs-3 fw-bold">@solde.ToString("N0") FCFA</div>
+            @if (seuilAtteint)
+            {
+                <small>Seuil de @seuil.ToString("N0") FCFA atteint — effectuez un dépôt.</small>
+            }
+        </div>
+
+        <form asp-action="Depot" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="sessionId" value="@session.Id" />
+            <input type="hidden" name="type" value="@((int)type)" />
+
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="montant-input">Montant à déposer (FCFA)</label>
+                <input type="number"
+                       name="montant"
+                       id="montant-input"
+                       class="form-control form-control-lg text-end"
+                       min="1"
+                       max="@Math.Floor(solde)"
+                       step="500"
+                       required
+                       autocomplete="off" />
+                <div class="form-text">Maximum : @solde.ToString("N0") FCFA</div>
+            </div>
+
+            <div class="alert alert-secondary">
+                <div class="d-flex justify-content-between">
+                    <span>Reste en caisse après dépôt :</span>
+                    <span class="fw-bold" id="reste-display">— FCFA</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn w-100 py-3 fw-bold @(isFinal ? "btn-warning" : "btn-primary")"
+                    onclick="return confirm('Confirmer le dépôt ? Cette opération est irréversible.');">
+                <i class="bi bi-safe me-2"></i>
+                Confirmer le dépôt
+            </button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+  var solde = @solde.ToString(System.Globalization.CultureInfo.InvariantCulture);
+  var input = document.getElementById('montant-input');
+  var resteEl = document.getElementById('reste-display');
+
+  function updateReste() {
+    var montant = parseFloat(input.value) || 0;
+    var reste = solde - montant;
+    resteEl.textContent = Math.round(reste).toLocaleString('fr-FR') + ' FCFA';
+    resteEl.className = 'fw-bold ' +
+      (reste < 40000 ? 'text-danger' : reste > 60000 ? 'text-warning' : 'text-success');
+  }
+
+  input.addEventListener('input', updateReste);
+  updateReste();
+})();
+</script>
+}
