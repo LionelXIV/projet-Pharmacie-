@@ -47,12 +47,13 @@
                                     <tr>
                                         <th>Produit</th>
                                         <th style="width:8rem">Quantité</th>
+                                        <th style="width:8rem" class="text-end">Sous-total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @for (var i = 0; i < Model.Lines.Count; i++)
                                     {
-                                        <tr>
+                                        <tr class="order-line-row" data-purchase-price="0">
                                             <td>
                                                 <div class="d-flex align-items-center gap-1">
                                                     <select asp-for="Lines[i].ProductId"
@@ -71,12 +72,39 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <input asp-for="Lines[i].QuantityOrdered" class="form-control form-control-sm" type="number" min="0" />
+                                                <input asp-for="Lines[i].QuantityOrdered"
+                                                       class="form-control form-control-sm order-line-qty"
+                                                       type="number" min="0" />
+                                            </td>
+                                            <td class="text-end small fw-semibold order-line-subtotal text-muted">
+                                                —
                                             </td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <div class="card border-success shadow-sm mb-3" id="order-summary">
+                        <div class="card-header bg-success text-white fw-bold">
+                            <i class="bi bi-calculator me-1" aria-hidden="true"></i>
+                            Résumé de la commande
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Nb lignes</span>
+                                <span id="summary-lines" class="fw-bold">0</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Nb articles</span>
+                                <span id="summary-qty" class="fw-bold">0</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold fs-5">TOTAL HT</span>
+                                <span id="summary-total" class="fw-bold fs-5 text-success">0 FCFA</span>
+                            </div>
                         </div>
                     </div>
 
@@ -100,7 +128,61 @@
     <partial name="_QuickProductModal" />
     <script>
       document.addEventListener('DOMContentLoaded', function () {
-        if (!window.TomSelect) return;
+        function formatFcfa(amount) {
+          return Math.round(amount || 0).toLocaleString('fr-FR') + ' FCFA';
+        }
+
+        function updateOrderSummary() {
+          var totalLines = 0;
+          var totalQty = 0;
+          var totalAmount = 0;
+
+          document.querySelectorAll('.order-line-row').forEach(function (row) {
+            var price = parseFloat(row.dataset.purchasePrice || '0') || 0;
+            var qtyInput = row.querySelector('input[name$=".QuantityOrdered"]');
+            var qty = parseInt(qtyInput && qtyInput.value ? qtyInput.value : '0', 10) || 0;
+            var subtotalEl = row.querySelector('.order-line-subtotal');
+
+            if (price > 0 && qty > 0) {
+              var lineTotal = price * qty;
+              totalLines++;
+              totalQty += qty;
+              totalAmount += lineTotal;
+              if (subtotalEl) {
+                subtotalEl.textContent = formatFcfa(lineTotal);
+                subtotalEl.classList.remove('text-muted');
+                subtotalEl.classList.add('text-success');
+              }
+            } else if (subtotalEl) {
+              subtotalEl.textContent = '—';
+              subtotalEl.classList.add('text-muted');
+              subtotalEl.classList.remove('text-success');
+            }
+          });
+
+          document.getElementById('summary-lines').textContent = String(totalLines);
+          document.getElementById('summary-qty').textContent = String(totalQty);
+          document.getElementById('summary-total').textContent = formatFcfa(totalAmount);
+
+          var card = document.getElementById('order-summary');
+          if (totalAmount > 0) {
+            card.classList.add('border-success');
+            card.classList.remove('border-secondary');
+          } else {
+            card.classList.add('border-secondary');
+            card.classList.remove('border-success');
+          }
+        }
+
+        document.querySelectorAll('input[name$=".QuantityOrdered"]').forEach(function (input) {
+          input.addEventListener('input', updateOrderSummary);
+          input.addEventListener('change', updateOrderSummary);
+        });
+
+        if (!window.TomSelect) {
+          updateOrderSummary();
+          return;
+        }
 
         document.querySelectorAll('[data-tomselect-product]').forEach(function (el) {
           if (el.tomselect) return;
@@ -128,20 +210,31 @@
                 .catch(function () { callback(); });
             },
             onChange: function (value) {
-              if (!value) return;
+              var row = el.closest('tr.order-line-row') || el.closest('.order-line-row');
+
+              if (!value || value === '0') {
+                if (row) row.dataset.purchasePrice = '0';
+                updateOrderSummary();
+                return;
+              }
 
               const option = this.options[value];
               if (!option) return;
 
-              const selectName = el.getAttribute('name');
-              if (!selectName) return;
-
-              const priceName = selectName.replace('ProductId', 'UnitPrice');
-              const priceInput = document.querySelector('[name="' + priceName + '"]');
-
-              if (priceInput && option.purchasePrice !== undefined && option.purchasePrice !== null) {
-                priceInput.value = option.purchasePrice;
+              if (row && option.purchasePrice !== undefined && option.purchasePrice !== null) {
+                row.dataset.purchasePrice = String(option.purchasePrice);
               }
+
+              const selectName = el.getAttribute('name');
+              if (selectName) {
+                const priceName = selectName.replace('ProductId', 'UnitPrice');
+                const priceInput = document.querySelector('[name="' + priceName + '"]');
+                if (priceInput && option.purchasePrice !== undefined && option.purchasePrice !== null) {
+                  priceInput.value = option.purchasePrice;
+                }
+              }
+
+              updateOrderSummary();
             },
             render: {
               option: function (data, escape) {
@@ -159,6 +252,8 @@
             }
           });
         });
+
+        updateOrderSummary();
       });
     </script>
 }
