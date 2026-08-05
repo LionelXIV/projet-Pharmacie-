@@ -189,6 +189,8 @@ public class SalesController : Controller
         }
 
         ViewBag.SessionCaisse = session;
+        ViewBag.SessionCaisseId = session.Id;
+        ViewBag.SessionCaisseNom = session.NomCaisse;
         await PopulateVendeursForPosAsync();
         return View(new SaleCreateViewModel());
     }
@@ -287,6 +289,15 @@ public class SalesController : Controller
 
         if (model.Lines == null || model.Lines.Count == 0)
             model.Lines = new List<SaleLineSlotViewModel> { new() };
+
+        var reopenUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var reopenSession = await _caisseService.GetSessionOuverteAsync(reopenUserId);
+        if (reopenSession != null)
+        {
+            ViewBag.SessionCaisse = reopenSession;
+            ViewBag.SessionCaisseId = reopenSession.Id;
+            ViewBag.SessionCaisseNom = reopenSession.NomCaisse;
+        }
 
         await PopulateVendeursForPosAsync(model.VendeurId);
         return View(model);

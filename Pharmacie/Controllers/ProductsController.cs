@@ -84,7 +84,8 @@ public class ProductsController : Controller
                     : p.CommercialName) + " (stock: " + p.StockQuantity + ")",
                 salePrice = p.SalePrice,
                 purchasePrice = p.PurchasePrice,
-                stockQuantity = p.StockQuantity
+                stockQuantity = p.StockQuantity,
+                assujettiTVA = p.AssujettiTVA
             })
             .ToListAsync();
 

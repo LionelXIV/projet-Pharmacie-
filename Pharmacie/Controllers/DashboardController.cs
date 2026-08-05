@@ -295,6 +295,35 @@ public class DashboardController : Controller
             })
             .ToList();
 
+        static decimal SumPm(IEnumerable<Sale> ventes, PaymentMethod pm) =>
+            ventes.Where(s => s.PaymentMethod == pm)
+                .SelectMany(s => s.Lines)
+                .Sum(l => l.UnitPrice * l.Quantity);
+
+        var caEspeces = SumPm(sales, PaymentMethod.Especes);
+        var caWave = SumPm(sales, PaymentMethod.Wave);
+        var caOm = SumPm(sales, PaymentMethod.OrangeMoney);
+        var caAutres = sales
+            .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
+            .SelectMany(s => s.Lines)
+            .Sum(l => l.UnitPrice * l.Quantity);
+
+        var bonsTotal = await _db.Bons
+            .AsNoTracking()
+            .Where(b => b.DateCreation.Date >= from && b.DateCreation.Date <= today)
+            .SumAsync(b => (decimal?)b.MontantTotal) ?? 0m;
+
+        var avoirsTotal = await _db.Avoirs
+            .AsNoTracking()
+            .Where(a => a.DateCreation.Date >= from && a.DateCreation.Date <= today)
+            .SumAsync(a => (decimal?)a.MontantTotal) ?? 0m;
+
+        ViewBag.NbJours = 30;
+        ViewBag.PaiementLabels = JsonSerializer.Serialize(
+            new[] { "Espèces", "Wave", "Orange Money", "Bon/Crédit", "Avoir", "Autres" });
+        ViewBag.PaiementData = JsonSerializer.Serialize(
+            new[] { caEspeces, caWave, caOm, bonsTotal, avoirsTotal, caAutres });
+
         var vm = new DashboardFinancesViewModel
         {
             From = from,

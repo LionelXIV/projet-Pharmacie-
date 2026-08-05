@@ -665,6 +665,124 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> Recapitulatif(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRecapitulatifAsync(dateDebut, dateFin);
+        return View(vm);
+    }
+
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> ExportRecapitulatifCSV(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRecapitulatifAsync(dateDebut, dateFin);
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Récapitulatif"),
+            ReportCsvFormatter.Escape($"{vm.DateDebut:yyyy-MM-dd} → {vm.DateFin:yyyy-MM-dd}")));
+        sb.AppendLine();
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Indicateur"), ReportCsvFormatter.Escape("Valeur")));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("CA Total (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.CATotal)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("PA Total (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.PATotal)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Marge brute (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.MargeBrute)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Taux de marge (%)"), ReportCsvFormatter.DecimalInvariant(vm.TauxMarge)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("TVA collectée (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.TVACollectee)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Panier moyen (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.PanierMoyen)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Nb ventes"), ReportCsvFormatter.IntInvariant(vm.NombreVentes)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Bons créés (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.TotalBons)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Bons réglés (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.TotalBonsRegle)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Bons en attente (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.TotalBonsEnAttente)));
+        sb.AppendLine(ReportCsvFormatter.Join(ReportCsvFormatter.Escape("Avoirs (FCFA)"), ReportCsvFormatter.FcfaCsvAmount(vm.TotalAvoirs)));
+        sb.AppendLine();
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Catégorie"),
+            ReportCsvFormatter.Escape("CA"),
+            ReportCsvFormatter.Escape("PA"),
+            ReportCsvFormatter.Escape("Marge"),
+            ReportCsvFormatter.Escape("% Marge"),
+            ReportCsvFormatter.Escape("Articles")));
+        foreach (var c in vm.CAParCategorie)
+        {
+            sb.AppendLine(ReportCsvFormatter.Join(
+                ReportCsvFormatter.Escape(c.Categorie),
+                ReportCsvFormatter.FcfaCsvAmount(c.CA),
+                ReportCsvFormatter.FcfaCsvAmount(c.PA),
+                ReportCsvFormatter.FcfaCsvAmount(c.Marge),
+                ReportCsvFormatter.DecimalInvariant(c.TauxMarge),
+                ReportCsvFormatter.IntInvariant(c.NbArticles)));
+        }
+
+        return ReportCsvFormatter.FileResult(this, sb.ToString(),
+            $"recapitulatif_{vm.DateDebut:yyyyMMdd}_{vm.DateFin:yyyyMMdd}");
+    }
+
+    private async Task<RecapitulatifViewModel> BuildRecapitulatifAsync(DateTime? dateDebut, DateTime? dateFin)
+    {
+        var debut = (dateDebut ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1)).Date;
+        var fin = (dateFin ?? DateTime.Today).Date;
+        if (fin < debut)
+            (debut, fin) = (fin, debut);
+
+        var start = debut;
+        var endExclusive = fin.AddDays(1);
+
+        var ventes = await ProduitsExtrasFilter.WhereSansExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+                    .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive))
+            .ToListAsync();
+
+        var lignes = ventes.SelectMany(s => s.Lines).ToList();
+        var caTotal = lignes.Sum(l => l.UnitPrice * l.Quantity);
+        var paTotal = lignes.Sum(l => (l.Product?.PurchasePrice ?? 0m) * l.Quantity);
+        var marge = caTotal - paTotal;
+
+        var totalBons = await _db.Bons
+            .AsNoTracking()
+            .Where(b => b.DateCreation >= start && b.DateCreation < endExclusive)
+            .SumAsync(b => (decimal?)b.MontantTotal) ?? 0m;
+
+        var totalBonsRegle = await _db.Bons
+            .AsNoTracking()
+            .Where(b => b.DateCreation >= start && b.DateCreation < endExclusive)
+            .SumAsync(b => (decimal?)b.MontantRegle) ?? 0m;
+
+        var totalAvoirs = await _db.Avoirs
+            .AsNoTracking()
+            .Where(a => a.DateCreation >= start && a.DateCreation < endExclusive)
+            .SumAsync(a => (decimal?)a.MontantTotal) ?? 0m;
+
+        return new RecapitulatifViewModel
+        {
+            DateDebut = debut,
+            DateFin = fin,
+            NombreVentes = ventes.Count,
+            CATotal = caTotal,
+            PATotal = paTotal,
+            MargeBrute = marge,
+            TauxMarge = caTotal > 0 ? marge / caTotal * 100 : 0,
+            TVACollectee = lignes.Sum(l =>
+                TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantTVA),
+            PanierMoyen = ventes.Count > 0 ? caTotal / ventes.Count : 0,
+            TotalBons = totalBons,
+            TotalBonsRegle = totalBonsRegle,
+            TotalAvoirs = totalAvoirs,
+            CAParCategorie = lignes
+                .GroupBy(l => l.Product?.Category?.Name ?? "Sans catégorie")
+                .Select(g => new RecapCategorieVm
+                {
+                    Categorie = g.Key,
+                    CA = g.Sum(l => l.UnitPrice * l.Quantity),
+                    PA = g.Sum(l => (l.Product?.PurchasePrice ?? 0m) * l.Quantity),
+                    Marge = g.Sum(l => (l.UnitPrice - (l.Product?.PurchasePrice ?? 0m)) * l.Quantity),
+                    NbArticles = g.Sum(l => l.Quantity)
+                })
+                .OrderByDescending(x => x.CA)
+                .ToList()
+        };
+    }
+
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
     public async Task<IActionResult> RapportExtras(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
         var vm = await BuildRapportExtrasAsync(dateDebut, dateFin);

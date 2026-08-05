@@ -86,6 +86,17 @@
         @if (AppRoles.IsTitulaire(User))
         {
             <div class="col-md-6 col-xl-4">
+                <div class="card border-primary shadow-sm h-100 report-hub-card">
+                    <div class="card-body">
+                        <h2 class="h5 card-title"><i class="bi bi-journal-richtext me-1" aria-hidden="true"></i>Récapitulatif global</h2>
+                        <p class="card-text small text-muted">
+                            CA, PA, marge, TVA, bons et avoirs sur une période.
+                        </p>
+                        <a class="btn btn-primary btn-sm stretched-link" asp-action="Recapitulatif">Voir le récapitulatif</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
                 <div class="card border-warning shadow-sm h-100 report-hub-card">
                     <div class="card-body">
                         <h2 class="h5 card-title"><i class="bi bi-bag me-1" aria-hidden="true"></i>Produits Extras</h2>

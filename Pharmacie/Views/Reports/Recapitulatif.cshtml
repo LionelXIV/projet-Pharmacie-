@@ -1,0 +1,136 @@
+@model RecapitulatifViewModel
+@using Pharmacie.Reporting
+@{
+    ViewData["Title"] = "Récapitulatif global";
+}
+
+<div class="page-header">
+    <h1 class="page-title">Récapitulatif global</h1>
+    <p class="page-lead mb-0">
+        Synthèse officielle (hors Produits Extras) du
+        @Model.DateDebut.ToString("dd/MM/yyyy") au @Model.DateFin.ToString("dd/MM/yyyy").
+    </p>
+</div>
+
+<form method="get" asp-action="Recapitulatif" class="row g-2 mb-4 align-items-end">
+    <div class="col-md-3">
+        <label class="form-label fw-bold" for="dateDebut">Date début</label>
+        <input type="date" name="dateDebut" id="dateDebut" class="form-control"
+               data-flatpickr-ignore="true"
+               value="@Model.DateDebut.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label fw-bold" for="dateFin">Date fin</label>
+        <input type="date" name="dateFin" id="dateFin" class="form-control"
+               data-flatpickr-ignore="true"
+               value="@Model.DateFin.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-search me-1" aria-hidden="true"></i>Afficher
+        </button>
+    </div>
+    <div class="col-md-2">
+        <a asp-action="ExportRecapitulatifCSV"
+           asp-route-dateDebut="@Model.DateDebut.ToString("yyyy-MM-dd")"
+           asp-route-dateFin="@Model.DateFin.ToString("yyyy-MM-dd")"
+           class="btn btn-outline-success w-100">
+            <i class="bi bi-download me-1" aria-hidden="true"></i>Export CSV
+        </a>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-dark text-white fw-bold text-center">
+        RÉCAPITULATIF DU @Model.DateDebut.ToString("dd/MM/yyyy")
+        AU @Model.DateFin.ToString("dd/MM/yyyy")
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <tbody>
+                <tr>
+                    <td>CA Total</td>
+                    <td class="text-end fw-bold">@ReportCsvFormatter.FormatFcfa(Model.CATotal)</td>
+                </tr>
+                <tr>
+                    <td>PA Total</td>
+                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(Model.PATotal)</td>
+                </tr>
+                <tr>
+                    <td>Marge brute</td>
+                    <td class="text-end text-success fw-semibold">@ReportCsvFormatter.FormatFcfa(Model.MargeBrute)</td>
+                </tr>
+                <tr>
+                    <td>Taux de marge</td>
+                    <td class="text-end">@Model.TauxMarge.ToString("N1") %</td>
+                </tr>
+                <tr>
+                    <td>TVA collectée</td>
+                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(Model.TVACollectee)</td>
+                </tr>
+                <tr>
+                    <td>Panier moyen</td>
+                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(Model.PanierMoyen)</td>
+                </tr>
+                <tr>
+                    <td>Nb ventes</td>
+                    <td class="text-end">@Model.NombreVentes</td>
+                </tr>
+                <tr class="table-light">
+                    <td>Bons créés</td>
+                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(Model.TotalBons)</td>
+                </tr>
+                <tr class="table-light">
+                    <td>Bons réglés</td>
+                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(Model.TotalBonsRegle)</td>
+                </tr>
+                <tr class="table-light">
+                    <td>Bons en attente</td>
+                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(Model.TotalBonsEnAttente)</td>
+                </tr>
+                <tr class="table-light">
+                    <td>Avoirs</td>
+                    <td class="text-end">@ReportCsvFormatter.FormatFcfa(Model.TotalAvoirs)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white fw-semibold">CA par catégorie</div>
+    @if (!Model.CAParCategorie.Any())
+    {
+        <div class="card-body text-muted small">Aucune vente sur la période.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Catégorie</th>
+                        <th class="text-end">CA</th>
+                        <th class="text-end">PA</th>
+                        <th class="text-end">Marge</th>
+                        <th class="text-end">% Marge</th>
+                        <th class="text-end">Articles</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.CAParCategorie)
+                    {
+                        <tr>
+                            <td>@c.Categorie</td>
+                            <td class="text-end">@ReportCsvFormatter.FormatFcfa(c.CA)</td>
+                            <td class="text-end">@ReportCsvFormatter.FormatFcfa(c.PA)</td>
+                            <td class="text-end text-success">@ReportCsvFormatter.FormatFcfa(c.Marge)</td>
+                            <td class="text-end">@c.TauxMarge.ToString("N1") %</td>
+                            <td class="text-end">@c.NbArticles</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
