@@ -19,6 +19,13 @@
     <h1 class="page-title h4 mb-0"><i class="bi bi-cash-register me-2" aria-hidden="true"></i>Point de vente</h1>
 </div>
 
+@if (TempData["Error"] is string tempErr)
+{
+    <div class="alert alert-danger alert-dismissible fade show mx-2 mx-lg-0" role="alert">
+        <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>@tempErr
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+    </div>
+}
 @if (!ViewData.ModelState.IsValid)
 {
     <div class="alert alert-danger alert-dismissible fade show mx-2 mx-lg-0" role="alert">
@@ -163,6 +170,46 @@
                         </button>
                     </div>
                 }
+                <div class="col-12 mt-1">
+                    <button type="button"
+                            class="btn btn-outline-danger w-100 py-2"
+                            id="btn-credit"
+                            onclick="activerModeCredit()">
+                        <i class="bi bi-receipt-cutoff me-1" aria-hidden="true"></i>
+                        <span>Crédit / Bon</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="credit-form" class="d-none mt-3 mb-3">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark fw-bold">
+                    <i class="bi bi-person-fill me-1" aria-hidden="true"></i>
+                    Informations client — Crédit / Bon
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" for="credit-client-nom">Nom du client *</label>
+                        <input type="text"
+                               id="credit-client-nom"
+                               class="form-control"
+                               placeholder="Ex: Mamadou Diallo"
+                               autocomplete="name">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" for="credit-client-tel">Téléphone (optionnel)</label>
+                        <input type="tel"
+                               id="credit-client-tel"
+                               class="form-control"
+                               placeholder="Ex: 77 123 45 67"
+                               autocomplete="tel">
+                    </div>
+                    <div class="alert alert-warning py-2 mb-0">
+                        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+                        <small>Le stock sera mis à jour immédiatement. Le client paiera plus tard.</small>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -203,6 +250,47 @@
   var cart = [];
   var searchTimer = null;
   var selectedPayment = @((int)Model.PaymentMethod);
+  var modeCredit = false;
+
+  function notifyError(msg) {
+    if (window.toastr) toastr.error(msg);
+    else alert(msg);
+  }
+
+  function resetModeCredit() {
+    modeCredit = false;
+    document.getElementById('credit-form').classList.add('d-none');
+    var btnCredit = document.getElementById('btn-credit');
+    btnCredit.classList.remove('active', 'btn-danger');
+    btnCredit.classList.add('btn-outline-danger');
+    var btnValider = document.getElementById('btn-valider');
+    btnValider.innerHTML =
+      '<i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>Valider la vente';
+    btnValider.classList.add('btn-success');
+    btnValider.classList.remove('btn-warning', 'text-dark');
+  }
+
+  window.activerModeCredit = function () {
+    modeCredit = true;
+    document.querySelectorAll('.payment-btn').forEach(function (b) {
+      b.classList.remove('active');
+      var color = b.dataset.color || 'secondary';
+      b.classList.remove('btn-' + color);
+      if (!b.classList.contains('btn-outline-' + color)) {
+        b.classList.add('btn-outline-' + color);
+      }
+    });
+    var btnCredit = document.getElementById('btn-credit');
+    btnCredit.classList.add('active', 'btn-danger');
+    btnCredit.classList.remove('btn-outline-danger');
+    document.getElementById('credit-form').classList.remove('d-none');
+    var btnValider = document.getElementById('btn-valider');
+    btnValider.innerHTML =
+      '<i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>Créer le bon / crédit';
+    btnValider.classList.remove('btn-success');
+    btnValider.classList.add('btn-warning', 'text-dark');
+    document.getElementById('credit-client-nom').focus();
+  };
 
   function escapeHtml(text) {
     var div = document.createElement('div');
@@ -475,6 +563,7 @@
 
   document.querySelectorAll('.payment-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
+      resetModeCredit();
       document.querySelectorAll('.payment-btn').forEach(function (b) {
         b.classList.remove('active');
       });
@@ -491,14 +580,63 @@
 
   document.getElementById('btn-valider').addEventListener('click', function () {
     if (cart.length === 0) {
-      if (window.toastr) toastr.error('Ajoutez au moins un produit.');
-      else alert('Ajoutez au moins un produit.');
+      notifyError('Ajoutez au moins un produit.');
       return;
     }
     var vendeurId = document.getElementById('vendeur-select').value;
     if (!vendeurId) {
-      if (window.toastr) toastr.error('Sélectionnez un vendeur.');
-      else alert('Sélectionnez un vendeur.');
+      notifyError('Sélectionnez un vendeur.');
+      return;
+    }
+
+    if (modeCredit) {
+      var clientNom = document.getElementById('credit-client-nom').value.trim();
+      if (!clientNom) {
+        notifyError('Saisissez le nom du client.');
+        document.getElementById('credit-client-nom').focus();
+        return;
+      }
+
+      var formBon = document.createElement('form');
+      formBon.method = 'POST';
+      formBon.action = '/Bons/CreateFromVente';
+
+      function addHiddenBon(name, value) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value || '';
+        formBon.appendChild(input);
+      }
+
+      var tokenBon = document.querySelector('input[name="__RequestVerificationToken"]');
+      if (tokenBon) addHiddenBon('__RequestVerificationToken', tokenBon.value);
+
+      addHiddenBon('ClientNom', clientNom);
+      addHiddenBon('ClientTelephone', document.getElementById('credit-client-tel').value || '');
+      addHiddenBon('VendeurId', vendeurId);
+
+      cart.forEach(function (item, i) {
+        addHiddenBon('Lines[' + i + '].ProductId', String(item.productId));
+        addHiddenBon('Lines[' + i + '].Quantity', String(item.quantity));
+        addHiddenBon('Lines[' + i + '].DiscountPercent',
+          item.discountType === 'percent' ? String(item.discountValue || 0) : '0');
+        addHiddenBon('Lines[' + i + '].DiscountAmount',
+          item.discountType === 'amount' ? String(item.discountValue || 0) : '0');
+        addHiddenBon('Lines[' + i + '].DiscountType',
+          item.discountValue > 0 ? item.discountType : '');
+      });
+
+      var overlayBon = document.createElement('div');
+      overlayBon.style.cssText =
+        'position:fixed;inset:0;background:rgba(15,45,30,0.85);z-index:9999;' +
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;';
+      overlayBon.innerHTML =
+        '<div class="spinner-border text-light" style="width:3rem;height:3rem;"></div>' +
+        '<div style="color:#fff;font-size:1.1rem;font-weight:600;">Création du bon...</div>';
+      document.body.appendChild(overlayBon);
+      document.body.appendChild(formBon);
+      formBon.submit();
       return;
     }
 
@@ -534,6 +672,12 @@
     cart.forEach(function (item, i) {
       addHidden('Lines[' + i + '].ProductId', String(item.productId));
       addHidden('Lines[' + i + '].Quantity', String(item.quantity));
+      addHidden('Lines[' + i + '].DiscountPercent',
+        item.discountType === 'percent' ? String(item.discountValue || 0) : '0');
+      addHidden('Lines[' + i + '].DiscountAmount',
+        item.discountType === 'amount' ? String(item.discountValue || 0) : '0');
+      addHidden('Lines[' + i + '].DiscountType',
+        item.discountValue > 0 ? item.discountType : '');
     });
 
     var overlay = document.createElement('div');

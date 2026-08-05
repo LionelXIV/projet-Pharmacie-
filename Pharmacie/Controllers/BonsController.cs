@@ -154,6 +154,57 @@ public class BonsController : Controller
         return View();
     }
 
+    /// <summary>
+    /// Création d'un bon depuis le POS vente (mode Crédit / Bon).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateFromVente(BonCreateFromVenteViewModel model)
+    {
+        if (string.IsNullOrWhiteSpace(model.ClientNom))
+        {
+            TempData["Error"] = "Le nom du client est obligatoire.";
+            return RedirectToAction("Create", "Sales");
+        }
+
+        model.Lines ??= new List<BonLigneSlotViewModel>();
+
+        var lignes = model.Lines
+            .Where(l => l.ProductId > 0 && l.Quantity > 0)
+            .Select(l => (
+                l.ProductId,
+                l.Quantity,
+                l.DiscountPercent,
+                l.DiscountAmount,
+                l.DiscountType ?? ""))
+            .ToList();
+
+        if (!lignes.Any())
+        {
+            TempData["Error"] = "Ajoutez au moins un produit.";
+            return RedirectToAction("Create", "Sales");
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var (success, error, bonId) = await _bonService.CreateBonAsync(
+            model.ClientNom.Trim(),
+            model.ClientTelephone?.Trim(),
+            null,
+            lignes,
+            userId,
+            model.VendeurId);
+
+        if (!success)
+        {
+            TempData["Error"] = error;
+            return RedirectToAction("Create", "Sales");
+        }
+
+        TempData["Success"] = "Bon créé avec succès. Le stock a été mis à jour.";
+        TempData["NewBon"] = true;
+        return RedirectToAction(nameof(Details), new { id = bonId });
+    }
+
     // ─── Détails ─────────────────────────────────────────────────────────────
 
     [HttpGet]
