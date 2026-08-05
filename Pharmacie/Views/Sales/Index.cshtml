@@ -94,7 +94,14 @@
                     var lineCount = s.Lines?.Count ?? 0;
                     var total = s.Lines?.Sum(l => l.Quantity * l.UnitPrice) ?? 0m;
                     <tr>
-                        <td><span class="badge text-bg-light border font-monospace">#@s.Id</span></td>
+                        <td><span class="badge text-bg-light border font-monospace">#@s.Id</span>
+                            @if (s.Lines != null && s.Lines.Any(l => l.Product?.Category?.EstHorsSysteme == true))
+                            {
+                                <span class="badge bg-warning text-dark ms-1" title="Contient des Produits Extras">
+                                    <i class="bi bi-bag-fill" aria-hidden="true"></i> Extras
+                                </span>
+                            }
+                        </td>
                         <td class="text-nowrap small">@s.SoldAt.ToString("g")</td>
                         <td class="text-end">
                             <span class="badge text-bg-secondary-subtle text-secondary-emphasis border">@lineCount</span>

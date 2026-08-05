@@ -23,6 +23,21 @@
                         <input asp-for="Name" class="form-control" />
                         <span asp-validation-for="Name" class="text-danger"></span>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input asp-for="EstHorsSysteme"
+                                   class="form-check-input"
+                                   type="checkbox"
+                                   id="est-hors-systeme" />
+                            <label class="form-check-label" for="est-hors-systeme">
+                                Produits Extras
+                                <small class="text-muted d-block">
+                                    Les ventes de cette catégorie n'apparaîtront pas dans les
+                                    rapports officiels (TVA, DGID, CA). Un rapport séparé sera disponible.
+                                </small>
+                            </label>
+                        </div>
+                    </div>
                     <div class="d-flex flex-wrap gap-2 pt-2 border-top">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Enregistrer</button>
                         <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>

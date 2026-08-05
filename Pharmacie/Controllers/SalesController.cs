@@ -44,7 +44,7 @@ public class SalesController : Controller
 
         var q = _context.Sales
             .AsNoTracking()
-            .Include(s => s.Lines)
+            .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
             .Include(s => s.Vendeur)
             .AsQueryable();
 

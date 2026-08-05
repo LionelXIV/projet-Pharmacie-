@@ -30,7 +30,13 @@
                 @foreach (var item in Model)
                 {
                     <tr>
-                        <td>@Html.DisplayFor(m => item.Name)</td>
+                        <td>
+                            @Html.DisplayFor(m => item.Name)
+                            @if (item.EstHorsSysteme)
+                            {
+                                <span class="badge bg-warning text-dark ms-1">Extras</span>
+                            }
+                        </td>
                         <td class="text-end text-nowrap">
                             <a class="btn btn-sm btn-outline-secondary py-0" asp-action="Details" asp-route-id="@item.Id">Détails</a>
                             <a class="btn btn-sm btn-outline-primary py-0" asp-action="Edit" asp-route-id="@item.Id">Modifier</a>

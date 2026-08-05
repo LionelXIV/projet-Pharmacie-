@@ -28,12 +28,15 @@ public class DashboardController : Controller
         var horizon = _configuration.GetValue<int>("Alerts:ExpirationHorizonDays", 90);
         var horizonEnd = today.AddDays(horizon);
 
-        var todaySales = await _db.Sales
+        var todaySalesRaw = await _db.Sales
             .AsNoTracking()
             .Include(s => s.Lines)
-            .ThenInclude(l => l.Product)
+            .ThenInclude(l => l.Product!)
+            .ThenInclude(p => p.Category)
             .Where(s => s.SoldAt.Date == today)
             .ToListAsync();
+
+        var todaySales = ProduitsExtrasFilter.VentesOfficielles(todaySalesRaw).ToList();
 
         var caDuJour = todaySales
             .SelectMany(s => s.Lines)
@@ -79,7 +82,7 @@ public class DashboardController : Controller
             var debutFinance = today.AddDays(-30);
             var finExclusiveFinance = today.AddDays(1);
 
-            var ventes30j = await _db.Sales
+            var ventes30jRaw = await _db.Sales
                 .AsNoTracking()
                 .Include(s => s.Lines)
                     .ThenInclude(l => l.Product!)
@@ -87,8 +90,11 @@ public class DashboardController : Controller
                 .Where(s => s.SoldAt >= debutFinance && s.SoldAt < finExclusiveFinance)
                 .ToListAsync();
 
+            var ventes30j = ProduitsExtrasFilter.VentesOfficielles(ventes30jRaw).ToList();
+
             var caParCategorie = ventes30j
                 .SelectMany(s => s.Lines)
+                .Where(l => !ProduitsExtrasFilter.IsLigneHorsSysteme(l))
                 .GroupBy(l => l.Product?.Category?.Name ?? "Sans catégorie")
                 .Select(g => new
                 {
@@ -187,10 +193,11 @@ public class DashboardController : Controller
         }
 
         var chartStart = today.AddDays(-29);
-        var salesInRange = await _db.Sales
-            .AsNoTracking()
-            .Where(s => s.SoldAt.Date >= chartStart && s.SoldAt.Date <= today)
-            .Include(s => s.Lines)
+        var salesInRange = await ProduitsExtrasFilter.WhereSansExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+                    .Where(s => s.SoldAt.Date >= chartStart && s.SoldAt.Date <= today))
             .ToListAsync();
 
         var salesByDay = salesInRange
@@ -216,7 +223,7 @@ public class DashboardController : Controller
 
         var stockChartData = await _db.Products
             .AsNoTracking()
-            .Where(p => p.IsActive)
+            .Where(p => p.IsActive && (p.Category == null || !p.Category.EstHorsSysteme))
             .GroupBy(p => p.Category != null ? p.Category!.Name : "Sans catégorie")
             .Select(g => new
             {
@@ -238,11 +245,13 @@ public class DashboardController : Controller
         var today = DateTime.Today;
         var from = today.AddDays(-29);
 
-        var sales = await _db.Sales
-            .AsNoTracking()
-            .Include(s => s.Lines)
-            .ThenInclude(l => l.Product)
-            .Where(s => s.SoldAt.Date >= from && s.SoldAt.Date <= today)
+        var sales = await ProduitsExtrasFilter.WhereSansExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines)
+                    .ThenInclude(l => l.Product!)
+                    .ThenInclude(p => p.Category)
+                    .Where(s => s.SoldAt.Date >= from && s.SoldAt.Date <= today))
             .ToListAsync();
 
         var byDay = sales

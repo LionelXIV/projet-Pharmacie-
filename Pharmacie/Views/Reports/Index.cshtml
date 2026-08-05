@@ -83,5 +83,19 @@
                 </div>
             </div>
         </div>
+        @if (AppRoles.IsTitulaire(User))
+        {
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-warning shadow-sm h-100 report-hub-card">
+                    <div class="card-body">
+                        <h2 class="h5 card-title"><i class="bi bi-bag me-1" aria-hidden="true"></i>Produits Extras</h2>
+                        <p class="card-text small text-muted">
+                            Ventes hors rapports officiels. Visible uniquement par le Pharmacien Titulaire.
+                        </p>
+                        <a class="btn btn-warning btn-sm stretched-link" asp-action="RapportExtras">Voir le rapport</a>
+                    </div>
+                </div>
+            </div>
+        }
     }
 </div>

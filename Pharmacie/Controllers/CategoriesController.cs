@@ -42,7 +42,7 @@ public class CategoriesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Id,Name")] Category category)
+    public async Task<IActionResult> Create([Bind("Id,Name,EstHorsSysteme")] Category category)
     {
         if (ModelState.IsValid)
         {
@@ -69,7 +69,7 @@ public class CategoriesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("Id,Name")] Category category)
+    public async Task<IActionResult> Edit(int id, [Bind("Id,Name,EstHorsSysteme")] Category category)
     {
         if (id != category.Id)
             return NotFound();

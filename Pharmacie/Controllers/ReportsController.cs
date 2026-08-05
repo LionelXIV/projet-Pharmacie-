@@ -295,9 +295,10 @@ public class ReportsController : Controller
 
     private async Task<List<ReportSaleHistoryRowViewModel>> LoadSalesHistoryRowsAsync()
     {
-        var sales = await _db.Sales
-            .AsNoTracking()
-            .Include(s => s.Lines)
+        var sales = await ProduitsExtrasFilter.WhereSansExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category))
             .OrderByDescending(s => s.SoldAt)
             .ThenByDescending(s => s.Id)
             .Take(ReportLimits.MaxSalesRows)
@@ -345,10 +346,11 @@ public class ReportsController : Controller
         var debut = new DateTime(a, m, 1);
         var finExclusive = debut.AddMonths(1);
 
-        var ventes = await _db.Sales
-            .AsNoTracking()
-            .Include(s => s.Lines).ThenInclude(l => l.Product)
-            .Where(s => s.SoldAt >= debut && s.SoldAt < finExclusive)
+        var ventes = await ProduitsExtrasFilter.WhereSansExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+                    .Where(s => s.SoldAt >= debut && s.SoldAt < finExclusive))
             .ToListAsync();
 
         var lignesParJour = ventes
@@ -477,11 +479,12 @@ public class ReportsController : Controller
         var start = debut;
         var endExclusive = fin.AddDays(1);
 
-        var ventes = await _db.Sales
-            .AsNoTracking()
-            .Include(s => s.Lines).ThenInclude(l => l.Product)
-            .Include(s => s.Vendeur)
-            .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive)
+        var ventes = await ProduitsExtrasFilter.WhereSansExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+                    .Include(s => s.Vendeur)
+                    .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive))
             .OrderBy(s => s.SoldAt)
             .ToListAsync();
 
@@ -599,11 +602,12 @@ public class ReportsController : Controller
     {
         var start = targetDate.Date;
         var end = start.AddDays(1);
-        var sales = await _db.Sales
-            .AsNoTracking()
-            .Include(s => s.Lines)
-            .Include(s => s.Vendeur)
-            .Where(s => s.SoldAt >= start && s.SoldAt < end)
+        var sales = await ProduitsExtrasFilter.WhereSansExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+                    .Include(s => s.Vendeur)
+                    .Where(s => s.SoldAt >= start && s.SoldAt < end))
             .ToListAsync();
 
         return sales
@@ -636,8 +640,11 @@ public class ReportsController : Controller
     {
         var movements = await _db.StockMovements
             .AsNoTracking()
-            .Include(m => m.Product)
+            .Include(m => m.Product!).ThenInclude(p => p.Category)
             .Include(m => m.Batch)
+            .Where(m => m.Product == null
+                        || m.Product.Category == null
+                        || !m.Product.Category.EstHorsSysteme)
             .OrderByDescending(m => m.OccurredAt)
             .ThenByDescending(m => m.Id)
             .Take(ReportLimits.MaxMovementRows)
@@ -655,5 +662,87 @@ public class ReportsController : Controller
             SaleId = m.SaleId,
             Reason = m.Reason
         }).ToList();
+    }
+
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> RapportExtras(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRapportExtrasAsync(dateDebut, dateFin);
+        return View(vm);
+    }
+
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> ExportRapportExtrasCSV(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRapportExtrasAsync(dateDebut, dateFin);
+        var sb = ReportCsvFormatter.CreateBuilder();
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Rapport Produits Extras"),
+            ReportCsvFormatter.Escape($"{vm.DateDebut:yyyy-MM-dd} → {vm.DateFin:yyyy-MM-dd}")));
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Nombre de ventes"),
+            ReportCsvFormatter.IntInvariant(vm.NombreVentes)));
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("CA Total Extras (FCFA)"),
+            ReportCsvFormatter.FcfaCsvAmount(vm.CATotal)));
+        sb.AppendLine();
+        sb.AppendLine(ReportCsvFormatter.Join(
+            ReportCsvFormatter.Escape("Date"),
+            ReportCsvFormatter.Escape("N° vente"),
+            ReportCsvFormatter.Escape("Produits Extras"),
+            ReportCsvFormatter.Escape("CA Extras (FCFA)"),
+            ReportCsvFormatter.Escape("Mode paiement"),
+            ReportCsvFormatter.Escape("Vendeur")));
+
+        foreach (var v in vm.Ventes)
+        {
+            var lignesExtras = ProduitsExtrasFilter.LignesExtras(v.Lines).ToList();
+            var produits = string.Join(", ", lignesExtras.Select(l =>
+                $"{l.Product?.CommercialName ?? "#"} ×{l.Quantity}"));
+            var ca = lignesExtras.Sum(l => l.UnitPrice * l.Quantity);
+            sb.AppendLine(ReportCsvFormatter.Join(
+                ReportCsvFormatter.Escape(v.SoldAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)),
+                ReportCsvFormatter.IntInvariant(v.Id),
+                ReportCsvFormatter.Escape(produits),
+                ReportCsvFormatter.FcfaCsvAmount(ca),
+                ReportCsvFormatter.Escape(PaymentMethodDisplay.GetName(v.PaymentMethod)),
+                ReportCsvFormatter.Escape(v.Vendeur?.Nom ?? "Non attribué")));
+        }
+
+        return ReportCsvFormatter.FileResult(this, sb.ToString(),
+            $"rapport-extras_{vm.DateDebut:yyyyMMdd}_{vm.DateFin:yyyyMMdd}");
+    }
+
+    private async Task<RapportExtrasViewModel> BuildRapportExtrasAsync(DateTime? dateDebut, DateTime? dateFin)
+    {
+        var debut = (dateDebut ?? DateTime.Today.AddDays(-30)).Date;
+        var fin = (dateFin ?? DateTime.Today).Date;
+        if (fin < debut)
+            (debut, fin) = (fin, debut);
+
+        var start = debut;
+        var endExclusive = fin.AddDays(1);
+
+        var ventesExtras = await ProduitsExtrasFilter.WhereAvecExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+                    .Include(s => s.Vendeur)
+                    .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive))
+            .OrderByDescending(s => s.SoldAt)
+            .ToListAsync();
+
+        var caTotal = ventesExtras
+            .SelectMany(s => ProduitsExtrasFilter.LignesExtras(s.Lines))
+            .Sum(l => l.UnitPrice * l.Quantity);
+
+        return new RapportExtrasViewModel
+        {
+            DateDebut = debut,
+            DateFin = fin,
+            NombreVentes = ventesExtras.Count,
+            CATotal = caTotal,
+            Ventes = ventesExtras
+        };
     }
 }
