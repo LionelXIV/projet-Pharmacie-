@@ -1,0 +1,144 @@
+@model IEnumerable<Pharmacie.Models.Avoir>
+@using Pharmacie.Models
+@{
+    ViewData["Title"] = "Avoirs";
+    int currentPage = ViewBag.CurrentPage;
+    int totalPages = ViewBag.TotalPages;
+    int totalCount = ViewBag.TotalCount;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0"><i class="bi bi-arrow-return-left me-2 text-info"></i>Avoirs (@totalCount)</h1>
+    <a asp-action="Create" class="btn btn-info text-white">
+        <i class="bi bi-plus-circle me-1"></i>Nouvel avoir
+    </a>
+</div>
+
+@if (TempData["Success"] is string succ)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@succ
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string errMsg)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        @errMsg
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form asp-action="Index" method="get" class="card card-body mb-3 p-2">
+    <div class="row g-2 align-items-end">
+        <div class="col-sm-4 col-md-2">
+            <label class="form-label small mb-1">Statut</label>
+            <select name="statut" class="form-select form-select-sm">
+                <option value="">Tous</option>
+                @foreach (var s in Enum.GetValues<AvoirStatut>())
+                {
+                    var sel = (ViewBag.FilterStatut as string) == s.ToString();
+                    <option value="@s" selected="@sel">@s</option>
+                }
+            </select>
+        </div>
+        <div class="col-sm-4 col-md-2">
+            <label class="form-label small mb-1">Du</label>
+            <input type="date" name="from" value="@ViewBag.FilterFrom" class="form-control form-control-sm" />
+        </div>
+        <div class="col-sm-4 col-md-2">
+            <label class="form-label small mb-1">Au</label>
+            <input type="date" name="to" value="@ViewBag.FilterTo" class="form-control form-control-sm" />
+        </div>
+        <div class="col-sm-8 col-md-4">
+            <label class="form-label small mb-1">Client / N° avoir</label>
+            <input type="text" name="q" value="@ViewBag.FilterQ" class="form-control form-control-sm" placeholder="Nom ou AV-2026-001" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-primary">Filtrer</button>
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Effacer</a>
+        </div>
+    </div>
+</form>
+
+@if (!Model.Any())
+{
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-arrow-return-left fs-2 d-block mb-2"></i>
+        Aucun avoir trouvé.
+        <div class="mt-2"><a asp-action="Create" class="btn btn-info text-white btn-sm">Créer le premier avoir</a></div>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>N° Avoir</th>
+                    <th>Client</th>
+                    <th>Date</th>
+                    <th class="text-end">Total</th>
+                    <th>Statut</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var a in Model)
+                {
+                    var (badgeCss, label) = a.Statut switch
+                    {
+                        AvoirStatut.EnAttente => ("bg-warning text-dark", "En attente"),
+                        AvoirStatut.Livre => ("bg-success", "Livré"),
+                        AvoirStatut.Annule => ("bg-secondary", "Annulé"),
+                        _ => ("bg-secondary", a.Statut.ToString())
+                    };
+                    <tr>
+                        <td><strong>@a.Numero</strong></td>
+                        <td>
+                            @a.ClientNom
+                            @if (a.ClientTelephone != null)
+                            {
+                                <div class="text-muted small">@a.ClientTelephone</div>
+                            }
+                        </td>
+                        <td class="small text-nowrap">@a.DateCreation.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="text-end fw-bold">@a.MontantTotal.ToString("N0") FCFA</td>
+                        <td><span class="badge @badgeCss">@label</span></td>
+                        <td class="text-nowrap">
+                            <a asp-action="Details" asp-route-id="@a.Id" class="btn btn-sm btn-outline-primary" title="Voir">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a asp-action="Ticket" asp-route-id="@a.Id" class="btn btn-sm btn-outline-secondary" title="Ticket" target="_blank">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (totalPages > 1)
+    {
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center">
+                <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-page="@(currentPage - 1)"
+                       asp-route-statut="@ViewBag.FilterStatut" asp-route-q="@ViewBag.FilterQ">‹</a>
+                </li>
+                @for (var p = 1; p <= totalPages; p++)
+                {
+                    <li class="page-item @(p == currentPage ? "active" : "")">
+                        <a class="page-link" asp-action="Index" asp-route-page="@p"
+                           asp-route-statut="@ViewBag.FilterStatut" asp-route-q="@ViewBag.FilterQ">@p</a>
+                    </li>
+                }
+                <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                    <a class="page-link" asp-action="Index" asp-route-page="@(currentPage + 1)"
+                       asp-route-statut="@ViewBag.FilterStatut" asp-route-q="@ViewBag.FilterQ">›</a>
+                </li>
+            </ul>
+        </nav>
+    }
+}

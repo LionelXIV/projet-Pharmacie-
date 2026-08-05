@@ -1,0 +1,331 @@
+@{
+    ViewData["Title"] = "Nouvel avoir";
+    var vendeurs = (ViewBag.Vendeurs as IEnumerable<dynamic>) ?? Enumerable.Empty<dynamic>();
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h1 class="h4 mb-0"><i class="bi bi-arrow-return-left me-2 text-info"></i>Nouvel avoir</h1>
+</div>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>@err
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+{
+    <div class="alert alert-danger py-2">@error.ErrorMessage</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-title fw-bold mb-3"><i class="bi bi-person me-2"></i>Informations client</h6>
+                <div class="row g-2">
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-bold text-danger">Nom du client *</label>
+                        <input type="text" id="clientNom" class="form-control" placeholder="Ex : Mamadou Diallo" required />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small">Téléphone (optionnel)</label>
+                        <input type="text" id="clientTelephone" class="form-control" placeholder="77 123 45 67" />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small">N° pièce d'identité (optionnel)</label>
+                        <input type="text" id="numeroIdentite" class="form-control" placeholder="Ex: 1 234 567 89" maxlength="50" />
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small">Vendeur</label>
+                        <select id="vendeurId" class="form-select">
+                            <option value="">— Aucun vendeur —</option>
+                            @foreach (var v in vendeurs)
+                            {
+                                <option value="@v.Id">@v.Nom</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Notes</label>
+                        <input type="text" id="avoirNotes" class="form-control" placeholder="Remarques éventuelles" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-title fw-bold mb-2"><i class="bi bi-search me-2"></i>Rechercher un produit</h6>
+                <div class="input-group">
+                    <input type="text" id="productSearch" class="form-control"
+                           placeholder="Nom, CIP… (stock négatif autorisé)" autocomplete="off" />
+                    <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div id="searchResults" class="list-group mt-2 d-none"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body p-2">
+                <h6 class="card-title fw-bold px-2 mb-2"><i class="bi bi-cart3 me-2"></i>Panier</h6>
+                <div id="cartEmpty" class="text-center text-muted py-4">
+                    <i class="bi bi-cart-x fs-3 d-block mb-1"></i>Panier vide
+                </div>
+                <table id="cartTable" class="table table-sm align-middle mb-0 d-none">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Produit</th>
+                            <th class="text-center" style="width:100px">Qté</th>
+                            <th class="text-end" style="width:110px">P.U.</th>
+                            <th class="text-end" style="width:110px">Total</th>
+                            <th style="width:36px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cartBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top:80px">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3"><i class="bi bi-calculator me-2"></i>Résumé</h6>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="fw-bold">TOTAL À PAYER</span>
+                    <span id="summaryTotal" class="fw-bold fs-5 text-info">0 FCFA</span>
+                </div>
+
+                <div class="alert alert-info py-2 small mb-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <small>
+                        Le client paie maintenant.
+                        Le médicament sera livré dès réception.
+                        Le stock peut devenir négatif.
+                    </small>
+                </div>
+
+                <label class="form-label fw-bold">Mode de paiement *</label>
+                <div class="d-flex flex-wrap gap-2 mb-3" id="paymentButtons">
+                    <button type="button" class="btn btn-success pay-btn" data-method="0">
+                        <i class="bi bi-cash me-1"></i>Espèces
+                    </button>
+                    <button type="button" class="btn btn-outline-primary pay-btn" data-method="1">
+                        <i class="bi bi-phone me-1"></i>Wave
+                    </button>
+                    <button type="button" class="btn btn-outline-warning pay-btn" data-method="2">
+                        <i class="bi bi-phone me-1"></i>Orange Money
+                    </button>
+                </div>
+                <input type="hidden" id="paymentMethod" value="0" />
+
+                <button type="button" id="btnSubmitAvoir" class="btn btn-info text-white w-100 py-2 fw-bold">
+                    <i class="bi bi-arrow-return-left me-2"></i>Créer l'avoir
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary w-100 mt-2">Annuler</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="avoirForm" method="post" asp-action="Create">
+    @Html.AntiForgeryToken()
+</form>
+
+@section Scripts {
+<script>
+(function () {
+    var cart = [];
+    var searchUrl = '@Url.Action("Search", "Products")';
+    var searchInput = document.getElementById('productSearch');
+    var searchResults = document.getElementById('searchResults');
+    var debounceTimer;
+
+    searchInput.addEventListener('input', function () {
+        clearTimeout(debounceTimer);
+        var q = this.value.trim();
+        if (q.length < 2) { searchResults.classList.add('d-none'); return; }
+        debounceTimer = setTimeout(function () { fetchProducts(q); }, 250);
+    });
+
+    document.getElementById('clearSearch').addEventListener('click', function () {
+        searchInput.value = '';
+        searchResults.innerHTML = '';
+        searchResults.classList.add('d-none');
+    });
+
+    function fetchProducts(q) {
+        fetch(searchUrl + '?term=' + encodeURIComponent(q))
+            .then(function (r) { return r.json(); })
+            .then(renderResults)
+            .catch(function () {});
+    }
+
+    function renderResults(data) {
+        searchResults.innerHTML = '';
+        if (!data || data.length === 0) {
+            searchResults.innerHTML = '<div class="list-group-item text-muted small">Aucun résultat</div>';
+            searchResults.classList.remove('d-none');
+            return;
+        }
+        data.forEach(function (p) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action py-2';
+            var stock = p.stockQuantity || 0;
+            var badge = stock <= 0
+                ? '<span class="badge bg-warning text-dark ms-1">Rupture / commande</span>'
+                : '<span class="badge bg-success ms-1">' + stock + '</span>';
+            btn.innerHTML =
+                '<div class="d-flex justify-content-between align-items-center">' +
+                '<span class="fw-semibold small">' + escapeHtml(p.text || '') + '</span>' + badge +
+                '</div>' +
+                '<div class="text-end"><small class="text-success fw-bold">' + formatCurrency(p.salePrice) + '</small></div>';
+            btn.addEventListener('click', function () { addToCart(p); });
+            searchResults.appendChild(btn);
+        });
+        searchResults.classList.remove('d-none');
+    }
+
+    function addToCart(p) {
+        var id = parseInt(p.value, 10);
+        if (!id) return;
+        var idx = cart.findIndex(function (c) { return c.productId === id; });
+        if (idx >= 0) cart[idx].quantity++;
+        else {
+            cart.push({
+                productId: id,
+                name: p.text || ('#' + id),
+                unitPrice: parseFloat(p.salePrice) || 0,
+                quantity: 1
+            });
+        }
+        searchInput.value = '';
+        searchResults.classList.add('d-none');
+        renderCart();
+    }
+
+    function renderCart() {
+        var cartEmpty = document.getElementById('cartEmpty');
+        var cartTable = document.getElementById('cartTable');
+        var cartBody = document.getElementById('cartBody');
+        cartBody.innerHTML = '';
+        if (cart.length === 0) {
+            cartEmpty.classList.remove('d-none');
+            cartTable.classList.add('d-none');
+        } else {
+            cartEmpty.classList.add('d-none');
+            cartTable.classList.remove('d-none');
+            cart.forEach(function (item, i) {
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td class="small">' + escapeHtml(item.name) + '</td>' +
+                    '<td class="text-center"><div class="input-group input-group-sm" style="width:90px">' +
+                    '<button type="button" class="btn btn-outline-secondary btn-sm px-1" onclick="changeQty(' + i + ',-1)">−</button>' +
+                    '<input type="number" class="form-control form-control-sm text-center px-1" value="' + item.quantity +
+                    '" min="1" onchange="setQty(' + i + ',this.value)">' +
+                    '<button type="button" class="btn btn-outline-secondary btn-sm px-1" onclick="changeQty(' + i + ',1)">+</button>' +
+                    '</div></td>' +
+                    '<td class="text-end small">' + formatCurrency(item.unitPrice) + '</td>' +
+                    '<td class="text-end small fw-bold">' + formatCurrency(item.unitPrice * item.quantity) + '</td>' +
+                    '<td><button type="button" class="btn btn-sm btn-outline-danger px-1" onclick="removeItem(' + i + ')"><i class="bi bi-trash"></i></button></td>';
+                cartBody.appendChild(tr);
+            });
+        }
+        var total = cart.reduce(function (s, it) { return s + it.unitPrice * it.quantity; }, 0);
+        document.getElementById('summaryTotal').textContent = formatCurrency(total);
+    }
+
+    window.changeQty = function (i, d) {
+        cart[i].quantity = Math.max(1, cart[i].quantity + d);
+        renderCart();
+    };
+    window.setQty = function (i, v) {
+        cart[i].quantity = Math.max(1, parseInt(v, 10) || 1);
+        renderCart();
+    };
+    window.removeItem = function (i) {
+        cart.splice(i, 1);
+        renderCart();
+    };
+
+    document.querySelectorAll('.pay-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.pay-btn').forEach(function (b) {
+                b.classList.remove('btn-success', 'btn-primary', 'btn-warning');
+                b.classList.add(b.dataset.method === '0' ? 'btn-outline-success' :
+                    b.dataset.method === '1' ? 'btn-outline-primary' : 'btn-outline-warning');
+            });
+            this.classList.remove('btn-outline-success', 'btn-outline-primary', 'btn-outline-warning');
+            if (this.dataset.method === '0') this.classList.add('btn-success');
+            else if (this.dataset.method === '1') this.classList.add('btn-primary');
+            else this.classList.add('btn-warning');
+            document.getElementById('paymentMethod').value = this.dataset.method;
+        });
+    });
+
+    document.getElementById('btnSubmitAvoir').addEventListener('click', function () {
+        var clientNom = document.getElementById('clientNom').value.trim();
+        if (!clientNom) {
+            alert('Le nom du client est obligatoire.');
+            document.getElementById('clientNom').focus();
+            return;
+        }
+        if (cart.length === 0) {
+            alert('Ajoutez au moins un produit.');
+            return;
+        }
+
+        var form = document.getElementById('avoirForm');
+        form.querySelectorAll('.dyn').forEach(function (el) { el.remove(); });
+
+        function addHidden(name, value) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = name;
+            inp.value = value;
+            inp.className = 'dyn';
+            form.appendChild(inp);
+        }
+
+        addHidden('clientNom', clientNom);
+        addHidden('clientTelephone', document.getElementById('clientTelephone').value);
+        addHidden('numeroIdentite', document.getElementById('numeroIdentite').value);
+        addHidden('notes', document.getElementById('avoirNotes').value);
+        addHidden('paymentMethod', document.getElementById('paymentMethod').value);
+        var vendeurId = document.getElementById('vendeurId').value;
+        if (vendeurId) addHidden('vendeurId', vendeurId);
+
+        cart.forEach(function (item, i) {
+            addHidden('productIds[' + i + ']', item.productId);
+            addHidden('quantities[' + i + ']', item.quantity);
+        });
+
+        form.submit();
+    });
+
+    function formatCurrency(val) {
+        return new Intl.NumberFormat('fr-FR').format(Math.round(val || 0)) + ' FCFA';
+    }
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str || ''));
+        return div.innerHTML;
+    }
+
+    document.addEventListener('click', function (e) {
+        if (!searchResults.contains(e.target) && e.target !== searchInput) {
+            searchResults.classList.add('d-none');
+        }
+    });
+})();
+</script>
+}

@@ -34,6 +34,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Bon> Bons => Set<Bon>();
     public DbSet<BonLigne> BonLignes => Set<BonLigne>();
     public DbSet<ReglementBon> ReglementBons => Set<ReglementBon>();
+    public DbSet<Avoir> Avoirs => Set<Avoir>();
+    public DbSet<AvoirLigne> AvoirLignes => Set<AvoirLigne>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -140,6 +142,27 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         });
 
         builder.Entity<BonLigne>(entity =>
+        {
+            entity.HasOne(l => l.Product)
+                .WithMany()
+                .HasForeignKey(l => l.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Avoir>(entity =>
+        {
+            entity.HasIndex(a => a.Numero).IsUnique();
+            entity.HasMany(a => a.Lignes)
+                .WithOne(l => l.Avoir)
+                .HasForeignKey(l => l.AvoirId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(a => a.Vendeur)
+                .WithMany()
+                .HasForeignKey(a => a.VendeurId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<AvoirLigne>(entity =>
         {
             entity.HasOne(l => l.Product)
                 .WithMany()

@@ -1,0 +1,170 @@
+@model Pharmacie.Models.Avoir
+@using Pharmacie.Models
+@{
+    ViewData["Title"] = "Avoir " + Model.Numero;
+    var (badgeCss, badgeLabel) = Model.Statut switch
+    {
+        AvoirStatut.EnAttente => ("bg-warning text-dark", "En attente"),
+        AvoirStatut.Livre => ("bg-success", "Livré"),
+        AvoirStatut.Annule => ("bg-secondary", "Annulé"),
+        _ => ("bg-secondary", Model.Statut.ToString())
+    };
+}
+
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h1 class="h4 mb-0"><i class="bi bi-arrow-return-left me-2 text-info"></i>Avoir @Model.Numero</h1>
+    <span class="badge @badgeCss fs-6">@badgeLabel</span>
+    <div class="ms-auto d-flex gap-2">
+        <a asp-action="Ticket" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm" target="_blank">
+            <i class="bi bi-printer me-1"></i>Ticket
+        </a>
+        @if (Model.Statut == AvoirStatut.EnAttente)
+        {
+            <form asp-action="AnnulerAvoir" asp-route-id="@Model.Id" method="post"
+                  onsubmit="return confirm('Confirmer l\'annulation de l\'avoir @Model.Numero ?')">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-x-circle me-1"></i>Annuler l'avoir
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] is string succ)
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@succ
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string errMsg)
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        @errMsg
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["NewAvoir"] is bool na && na)
+{
+    <div class="alert alert-success alert-dismissible fade show d-flex justify-content-between align-items-center" role="alert">
+        <span><i class="bi bi-check-circle-fill me-2"></i>Avoir créé. Stock mis à jour (peut être négatif).</span>
+        <a asp-action="Ticket" asp-route-id="@Model.Id" asp-route-auto="true" target="_blank"
+           class="btn btn-sm btn-success ms-3">
+            <i class="bi bi-printer me-1"></i>Imprimer le ticket
+        </a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Informations</h6>
+                <dl class="row mb-0 small">
+                    <dt class="col-5">N° Avoir</dt><dd class="col-7 fw-bold">@Model.Numero</dd>
+                    <dt class="col-5">Client</dt><dd class="col-7">@Model.ClientNom</dd>
+                    @if (Model.ClientTelephone != null)
+                    {
+                        <dt class="col-5">Téléphone</dt><dd class="col-7">@Model.ClientTelephone</dd>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.NumeroIdentite))
+                    {
+                        <dt class="col-5">N° pièce d'identité</dt><dd class="col-7">@Model.NumeroIdentite</dd>
+                    }
+                    <dt class="col-5">Date</dt><dd class="col-7">@Model.DateCreation.ToString("dd/MM/yyyy HH:mm")</dd>
+                    @if (Model.Vendeur != null)
+                    {
+                        <dt class="col-5">Vendeur</dt><dd class="col-7">@Model.Vendeur.Nom</dd>
+                    }
+                    <dt class="col-5">Paiement</dt>
+                    <dd class="col-7">@PaymentMethodDisplay.GetName(Model.PaymentMethod)</dd>
+                    @if (Model.Notes != null)
+                    {
+                        <dt class="col-5">Notes</dt><dd class="col-7">@Model.Notes</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Montant</h6>
+                <div class="d-flex justify-content-between fs-5">
+                    <span class="fw-bold">Total payé</span>
+                    <span class="fw-bold text-success">@Model.MontantTotal.ToString("N0") FCFA</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h6 class="fw-bold mb-2"><i class="bi bi-list-ul me-2"></i>Produits</h6>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Produit</th>
+                        <th class="text-end">Prix unit.</th>
+                        <th class="text-center">Qté</th>
+                        <th class="text-end">Total</th>
+                        <th>Livré ?</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ligne in Model.Lignes)
+                    {
+                        <tr>
+                            <td>@(ligne.Product?.CommercialName ?? $"#{ligne.ProductId}")</td>
+                            <td class="text-end">@ligne.UnitPrice.ToString("N0") FCFA</td>
+                            <td class="text-center">@ligne.Quantity</td>
+                            <td class="text-end fw-bold">@ligne.LineTotal.ToString("N0") FCFA</td>
+                            <td>
+                                @if (ligne.EstLivre)
+                                {
+                                    <span class="badge bg-success">Livré</span>
+                                    @if (ligne.DateLivraison.HasValue)
+                                    {
+                                        <div class="text-muted small">@ligne.DateLivraison.Value.ToString("dd/MM/yyyy HH:mm")</div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark">En attente</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!ligne.EstLivre && Model.Statut != AvoirStatut.Annule)
+                                {
+                                    <form asp-action="MarquerLivre" asp-route-id="@Model.Id" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="ligneId" value="@ligne.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-success">
+                                            Marquer comme livré
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="3" class="text-end">TOTAL PAYÉ</td>
+                        <td class="text-end">@Model.MontantTotal.ToString("N0") FCFA</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>

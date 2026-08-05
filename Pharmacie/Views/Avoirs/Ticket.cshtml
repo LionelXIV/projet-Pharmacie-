@@ -1,0 +1,120 @@
+@model Pharmacie.Models.Avoir
+@using Pharmacie.Models
+@{
+    Layout = null;
+    var autoprint = Context.Request.Query["auto"] == "true";
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AVOIR @Model.Numero</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            width: 80mm;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 4mm;
+            color: #000;
+            background: #fff;
+        }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .sep { border-top: 1px dashed #000; margin: 4px 0; }
+        .sep-solid { border-top: 1px solid #000; margin: 4px 0; }
+        .row { display: flex; justify-content: space-between; align-items: baseline; }
+        .big { font-size: 14px; font-weight: bold; }
+        @@media print {
+            body { margin: 0; padding: 2mm; }
+            @@page { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="center bold" style="font-size:14px;">PHARMACIE</div>
+<div class="center bold" style="font-size:14px;">SAINT JEAN PAUL II</div>
+<div class="center" style="font-size:11px;">PNR - DAKAR</div>
+<div class="sep-solid"></div>
+
+<div class="center bold" style="font-size:16px;">AVOIR</div>
+<div class="sep"></div>
+
+<div class="row">
+    <span>N° Avoir :</span>
+    <span class="bold">@Model.Numero</span>
+</div>
+<div class="row">
+    <span>Date :</span>
+    <span>@Model.DateCreation.ToString("dd/MM/yyyy HH:mm")</span>
+</div>
+<div class="row">
+    <span>Client :</span>
+    <span class="bold">@Model.ClientNom</span>
+</div>
+@if (Model.ClientTelephone != null)
+{
+    <div class="row">
+        <span>Tél :</span>
+        <span>@Model.ClientTelephone</span>
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.NumeroIdentite))
+{
+    <div class="row">
+        <span>Pièce ID :</span>
+        <span>@Model.NumeroIdentite</span>
+    </div>
+}
+@if (Model.Vendeur != null)
+{
+    <div class="row">
+        <span>Vendeur :</span>
+        <span>@Model.Vendeur.Nom</span>
+    </div>
+}
+<div class="row">
+    <span>Paiement :</span>
+    <span>@PaymentMethodDisplay.GetName(Model.PaymentMethod)</span>
+</div>
+
+<div class="sep-solid"></div>
+
+@foreach (var ligne in Model.Lignes)
+{
+    <div class="bold" style="word-break:break-word;">@(ligne.Product?.CommercialName ?? $"#{ligne.ProductId}")</div>
+    <div class="row">
+        <span>@ligne.Quantity x @ligne.UnitPrice.ToString("N0")</span>
+        <span>@ligne.LineTotal.ToString("N0") FCFA</span>
+    </div>
+}
+
+<div class="sep-solid"></div>
+<div class="row big">
+    <span>TOTAL PAYÉ</span>
+    <span>@Model.MontantTotal.ToString("N0") FCFA</span>
+</div>
+<div class="sep-solid"></div>
+
+<div class="center" style="font-size:11px; margin-top:4px;">
+    Article en commande.<br />
+    Vous serez contacté à la<br />
+    réception du produit.<br />
+    Conservez ce ticket.
+</div>
+
+<div class="sep"></div>
+<div class="center" style="font-size:10px;">@Model.DateCreation.ToString("yyyy-MM-dd HH:mm:ss")</div>
+
+<script>
+@if (autoprint)
+{
+    <text>window.addEventListener('load', function() { window.print(); });</text>
+}
+</script>
+</body>
+</html>

@@ -87,6 +87,7 @@ builder.Services.AddScoped<ImportMatchingService>();
 builder.Services.AddScoped<ProductImportService>();
 builder.Services.AddScoped<UserActivityReportService>();
 builder.Services.AddScoped<BonService>();
+builder.Services.AddScoped<AvoirService>();
 
 var app = builder.Build();
 
