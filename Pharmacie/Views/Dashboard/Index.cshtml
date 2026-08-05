@@ -214,6 +214,35 @@
             </div>
         </div>
     </div>
+
+    <div class="row g-3 mt-1 mb-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom py-3 fw-semibold">
+                    <i class="bi bi-bar-chart me-1 text-success" aria-hidden="true"></i>
+                    CA par catégorie (30 jours)
+                </div>
+                <div class="card-body">
+                    <div class="ph-chart-container" style="height: 250px;">
+                        <canvas id="chart-categories" aria-label="CA par catégorie sur 30 jours" role="img"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom py-3 fw-semibold">
+                    <i class="bi bi-pie-chart me-1 text-primary" aria-hidden="true"></i>
+                    Répartition CA par mode (30 jours)
+                </div>
+                <div class="card-body">
+                    <div class="ph-chart-container" style="height: 250px;">
+                        <canvas id="chart-paiements" aria-label="Répartition du CA par mode de paiement" role="img"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 }
 
 <h2 class="app-dash-section-title">Graphiques</h2>
@@ -442,6 +471,94 @@
                 legend: {
                   position: 'bottom',
                   labels: { boxWidth: 12, font: { size: 11 } }
+                }
+              }
+            }
+          });
+        }
+
+        const ctxCat = document.getElementById('chart-categories');
+        if (ctxCat) {
+          const catLabels = @Html.Raw(ViewBag.CategorieLabels ?? "[]");
+          const catData = @Html.Raw(ViewBag.CategorieData ?? "[]");
+          new Chart(ctxCat, {
+            type: 'bar',
+            data: {
+              labels: catLabels,
+              datasets: [{
+                label: 'CA (FCFA)',
+                data: catData,
+                backgroundColor: [
+                  '#4CAF82', '#2ECC71', '#27AE60',
+                  '#1E8449', '#F59E0B', '#EF4444',
+                  '#3B82F6', '#8B5CF6'
+                ],
+                borderRadius: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function (ctx) {
+                      return ctx.parsed.y.toLocaleString('fr-FR') + ' FCFA';
+                    }
+                  }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    callback: function (val) {
+                      return Number(val).toLocaleString('fr-FR');
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+
+        const ctxPay = document.getElementById('chart-paiements');
+        if (ctxPay) {
+          const payLabels = @Html.Raw(ViewBag.PaiementLabels ?? "[]");
+          const payData = @Html.Raw(ViewBag.PaiementData ?? "[]");
+          new Chart(ctxPay, {
+            type: 'doughnut',
+            data: {
+              labels: payLabels,
+              datasets: [{
+                data: payData,
+                backgroundColor: [
+                  '#4CAF82', '#3B82F6', '#F97316',
+                  '#8B5CF6', '#EC4899', '#94A3B8'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: { padding: 15, boxWidth: 12, font: { size: 11 } }
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function (ctx) {
+                      var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                      var pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+                      return ctx.label + ' : ' +
+                        Number(ctx.parsed).toLocaleString('fr-FR') +
+                        ' FCFA (' + pct + '%)';
+                    }
+                  }
                 }
               }
             }

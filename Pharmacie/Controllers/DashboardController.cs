@@ -74,6 +74,68 @@ public class DashboardController : Controller
             ViewBag.PanierMoyen = panierMoyen;
             ViewBag.NbVentes = nbVentes;
             ViewBag.CaDuJour = caDuJour;
+
+            // Graphiques finances — 30 derniers jours
+            var debutFinance = today.AddDays(-30);
+            var finExclusiveFinance = today.AddDays(1);
+
+            var ventes30j = await _db.Sales
+                .AsNoTracking()
+                .Include(s => s.Lines)
+                    .ThenInclude(l => l.Product!)
+                        .ThenInclude(p => p.Category)
+                .Where(s => s.SoldAt >= debutFinance && s.SoldAt < finExclusiveFinance)
+                .ToListAsync();
+
+            var caParCategorie = ventes30j
+                .SelectMany(s => s.Lines)
+                .GroupBy(l => l.Product?.Category?.Name ?? "Sans catégorie")
+                .Select(g => new
+                {
+                    Categorie = g.Key,
+                    CA = g.Sum(l => l.UnitPrice * l.Quantity)
+                })
+                .OrderByDescending(x => x.CA)
+                .Take(8)
+                .ToList();
+
+            ViewBag.CategorieLabels = JsonSerializer.Serialize(caParCategorie.Select(x => x.Categorie).ToList());
+            ViewBag.CategorieData = JsonSerializer.Serialize(caParCategorie.Select(x => x.CA).ToList());
+
+            var bonsTotal = await _db.Bons
+                .AsNoTracking()
+                .Where(b => b.DateCreation >= debutFinance && b.DateCreation < finExclusiveFinance)
+                .SumAsync(b => (decimal?)b.MontantTotal) ?? 0m;
+
+            var avoirsTotal = await _db.Avoirs
+                .AsNoTracking()
+                .Where(a => a.DateCreation >= debutFinance && a.DateCreation < finExclusiveFinance)
+                .SumAsync(a => (decimal?)a.MontantTotal) ?? 0m;
+
+            static decimal SumPm(IEnumerable<Sale> ventes, PaymentMethod pm) =>
+                ventes.Where(s => s.PaymentMethod == pm)
+                    .SelectMany(s => s.Lines)
+                    .Sum(l => l.UnitPrice * l.Quantity);
+
+            var caEspeces = SumPm(ventes30j, PaymentMethod.Especes);
+            var caWave = SumPm(ventes30j, PaymentMethod.Wave);
+            var caOm = SumPm(ventes30j, PaymentMethod.OrangeMoney);
+            var caAutres = ventes30j
+                .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
+                .SelectMany(s => s.Lines)
+                .Sum(l => l.UnitPrice * l.Quantity);
+
+            ViewBag.PaiementLabels = JsonSerializer.Serialize(
+                new[] { "Espèces", "Wave", "Orange Money", "Bon/Crédit", "Avoir", "Autres" });
+            ViewBag.PaiementData = JsonSerializer.Serialize(
+                new[] { caEspeces, caWave, caOm, bonsTotal, avoirsTotal, caAutres });
+        }
+        else
+        {
+            ViewBag.CategorieLabels = "[]";
+            ViewBag.CategorieData = "[]";
+            ViewBag.PaiementLabels = "[]";
+            ViewBag.PaiementData = "[]";
         }
 
         var movements = await _db.StockMovements
