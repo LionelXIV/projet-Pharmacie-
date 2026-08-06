@@ -37,6 +37,10 @@ public class Avoir
     [Display(Name = "Mode de paiement")]
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Especes;
 
+    /// <summary>Libellé libre si PaymentMethod == Autre.</summary>
+    [StringLength(100)]
+    public string? PaymentMethodAutre { get; set; }
+
     [StringLength(450)]
     public string CreatedByUserId { get; set; } = "";
 

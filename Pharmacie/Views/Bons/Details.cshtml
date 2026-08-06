@@ -195,7 +195,7 @@
                             <tr>
                                 <td class="small">@r.DateReglement.ToString("dd/MM/yyyy HH:mm")</td>
                                 <td class="text-end fw-bold text-success">@r.Montant.ToString("N0") FCFA</td>
-                                <td>@Pharmacie.Models.PaymentMethodDisplay.GetName(r.PaymentMethod)</td>
+                                <td>@Pharmacie.Models.PaymentMethodDisplay.Format(r.PaymentMethod, r.PaymentMethodAutre)</td>
                             </tr>
                         }
                     </tbody>

@@ -25,5 +25,9 @@ public class Sale
     [Display(Name = "Moyen de paiement")]
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Especes;
 
+    /// <summary>Libellé libre si PaymentMethod == Autre.</summary>
+    [StringLength(100)]
+    public string? PaymentMethodAutre { get; set; }
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

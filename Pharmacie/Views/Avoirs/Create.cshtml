@@ -124,6 +124,22 @@
                     <button type="button" class="btn btn-outline-warning pay-btn" data-method="2">
                         <i class="bi bi-phone me-1"></i>Orange Money
                     </button>
+                    <button type="button" class="btn btn-outline-success pay-btn" data-method="8">
+                        <i class="bi bi-phone-fill me-1"></i>Freemoney
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary pay-btn" data-method="9">
+                        <i class="bi bi-globe me-1"></i>Transfert Intl
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary pay-btn" data-method="7">
+                        <i class="bi bi-three-dots me-1"></i>Autre
+                    </button>
+                </div>
+                <div id="autre-libelle-section" class="d-none mb-3">
+                    <input type="text"
+                           id="autre-libelle-input"
+                           class="form-control form-control-sm"
+                           maxlength="100"
+                           placeholder="Précisez le mode de paiement...">
                 </div>
                 <input type="hidden" id="paymentMethod" value="0" />
 
@@ -261,14 +277,25 @@
         btn.addEventListener('click', function () {
             document.querySelectorAll('.pay-btn').forEach(function (b) {
                 b.classList.remove('btn-success', 'btn-primary', 'btn-warning');
-                b.classList.add(b.dataset.method === '0' ? 'btn-outline-success' :
-                    b.dataset.method === '1' ? 'btn-outline-primary' : 'btn-outline-warning');
+                b.classList.add('btn-outline-secondary');
+                if (b.dataset.method === '0') b.classList.replace('btn-outline-secondary', 'btn-outline-success');
+                else if (b.dataset.method === '1') b.classList.replace('btn-outline-secondary', 'btn-outline-primary');
+                else if (b.dataset.method === '2') b.classList.replace('btn-outline-secondary', 'btn-outline-warning');
+                else if (b.dataset.method === '8') b.classList.replace('btn-outline-secondary', 'btn-outline-success');
             });
-            this.classList.remove('btn-outline-success', 'btn-outline-primary', 'btn-outline-warning');
-            if (this.dataset.method === '0') this.classList.add('btn-success');
+            this.classList.remove('btn-outline-success', 'btn-outline-primary', 'btn-outline-warning', 'btn-outline-secondary');
+            if (this.dataset.method === '0' || this.dataset.method === '8') this.classList.add('btn-success');
             else if (this.dataset.method === '1') this.classList.add('btn-primary');
-            else this.classList.add('btn-warning');
+            else if (this.dataset.method === '2') this.classList.add('btn-warning');
+            else this.classList.add('btn-success');
             document.getElementById('paymentMethod').value = this.dataset.method;
+            var autreSection = document.getElementById('autre-libelle-section');
+            if (parseInt(this.dataset.method, 10) === 7) {
+                autreSection.classList.remove('d-none');
+                document.getElementById('autre-libelle-input')?.focus();
+            } else {
+                autreSection.classList.add('d-none');
+            }
         });
     });
 
@@ -301,6 +328,10 @@
         addHidden('numeroIdentite', document.getElementById('numeroIdentite').value);
         addHidden('notes', document.getElementById('avoirNotes').value);
         addHidden('paymentMethod', document.getElementById('paymentMethod').value);
+        addHidden('paymentMethodAutre',
+            document.getElementById('paymentMethod').value === '7'
+                ? (document.getElementById('autre-libelle-input')?.value || '')
+                : '');
         var vendeurId = document.getElementById('vendeurId').value;
         if (vendeurId) addHidden('vendeurId', vendeurId);
 

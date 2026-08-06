@@ -19,6 +19,15 @@ public static class PaymentMethodDisplay
         PaymentMethod.YasMoney => "text-bg-info",
         PaymentMethod.TPE => "text-bg-dark",
         PaymentMethod.Especes => "text-bg-success",
+        PaymentMethod.Freemoney => "text-bg-success",
+        PaymentMethod.TransfertInternational => "text-bg-secondary",
         _ => "text-bg-secondary"
     };
+
+    public static string Format(PaymentMethod method, string? autreLibelle = null)
+    {
+        if (method == PaymentMethod.Autre && !string.IsNullOrWhiteSpace(autreLibelle))
+            return $"Autre : {autreLibelle.Trim()}";
+        return GetName(method);
+    }
 }

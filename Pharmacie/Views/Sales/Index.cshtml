@@ -111,7 +111,7 @@
                         </td>
                         <td>
                             <span class="badge @PaymentMethodDisplay.BadgeCssClass(s.PaymentMethod)">
-                                @PaymentMethodDisplay.GetName(s.PaymentMethod)
+                                @PaymentMethodDisplay.Format(s.PaymentMethod, s.PaymentMethodAutre)
                             </span>
                         </td>
                         <td class="small">@(s.Vendeur?.Nom ?? "—")</td>

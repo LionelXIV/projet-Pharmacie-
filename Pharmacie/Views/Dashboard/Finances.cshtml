@@ -164,9 +164,88 @@
     </div>
 </div>
 
+<div class="card border-0 shadow-sm mt-3">
+  <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+    <span>
+      <i class="bi bi-table me-1"></i>
+      Tableau CA journalier (30 derniers jours)
+    </span>
+    <button type="button" onclick="window.print()"
+            class="btn btn-sm btn-outline-success no-print">
+      <i class="bi bi-printer me-1"></i>
+      Imprimer
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm table-hover mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>DATE</th>
+            <th class="text-end">MONTANT EXONÉRÉ</th>
+            <th class="text-end">MONTANT HT</th>
+            <th class="text-end">TVA 18%</th>
+            <th class="text-end fw-bold">MONTANT TTC</th>
+          </tr>
+        </thead>
+        <tbody id="tableau-journalier-body">
+        </tbody>
+        <tfoot class="table-warning fw-bold">
+          <tr>
+            <td>TOTAL</td>
+            <td class="text-end" id="total-exonere">—</td>
+            <td class="text-end" id="total-ht">—</td>
+            <td class="text-end" id="total-tva">—</td>
+            <td class="text-end" id="total-ttc">—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+@@media print {
+    .no-print { display: none !important; }
+    .sidebar { display: none !important; }
+    .topbar { display: none !important; }
+}
+</style>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+      (function () {
+        var tableauData = @Html.Raw(ViewBag.TableauJournalier ?? "[]");
+        var tbody = document.getElementById('tableau-journalier-body');
+        if (!tbody) return;
+        var totExo = 0, totHT = 0, totTVA = 0, totTTC = 0;
+        tableauData.forEach(function (ligne) {
+          var date = new Date(ligne.Date);
+          var dateStr = date.toLocaleDateString('fr-FR');
+          totExo += ligne.Exonere;
+          totHT += ligne.HT;
+          totTVA += ligne.TVA;
+          totTTC += ligne.TTC;
+          tbody.innerHTML +=
+            '<tr>' +
+            '<td>' + dateStr + '</td>' +
+            '<td class="text-end">' + Math.round(ligne.Exonere).toLocaleString('fr-FR') + ' F</td>' +
+            '<td class="text-end">' + Math.round(ligne.HT).toLocaleString('fr-FR') + ' F</td>' +
+            '<td class="text-end">' + Math.round(ligne.TVA).toLocaleString('fr-FR') + ' F</td>' +
+            '<td class="text-end fw-bold">' + Math.round(ligne.TTC).toLocaleString('fr-FR') + ' F</td>' +
+            '</tr>';
+        });
+        document.getElementById('total-exonere').textContent =
+          Math.round(totExo).toLocaleString('fr-FR') + ' F';
+        document.getElementById('total-ht').textContent =
+          Math.round(totHT).toLocaleString('fr-FR') + ' F';
+        document.getElementById('total-tva').textContent =
+          Math.round(totTVA).toLocaleString('fr-FR') + ' F';
+        document.getElementById('total-ttc').textContent =
+          Math.round(totTTC).toLocaleString('fr-FR') + ' F';
+      })();
+
       document.addEventListener('DOMContentLoaded', function () {
         if (!window.Chart) return;
 

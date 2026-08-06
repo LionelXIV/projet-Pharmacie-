@@ -324,6 +324,35 @@ public class DashboardController : Controller
         ViewBag.PaiementData = JsonSerializer.Serialize(
             new[] { caEspeces, caWave, caOm, bonsTotal, avoirsTotal, caAutres });
 
+        var debut = DateTime.Today.AddDays(-30);
+        var ventesParJour = await ProduitsExtrasFilter.WhereSansExtras(
+                _db.Sales
+                    .AsNoTracking()
+                    .Include(s => s.Lines)
+                    .ThenInclude(l => l.Product!)
+                    .ThenInclude(p => p.Category)
+                    .Where(s => s.SoldAt.Date >= debut))
+            .ToListAsync();
+
+        var tableauJournalier = ventesParJour
+            .GroupBy(s => s.SoldAt.Date)
+            .OrderBy(g => g.Key)
+            .Select(g => new
+            {
+                Date = g.Key,
+                Exonere = g.SelectMany(s => s.Lines)
+                    .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).Exonere),
+                HT = g.SelectMany(s => s.Lines)
+                    .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantHT),
+                TVA = g.SelectMany(s => s.Lines)
+                    .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantTVA),
+                TTC = g.SelectMany(s => s.Lines)
+                    .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantTTC),
+            })
+            .ToList();
+
+        ViewBag.TableauJournalier = JsonSerializer.Serialize(tableauJournalier);
+
         var vm = new DashboardFinancesViewModel
         {
             From = from,

@@ -90,6 +90,7 @@ public class AvoirsController : Controller
         string? notes,
         int? vendeurId,
         PaymentMethod paymentMethod,
+        string? paymentMethodAutre,
         List<int>? productIds,
         List<int>? quantities)
     {
@@ -104,7 +105,7 @@ public class AvoirsController : Controller
             if (!productIds.Any(id => id > 0))
                 ModelState.AddModelError(string.Empty, "Ajoutez au moins un produit.");
 
-            if (paymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
+            if (!Enum.IsDefined(typeof(PaymentMethod), paymentMethod))
                 ModelState.AddModelError(nameof(paymentMethod), "Mode de paiement non autorisé pour un avoir.");
 
             if (!ModelState.IsValid)
@@ -136,12 +137,22 @@ public class AvoirsController : Controller
 
             if (success)
             {
+                if (paymentMethod == PaymentMethod.Autre && avoirId > 0)
+                {
+                    var avoir = await _context.Avoirs.FindAsync(avoirId);
+                    if (avoir != null)
+                    {
+                        avoir.PaymentMethodAutre = paymentMethodAutre?.Trim();
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
                 TempData["NewAvoir"] = true;
                 TempData["Success"] = "Avoir créé avec succès.";
                 return RedirectToAction(nameof(Details), new { id = avoirId });
             }
 
-            ModelState.AddModelError(string.Empty, error);
+            ModelState.AddModelError(string.Empty, error ?? "Création de l'avoir impossible.");
         }
         catch (Exception ex)
         {

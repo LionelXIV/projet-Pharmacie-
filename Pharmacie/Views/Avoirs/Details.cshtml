@@ -83,7 +83,7 @@
                         <dt class="col-5">Vendeur</dt><dd class="col-7">@Model.Vendeur.Nom</dd>
                     }
                     <dt class="col-5">Paiement</dt>
-                    <dd class="col-7">@PaymentMethodDisplay.GetName(Model.PaymentMethod)</dd>
+                    <dd class="col-7">@PaymentMethodDisplay.Format(Model.PaymentMethod, Model.PaymentMethodAutre)</dd>
                     @if (Model.Notes != null)
                     {
                         <dt class="col-5">Notes</dt><dd class="col-7">@Model.Notes</dd>

@@ -44,9 +44,12 @@
                                     (PaymentMethod.Especes, "Espèces", "bi-cash"),
                                     (PaymentMethod.Wave, "Wave", "bi-phone"),
                                     (PaymentMethod.OrangeMoney, "Orange Money", "bi-phone"),
+                                    (PaymentMethod.Freemoney, "Freemoney", "bi-phone-fill"),
                                     (PaymentMethod.Cheque, "Chèque", "bi-bank"),
                                     (PaymentMethod.Virement, "Virement", "bi-arrow-left-right"),
                                     (PaymentMethod.TPE, "TPE", "bi-credit-card"),
+                                    (PaymentMethod.TransfertInternational, "Transfert Intl", "bi-globe"),
+                                    (PaymentMethod.Autre, "Autre", "bi-three-dots"),
                                 };
                             }
                             @foreach (var (method, label, icon) in methods)
@@ -60,6 +63,14 @@
                             }
                         </div>
                         <input type="hidden" name="paymentMethod" id="paymentMethod" value="@((int)PaymentMethod.Especes)" />
+                        <div id="autre-libelle-section" class="d-none mt-2">
+                            <input type="text"
+                                   name="paymentMethodAutre"
+                                   id="autre-libelle-input"
+                                   class="form-control form-control-sm"
+                                   maxlength="100"
+                                   placeholder="Précisez le mode de paiement...">
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-success w-100 py-2 fw-bold">
@@ -81,7 +92,15 @@ document.querySelectorAll('.pay-btn').forEach(function (btn) {
         });
         this.classList.remove('btn-outline-secondary');
         this.classList.add('btn-success');
-        document.getElementById('paymentMethod').value = this.dataset.method;
+        var method = parseInt(this.dataset.method, 10);
+        document.getElementById('paymentMethod').value = String(method);
+        var autreSection = document.getElementById('autre-libelle-section');
+        if (method === 7) {
+            autreSection.classList.remove('d-none');
+            document.getElementById('autre-libelle-input')?.focus();
+        } else {
+            autreSection.classList.add('d-none');
+        }
     });
 });
 </script>

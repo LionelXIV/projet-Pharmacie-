@@ -249,6 +249,9 @@ public class SalesController : Controller
                     if (sale != null)
                     {
                         sale.VendeurId = model.VendeurId;
+                        sale.PaymentMethodAutre = model.PaymentMethod == PaymentMethod.Autre
+                            ? model.PaymentMethodAutre?.Trim()
+                            : null;
 
                         // Appliquer les remises par ligne (hors SaleService)
                         var orderedSaleLines = sale.Lines.OrderBy(l => l.Id).ToList();

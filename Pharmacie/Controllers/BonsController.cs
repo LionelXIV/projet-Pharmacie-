@@ -246,13 +246,26 @@ public class BonsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Regler(int id, decimal montant, PaymentMethod paymentMethod)
+    public async Task<IActionResult> Regler(int id, decimal montant, PaymentMethod paymentMethod, string? paymentMethodAutre)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         var (success, error) = await _bonService.ReglerBonAsync(id, montant, paymentMethod, userId);
 
         if (success)
         {
+            if (paymentMethod == PaymentMethod.Autre)
+            {
+                var reglement = await _context.ReglementBons
+                    .Where(r => r.BonId == id)
+                    .OrderByDescending(r => r.Id)
+                    .FirstOrDefaultAsync();
+                if (reglement != null)
+                {
+                    reglement.PaymentMethodAutre = paymentMethodAutre?.Trim();
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             TempData["Success"] = "Règlement enregistré avec succès.";
         }
         else

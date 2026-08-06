@@ -11,7 +11,7 @@
     <p class="small mb-0 mt-2">
         Moyen de paiement :
         <span class="badge @PaymentMethodDisplay.BadgeCssClass(Model.PaymentMethod)">
-            @PaymentMethodDisplay.GetName(Model.PaymentMethod)
+            @PaymentMethodDisplay.Format(Model.PaymentMethod, Model.PaymentMethodAutre)
         </span>
     </p>
 </div>

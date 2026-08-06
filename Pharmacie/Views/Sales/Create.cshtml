@@ -8,9 +8,11 @@
         new { Value = 1, Label = "Wave", Icon = "bi-phone", Color = "primary" },
         new { Value = 2, Label = "Orange Money", Icon = "bi-phone-fill", Color = "warning" },
         new { Value = 6, Label = "Yas Money", Icon = "bi-phone-vibrate", Color = "info" },
+        new { Value = 8, Label = "Freemoney", Icon = "bi-phone-fill", Color = "success" },
         new { Value = 3, Label = "Chèque", Icon = "bi-bank", Color = "secondary" },
         new { Value = 5, Label = "TPE/Carte", Icon = "bi-credit-card-2-front", Color = "dark" },
         new { Value = 4, Label = "Virement", Icon = "bi-arrow-left-right", Color = "secondary" },
+        new { Value = 9, Label = "Transfert Intl", Icon = "bi-globe", Color = "secondary" },
         new { Value = 7, Label = "Autre", Icon = "bi-three-dots", Color = "secondary" },
     };
 }
@@ -197,6 +199,14 @@
                         <i class="bi bi-arrow-return-left me-1" aria-hidden="true"></i>
                         <span>Avoir (produit en commande)</span>
                     </a>
+                </div>
+                <div id="autre-libelle-section" class="col-12 d-none mt-2">
+                    <input type="text"
+                           id="autre-libelle-input"
+                           class="form-control form-control-sm"
+                           maxlength="100"
+                           placeholder="Précisez le mode de paiement..."
+                           aria-label="Libellé mode de paiement Autre">
                 </div>
             </div>
         </div>
@@ -597,6 +607,15 @@
       this.classList.add('active');
       selectedPayment = parseInt(this.dataset.value, 10);
       document.getElementById('field-payment-method').value = String(selectedPayment);
+      var autreSection = document.getElementById('autre-libelle-section');
+      if (autreSection) {
+        if (selectedPayment === 7) {
+          autreSection.classList.remove('d-none');
+          document.getElementById('autre-libelle-input')?.focus();
+        } else {
+          autreSection.classList.add('d-none');
+        }
+      }
     });
   });
 
@@ -693,6 +712,10 @@
     // Champs scalaires
     addHidden('SoldAt', soldAt);
     addHidden('PaymentMethod', String(selectedPayment));
+    addHidden('PaymentMethodAutre',
+      selectedPayment === 7
+        ? (document.getElementById('autre-libelle-input')?.value || '')
+        : '');
     addHidden('Notes', document.getElementById('notes-input').value || '');
     addHidden('VendeurId', vendeurId);
 

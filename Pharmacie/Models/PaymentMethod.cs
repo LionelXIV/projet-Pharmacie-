@@ -27,4 +27,10 @@ public enum PaymentMethod
 
     [Display(Name = "Autre")]
     Autre = 7,
+
+    [Display(Name = "Freemoney")]
+    Freemoney = 8,
+
+    [Display(Name = "Transfert international")]
+    TransfertInternational = 9,
 }
