@@ -34,6 +34,33 @@ public class ReportsController : Controller
     public async Task<IActionResult> StockStatus()
     {
         var rows = await LoadStockStatusRowsAsync();
+
+        var produitsValorises = _db.Products
+            .AsNoTracking()
+            .Where(p => p.IsActive
+                && p.StockQuantity > 0
+                && (p.Category == null || !p.Category.EstHorsSysteme));
+
+        var valeurStockPA = await produitsValorises
+            .SumAsync(p => (decimal?)(p.PurchasePrice * p.StockQuantity)) ?? 0m;
+
+        var valeurStockPV = await produitsValorises
+            .SumAsync(p => (decimal?)(p.SalePrice * p.StockQuantity)) ?? 0m;
+
+        var nbProduitsEnStock = await _db.Products
+            .AsNoTracking()
+            .CountAsync(p => p.IsActive && p.StockQuantity > 0);
+
+        var nbRupture = await _db.Products
+            .AsNoTracking()
+            .CountAsync(p => p.IsActive && p.StockQuantity <= 0);
+
+        ViewBag.ValeurStockPA = valeurStockPA;
+        ViewBag.ValeurStockPV = valeurStockPV;
+        ViewBag.MargePotentielle = valeurStockPV - valeurStockPA;
+        ViewBag.NbProduitsEnStock = nbProduitsEnStock;
+        ViewBag.NbRupture = nbRupture;
+
         return View(rows);
     }
 

@@ -1,7 +1,18 @@
 @model IReadOnlyList<ReportStockStatusRowViewModel>
+@using Pharmacie.Authorization
 @{
     ViewData["Title"] = "Rapport — État du stock";
+    var showValeurStock = AppRoles.IsTitulaire(User)
+        || User.IsInRole(AppRoles.Pharmacien)
+        || User.IsInRole(AppRoles.Comptable);
+    var valeurPa = ViewBag.ValeurStockPA as decimal? ?? 0m;
+    var valeurPv = ViewBag.ValeurStockPV as decimal? ?? 0m;
+    var marge = ViewBag.MargePotentielle as decimal? ?? 0m;
+    var nbEnStock = ViewBag.NbProduitsEnStock as int? ?? 0;
+    var nbRupture = ViewBag.NbRupture as int? ?? 0;
 }
+
+@await Html.PartialAsync("_BackButton")
 
 <nav class="app-breadcrumb mb-3" aria-label="Fil d’Ariane">
     <ol class="breadcrumb mb-0 py-1">
@@ -14,6 +25,66 @@
     <h1 class="page-title">État du stock</h1>
     <p class="page-lead mb-0">Produits <strong>actifs</strong> uniquement. Statut : <span class="badge bg-success">Normal</span> stock &gt; seuil, <span class="badge bg-warning text-dark">Stock faible</span> ≤ seuil, <span class="badge bg-danger">Rupture</span> = 0.</p>
 </div>
+
+@if (showValeurStock)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 p-3 bg-primary bg-opacity-10">
+                            <i class="bi bi-box-seam fs-4 text-primary" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold text-primary">@valeurPa.ToString("N0") FCFA</div>
+                            <div class="text-muted small">Valeur stock (prix d'achat)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 p-3 bg-success bg-opacity-10">
+                            <i class="bi bi-cash-stack fs-4 text-success" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold text-success">@valeurPv.ToString("N0") FCFA</div>
+                            <div class="text-muted small">Valeur stock (prix de vente)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 p-3 bg-warning bg-opacity-10">
+                            <i class="bi bi-graph-up fs-4 text-warning" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="fs-5 fw-bold text-warning">@marge.ToString("N0") FCFA</div>
+                            <div class="text-muted small">Marge potentielle</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-auto">
+            <span class="badge bg-success">@nbEnStock produits en stock</span>
+        </div>
+        <div class="col-auto">
+            <span class="badge bg-danger">@nbRupture en rupture</span>
+        </div>
+    </div>
+}
 
 <div class="mb-3">
     <a class="btn btn-outline-secondary btn-sm" asp-action="StockStatusCsv" role="button">
