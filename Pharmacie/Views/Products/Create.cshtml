@@ -3,6 +3,8 @@
     ViewData["Title"] = "Nouveau produit";
 }
 
+@await Html.PartialAsync("_BackButton")
+
 <div class="page-header">
     <h1 class="page-title">Nouveau produit</h1>
     <p class="page-lead mb-0">Créez d’abord au moins une <a asp-controller="Categories" asp-action="Index">catégorie</a> et un <a asp-controller="Suppliers" asp-action="Index">fournisseur</a>.</p>

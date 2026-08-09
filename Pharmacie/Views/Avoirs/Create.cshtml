@@ -3,6 +3,8 @@
     var vendeurs = (ViewBag.Vendeurs as IEnumerable<dynamic>) ?? Enumerable.Empty<dynamic>();
 }
 
+@await Html.PartialAsync("_BackButton")
+
 <div class="d-flex align-items-center gap-2 mb-3">
     <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
         <i class="bi bi-arrow-left"></i>

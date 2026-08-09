@@ -19,6 +19,8 @@
         && Model.Lines.All(l => l.QuantityReceived == 0);
 }
 
+@await Html.PartialAsync("_BackButton")
+
 @if (TempData["Error"] != null)
 {
     <div class="alert alert-warning">@TempData["Error"]</div>

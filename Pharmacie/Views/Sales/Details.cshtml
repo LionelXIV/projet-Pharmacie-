@@ -4,6 +4,8 @@
     var total = Model.Lines.Sum(l => l.Quantity * l.UnitPrice);
 }
 
+@await Html.PartialAsync("_BackButton")
+
 <div class="page-header">
     <h1 class="page-title">Vente #@Model.Id</h1>
     <p class="page-lead mb-0">@Model.SoldAt.ToString("g")</p>

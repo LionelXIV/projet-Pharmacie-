@@ -3,6 +3,8 @@
     ViewData["Title"] = "Nouveau lot (entrée)";
 }
 
+@await Html.PartialAsync("_BackButton")
+
 <div class="page-header">
     <h1 class="page-title">Nouveau lot — entrée de stock</h1>
     <p class="page-lead mb-0">Crée un lot et enregistre une entrée ; la quantité du produit est mise à jour automatiquement.</p>

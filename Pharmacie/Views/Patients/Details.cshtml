@@ -6,6 +6,8 @@
     var reminders = Model.TreatmentReminders.OrderBy(x => x.ReminderDate).ToList();
 }
 
+@await Html.PartialAsync("_BackButton")
+
 <div class="page-header">
     <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
         <div>

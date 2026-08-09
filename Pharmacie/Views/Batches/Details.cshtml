@@ -7,6 +7,8 @@
     var userLabels = ViewBag.UserLabels as Dictionary<string, string> ?? new Dictionary<string, string>();
 }
 
+@await Html.PartialAsync("_BackButton")
+
 <div class="page-header">
     <h1 class="page-title">Détail du lot</h1>
     <nav class="app-breadcrumb mt-2 mb-0 d-inline-block" aria-label="Navigation">

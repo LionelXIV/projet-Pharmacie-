@@ -9,6 +9,8 @@
     var showQuick = anyRole && !titulaireChecked;
 }
 
+@await Html.PartialAsync("_BackButton")
+
 <div class="page-header">
     <h1 class="page-title">Créer un utilisateur</h1>
     <nav class="app-breadcrumb mt-2 mb-0 d-inline-block" aria-label="Navigation">

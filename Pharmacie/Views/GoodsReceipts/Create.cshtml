@@ -3,6 +3,8 @@
     ViewData["Title"] = "Réception de commande";
 }
 
+@await Html.PartialAsync("_BackButton")
+
 <div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
     <div>
         <h1 class="page-title">Réception — commande #@Model.PurchaseOrderId</h1>
