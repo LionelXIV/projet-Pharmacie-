@@ -20,6 +20,45 @@
             <div class="card-body p-3 p-md-4">
                 <form asp-action="Edit">
                     <partial name="_ProductForm" model="Model" />
+                    @if (AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien))
+                    {
+                        <div class="card border-warning mt-3">
+                            <div class="card-header bg-warning text-dark fw-bold">
+                                <i class="bi bi-boxes me-1" aria-hidden="true"></i>
+                                Ajustement de stock
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info py-2 mb-3">
+                                    <small>
+                                        Stock actuel : <strong>@Model.StockQuantity unités</strong>
+                                        — L'ajustement crée un mouvement de stock tracé.
+                                        Préférez les lots pour les entrées normales.
+                                    </small>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold" for="ajustement-stock">Nouvelle quantité</label>
+                                        <input type="number"
+                                               name="ajustementStock"
+                                               id="ajustement-stock"
+                                               class="form-control"
+                                               min="0"
+                                               placeholder="Ex: 50" />
+                                        <div class="form-text">Laisser vide pour ne pas modifier le stock.</div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label class="form-label fw-bold" for="ajustement-raison">Raison de l'ajustement *</label>
+                                        <input type="text"
+                                               name="ajustementRaison"
+                                               id="ajustement-raison"
+                                               class="form-control"
+                                               placeholder="Ex: Correction après inventaire"
+                                               maxlength="200" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
                     <div class="mt-4 pt-3 border-top d-flex flex-wrap gap-2">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Enregistrer</button>
                         <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>

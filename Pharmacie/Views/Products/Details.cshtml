@@ -49,7 +49,14 @@
             </div>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Modifier</a>
+            @if (AppRoles.IsTitulaire(User)
+                 || User.IsInRole(AppRoles.Pharmacien)
+                 || User.IsInRole(AppRoles.Caissier)
+                 || User.IsInRole(AppRoles.AssistantPharmacien)
+                 || User.IsInRole(AppRoles.Assistant))
+            {
+                <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Modifier</a>
+            }
             <a class="btn btn-outline-secondary" asp-action="Index">Retour à la liste</a>
         </div>
     </div>

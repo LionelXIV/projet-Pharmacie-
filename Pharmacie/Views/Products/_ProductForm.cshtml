@@ -16,6 +16,22 @@
     <input asp-for="GenericName" class="form-control" />
     <span asp-validation-for="GenericName" class="text-danger"></span>
 </div>
+@if (AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien))
+{
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label asp-for="Cip" class="form-label fw-bold">Code CIP</label>
+            <input asp-for="Cip" class="form-control" placeholder="Ex: 3400935123456" />
+            <span asp-validation-for="Cip" class="text-danger"></span>
+            <div class="form-text">Code identifiant unique du produit.</div>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="ProductType" class="form-label fw-bold">Type de produit</label>
+            <select asp-for="ProductType" class="form-select" asp-items="Html.GetEnumSelectList<ProductType>()"></select>
+            <span asp-validation-for="ProductType" class="text-danger"></span>
+        </div>
+    </div>
+}
 <div class="mb-3">
     <label asp-for="CategoryId" class="form-label"></label>
     <select asp-for="CategoryId" class="form-select" asp-items="@((SelectList)ViewData["CategoryId"]!)">

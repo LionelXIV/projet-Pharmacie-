@@ -21,10 +21,12 @@ public class ProductsController : Controller
     private const int ClassifyPageSize = 50;
 
     private readonly ApplicationDbContext _context;
+    private readonly InventoryService _inventory;
 
-    public ProductsController(ApplicationDbContext context)
+    public ProductsController(ApplicationDbContext context, InventoryService inventory)
     {
         _context = context;
+        _inventory = inventory;
     }
 
     [Authorize(Roles = AppRoles.CatalogRead)]
@@ -263,62 +265,139 @@ public class ProductsController : Controller
     [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> Edit(int id,
         [Bind(
-            "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive,TarifType")]
-        Product product)
+            "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive,TarifType,Cip,ProductType")]
+        Product product,
+        int? ajustementStock = null,
+        string? ajustementRaison = null)
     {
         if (id != product.Id)
             return NotFound();
 
-        if (ModelState.IsValid)
+        var canEditCipAndType = AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien);
+        var canAdjustStock = canEditCipAndType;
+
+        var existing = await _context.Products.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (existing == null)
+            return NotFound();
+
+        if (ajustementStock.HasValue && canAdjustStock && ajustementStock.Value != existing.StockQuantity)
         {
-            var existing = await _context.Products.AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == id);
-            if (existing == null)
-                return NotFound();
-
-            product.StockQuantity = existing.StockQuantity;
-            product.Cip = existing.Cip;
-            product.Refha = existing.Refha;
-            product.ProductType = existing.ProductType;
-            product.ReferencePurchasePrice = existing.ReferencePurchasePrice;
-            product.RegulatedSalePrice = existing.RegulatedSalePrice;
-
-            TVACalculator.AppliquerTarif(product);
-
-            if (product.SalePrice != existing.SalePrice)
-            {
-                _context.PrixModifications.Add(new PrixModification
-                {
-                    ProductId = product.Id,
-                    AncienPrix = existing.SalePrice,
-                    NouveauPrix = product.SalePrice,
-                    ModifiedAt = DateTime.Now,
-                    ModifiedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "",
-                    ModifiedByDisplayName = User.Identity?.Name
-                        ?? User.FindFirstValue(ClaimTypes.Name)
-                        ?? "",
-                    Raison = "Modification produit"
-                });
-            }
-
-            try
-            {
-                _context.Update(product);
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await ProductExistsAsync(product.Id))
-                    return NotFound();
-                throw;
-            }
-
-            TempData["Success"] = "Produit mis à jour.";
-            return RedirectToAction(nameof(Index));
+            if (ajustementStock.Value < 0)
+                ModelState.AddModelError(string.Empty, "La nouvelle quantité ne peut pas être négative.");
+            else if (string.IsNullOrWhiteSpace(ajustementRaison))
+                ModelState.AddModelError(string.Empty, "La raison de l'ajustement est obligatoire.");
         }
 
-        await PopulateLookupsAsync(product.CategoryId, product.SupplierId);
-        return View(product);
+        if (!ModelState.IsValid)
+        {
+            product.StockQuantity = existing.StockQuantity;
+            await PopulateLookupsAsync(product.CategoryId, product.SupplierId);
+            return View(product);
+        }
+
+        product.StockQuantity = existing.StockQuantity;
+        product.Refha = existing.Refha;
+        product.ReferencePurchasePrice = existing.ReferencePurchasePrice;
+        product.RegulatedSalePrice = existing.RegulatedSalePrice;
+
+        if (!canEditCipAndType)
+        {
+            product.Cip = existing.Cip;
+            product.ProductType = existing.ProductType;
+        }
+
+        TVACalculator.AppliquerTarif(product);
+
+        if (product.SalePrice != existing.SalePrice)
+        {
+            _context.PrixModifications.Add(new PrixModification
+            {
+                ProductId = product.Id,
+                AncienPrix = existing.SalePrice,
+                NouveauPrix = product.SalePrice,
+                ModifiedAt = DateTime.Now,
+                ModifiedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "",
+                ModifiedByDisplayName = User.Identity?.Name
+                    ?? User.FindFirstValue(ClaimTypes.Name)
+                    ?? "",
+                Raison = "Modification produit"
+            });
+        }
+
+        try
+        {
+            _context.Update(product);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!await ProductExistsAsync(product.Id))
+                return NotFound();
+            throw;
+        }
+
+        var successMessage = "Produit mis à jour.";
+
+        if (ajustementStock.HasValue
+            && canAdjustStock
+            && ajustementStock.Value >= 0
+            && ajustementStock.Value != existing.StockQuantity
+            && !string.IsNullOrWhiteSpace(ajustementRaison))
+        {
+            var delta = ajustementStock.Value - existing.StockQuantity;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var displayName = User.Identity?.Name
+                ?? User.FindFirstValue(ClaimTypes.Name)
+                ?? userId;
+            var reason = $"Ajustement manuel — {ajustementRaison.Trim()} (par {displayName})";
+
+            var lot = await _context.ProductBatches
+                .Where(b => b.ProductId == product.Id)
+                .OrderByDescending(b => b.Id)
+                .FirstOrDefaultAsync();
+
+            if (lot != null)
+            {
+                var (ok, err) = await _inventory.RecordAjustementAsync(lot.Id, delta, reason, userId);
+                if (!ok)
+                {
+                    TempData["Warning"] = $"Produit enregistré, mais ajustement de stock refusé : {err}";
+                    return RedirectToAction(nameof(Edit), new { id });
+                }
+
+                successMessage =
+                    $"Produit mis à jour. Stock ajusté de {existing.StockQuantity} à {ajustementStock.Value} unités. Mouvement tracé.";
+            }
+            else if (delta > 0)
+            {
+                var lotNumber = $"AJUST-{product.Id}-{DateTime.Now:yyyyMMddHHmmss}";
+                var (ok, err) = await _inventory.RecordEntreeAsync(
+                    product.Id,
+                    lotNumber,
+                    DateTime.Today.AddYears(2),
+                    delta,
+                    reason,
+                    userId);
+                if (!ok)
+                {
+                    TempData["Warning"] = $"Produit enregistré, mais ajustement de stock refusé : {err}";
+                    return RedirectToAction(nameof(Edit), new { id });
+                }
+
+                successMessage =
+                    $"Produit mis à jour. Stock ajusté de {existing.StockQuantity} à {ajustementStock.Value} unités (nouveau lot créé). Mouvement tracé.";
+            }
+            else
+            {
+                TempData["Warning"] =
+                    "Produit enregistré, mais impossible de diminuer le stock : aucun lot. Créez un lot d'abord.";
+                return RedirectToAction(nameof(Edit), new { id });
+            }
+        }
+
+        TempData["Success"] = successMessage;
+        return RedirectToAction(nameof(Index));
     }
 
     [Authorize(Roles = AppRoles.CanModifyPrice)]
