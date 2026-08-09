@@ -2,13 +2,14 @@
 @using Pharmacie.Services
 @{
     ViewData["Title"] = "Caisses";
-    var caisse1 = ViewBag.Caisse1 as SessionCaisse;
-    var caisse2 = ViewBag.Caisse2 as SessionCaisse;
+    var sessionOuverte1 = ViewBag.SessionOuverte1 as SessionCaisse;
+    var sessionOuverte2 = ViewBag.SessionOuverte2 as SessionCaisse;
+    var derniereFermee1 = ViewBag.DerniereFermee1 as SessionCaisse;
+    var derniereFermee2 = ViewBag.DerniereFermee2 as SessionCaisse;
     var labels = ViewBag.Labels as Dictionary<string, string> ?? new Dictionary<string, string>();
     bool isAdmin = ViewBag.IsAdminOrPharmacien == true;
     string currentUserId = ViewBag.CurrentUserId as string ?? "";
     var seuil = CaisseService.SeuilDepotFcfa;
-    var caisses = new[] { (1, caisse1, "Caisse 1 — Matin", "bg-success", "btn-success"), (2, caisse2, "Caisse 2 — Soir", "bg-primary", "btn-primary") };
 
     string Nom(SessionCaisse? s) =>
         s == null ? "—" : UserDisplayResolver.Resolve(labels, s.CaissierUserId);
@@ -19,6 +20,12 @@
         var sales = s.Ventes.Select(v => v.Sale).Where(x => x != null).Cast<Sale>().ToList();
         return (sales.Count, sales.Sum(CaisseService.CalculerTotalSale));
     }
+
+    var caisses = new[]
+    {
+        (1, sessionOuverte1, derniereFermee1, "Caisse 1 — Matin", "bg-success", "btn-success", "Caisse Matin"),
+        (2, sessionOuverte2, derniereFermee2, "Caisse 2 — Soir", "bg-primary", "btn-primary", "Caisse Soir")
+    };
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -47,10 +54,10 @@
 }
 
 <div class="row g-3">
-@foreach (var (numero, session, titre, headerCss, btnCss) in caisses)
+@foreach (var (numero, sessionOuverte, derniereFermee, titre, headerCss, btnCss, nomCourt) in caisses)
 {
-    var isOpen = session != null && session.Statut == SessionCaisseStatut.Ouverte;
-    var isClosed = session != null && session.Statut == SessionCaisseStatut.Fermee;
+    var session = sessionOuverte;
+    var isOpen = session != null;
     var isMine = session != null && session.CaissierUserId == currentUserId;
     var canSeeDetails = isAdmin || isMine;
     var (nb, ca) = Stats(session);
@@ -109,7 +116,7 @@
                                     <i class="bi bi-safe-fill me-1"></i>Dépôt final
                                 </a>
                                 <a asp-action="Fermer" asp-route-id="@session.Id" class="btn btn-warning">
-                                    <i class="bi bi-lock me-1"></i>Fermer la caisse
+                                    <i class="bi bi-lock me-1"></i>Fermer ma caisse
                                 </a>
                             </div>
                         }
@@ -119,25 +126,32 @@
                         <p class="text-muted small mb-0">Session ouverte — détails réservés au caissier / admin.</p>
                     }
                 }
-                else if (isClosed && session != null)
+                else if (derniereFermee != null)
                 {
-                    <p class="mb-1"><span class="badge bg-secondary">Fermée</span></p>
-                    <p class="mb-1"><span class="text-muted">Caissier :</span> @Nom(session)</p>
-                    <p class="mb-1"><span class="text-muted">Clôture :</span> @session.HeureFermeture?.ToString("HH:mm")</p>
-                    @if (canSeeDetails)
-                    {
-                        <p class="mb-1"><span class="text-muted">Dépôts :</span> @session.Depots.Sum(d => d.MontantDepose).ToString("N0") FCFA</p>
-                        <p class="mb-3"><span class="text-muted">Billetage :</span> @(session.BilletageTotal?.ToString("N0") ?? "—") FCFA</p>
-                        <a asp-action="Rapport" asp-route-id="@session.Id" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-file-earmark-text me-1"></i>Voir le rapport
+                    <div class="alert alert-warning py-2 mb-2">
+                        <i class="bi bi-lock me-1"></i>
+                        Fermée à @derniereFermee.HeureFermeture?.ToString("HH:mm")
+                        — <a asp-action="Rapport" asp-route-id="@derniereFermee.Id" class="alert-link">
+                            Voir le rapport
                         </a>
+                    </div>
+                    <p class="mb-1 small text-muted">Caissier : @Nom(derniereFermee)</p>
+                    @if (isAdmin || derniereFermee.CaissierUserId == currentUserId)
+                    {
+                        <p class="mb-3 small text-muted">
+                            Billetage : @(derniereFermee.BilletageTotal?.ToString("N0") ?? "—") FCFA
+                        </p>
                     }
+                    <a asp-action="Ouvrir" asp-route-numero="@numero" class="btn @btnCss w-100">
+                        <i class="bi bi-unlock me-1"></i>
+                        Réouvrir @nomCourt
+                    </a>
                 }
                 else
                 {
                     <p class="text-muted mb-3">Non ouverte</p>
                     <a asp-action="Ouvrir" asp-route-numero="@numero" class="btn @btnCss w-100">
-                        <i class="bi bi-unlock me-1"></i>Ouvrir @(numero == 1 ? "Caisse Matin" : "Caisse Soir")
+                        <i class="bi bi-unlock me-1"></i>Ouvrir @nomCourt
                     </a>
                 }
             </div>

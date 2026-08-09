@@ -36,22 +36,30 @@ public class CaisseController : Controller
             .Include(s => s.Ventes).ThenInclude(v => v.Sale).ThenInclude(sale => sale!.Lines)
             .Include(s => s.Depots)
             .Where(s => s.DateSession == today)
+            .OrderBy(s => s.HeureOuverture)
             .ToListAsync();
 
-        var caisse1 = sessions
-            .Where(s => s.NumeroCaisse == 1)
-            .OrderByDescending(s => s.Id)
+        var sessionOuverte1 = sessions
+            .FirstOrDefault(s => s.NumeroCaisse == 1 && s.Statut == SessionCaisseStatut.Ouverte);
+        var sessionOuverte2 = sessions
+            .FirstOrDefault(s => s.NumeroCaisse == 2 && s.Statut == SessionCaisseStatut.Ouverte);
+        var derniereFermee1 = sessions
+            .Where(s => s.NumeroCaisse == 1 && s.Statut == SessionCaisseStatut.Fermee)
+            .OrderByDescending(s => s.HeureFermeture)
             .FirstOrDefault();
-        var caisse2 = sessions
-            .Where(s => s.NumeroCaisse == 2)
-            .OrderByDescending(s => s.Id)
+        var derniereFermee2 = sessions
+            .Where(s => s.NumeroCaisse == 2 && s.Statut == SessionCaisseStatut.Fermee)
+            .OrderByDescending(s => s.HeureFermeture)
             .FirstOrDefault();
 
         var userIds = sessions.Select(s => s.CaissierUserId).Distinct();
         var labels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, userIds);
 
-        ViewBag.Caisse1 = caisse1;
-        ViewBag.Caisse2 = caisse2;
+        ViewBag.Sessions = sessions;
+        ViewBag.SessionOuverte1 = sessionOuverte1;
+        ViewBag.SessionOuverte2 = sessionOuverte2;
+        ViewBag.DerniereFermee1 = derniereFermee1;
+        ViewBag.DerniereFermee2 = derniereFermee2;
         ViewBag.Labels = labels;
         ViewBag.IsAdminOrPharmacien = IsAdminOrPharmacien;
         ViewBag.CurrentUserId = CurrentUserId;
@@ -77,7 +85,6 @@ public class CaisseController : Controller
         var deja = await _context.SessionCaisses.AsNoTracking()
             .FirstOrDefaultAsync(s =>
                 s.NumeroCaisse == numero
-                && s.DateSession == DateTime.Today
                 && s.Statut == SessionCaisseStatut.Ouverte);
 
         if (deja != null && !IsAdminOrPharmacien)
@@ -87,6 +94,11 @@ public class CaisseController : Controller
         }
 
         ViewBag.NumeroCaisse = numero;
+        ViewBag.IsReouverture = await _context.SessionCaisses.AsNoTracking()
+            .AnyAsync(s =>
+                s.NumeroCaisse == numero
+                && s.DateSession == DateTime.Today
+                && s.Statut == SessionCaisseStatut.Fermee);
         return View();
     }
 
@@ -310,19 +322,16 @@ public class CaisseController : Controller
             .Include(s => s.Depots)
             .Where(s => s.DateSession == d)
             .OrderBy(s => s.NumeroCaisse)
-            .ThenByDescending(s => s.Id)
+            .ThenBy(s => s.HeureOuverture)
             .ToListAsync();
-
-        // Une session par caisse (la plus récente)
-        var c1 = sessions.Where(s => s.NumeroCaisse == 1).FirstOrDefault();
-        var c2 = sessions.Where(s => s.NumeroCaisse == 2).FirstOrDefault();
 
         var labels = await UserDisplayResolver.LoadLabelsByIdAsync(
             _context, sessions.Select(s => s.CaissierUserId));
 
         ViewBag.Date = d;
-        ViewBag.Caisse1 = c1;
-        ViewBag.Caisse2 = c2;
+        ViewBag.Sessions = sessions;
+        ViewBag.SessionsCaisse1 = sessions.Where(s => s.NumeroCaisse == 1).ToList();
+        ViewBag.SessionsCaisse2 = sessions.Where(s => s.NumeroCaisse == 2).ToList();
         ViewBag.Labels = labels;
 
         return View();

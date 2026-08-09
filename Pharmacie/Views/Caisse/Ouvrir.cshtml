@@ -1,14 +1,16 @@
 @{
     ViewData["Title"] = "Ouvrir une caisse";
     int numeroCaisse = ViewBag.NumeroCaisse ?? 1;
+    var isReouverture = ViewBag.IsReouverture == true;
     var titre = numeroCaisse == 1 ? "Caisse 1 — Matin" : "Caisse 2 — Soir";
+    var actionLabel = isReouverture ? "Réouvrir" : "Ouvrir";
 }
 
 @await Html.PartialAsync("_BackButton")
 
 <div class="d-flex align-items-center gap-2 mb-3">
     <a asp-action="Index" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
-    <h1 class="h4 mb-0">Ouvrir une caisse</h1>
+    <h1 class="h4 mb-0">@(isReouverture ? "Réouvrir une caisse" : "Ouvrir une caisse")</h1>
 </div>
 
 @if (TempData["Error"] is string err)
@@ -19,7 +21,7 @@
 <div class="card shadow-sm mx-auto" style="max-width:500px">
     <div class="card-header bg-success text-white fw-bold">
         <i class="bi bi-unlock me-1"></i>
-        Ouvrir @titre
+        @actionLabel @titre
     </div>
     <div class="card-body">
         <form asp-action="Ouvrir" method="post">
@@ -34,7 +36,7 @@
                        value="50000"
                        min="0"
                        step="500" />
-                <div class="form-text">Montant par défaut : 50 000 FCFA</div>
+                <div class="form-text">Montant par défaut : 50 000 FCFA@(isReouverture ? " — nouveau fond pour cette session" : "")</div>
             </div>
 
             <div class="alert alert-info py-2">
@@ -44,7 +46,7 @@
 
             <button type="submit" class="btn btn-success w-100 py-3">
                 <i class="bi bi-unlock me-2"></i>
-                Ouvrir ma caisse
+                @(isReouverture ? "Réouvrir ma caisse" : "Ouvrir ma caisse")
             </button>
         </form>
     </div>

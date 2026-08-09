@@ -27,30 +27,28 @@ public class CaisseService
         if (fondDepart < 0)
             return (false, "Le fond de départ ne peut pas être négatif.", 0);
 
-        var today = DateTime.Today;
-
-        var dejaOuverte = await _db.SessionCaisses
+        // Vérifier uniquement qu'une session OUVERTE n'existe pas déjà pour cette caisse
+        var sessionOuverte = await _db.SessionCaisses
             .FirstOrDefaultAsync(s =>
                 s.NumeroCaisse == numeroCaisse
-                && s.DateSession == today
                 && s.Statut == SessionCaisseStatut.Ouverte);
 
-        if (dejaOuverte != null)
-            return (false, $"La {dejaOuverte.NomCaisse} est déjà ouverte.", 0);
+        if (sessionOuverte != null)
+            return (false, $"La {sessionOuverte.NomCaisse} est déjà ouverte.", 0);
 
         var sessionUser = await _db.SessionCaisses
             .FirstOrDefaultAsync(s =>
                 s.CaissierUserId == userId
-                && s.DateSession == today
                 && s.Statut == SessionCaisseStatut.Ouverte);
 
         if (sessionUser != null)
             return (false, $"Vous avez déjà une session ouverte ({sessionUser.NomCaisse}). Fermez-la avant d'en ouvrir une autre.", 0);
 
+        // Nouvelle session même si des sessions fermées existent (réouverture)
         var session = new SessionCaisse
         {
             NumeroCaisse = numeroCaisse,
-            DateSession = today,
+            DateSession = DateTime.Today,
             HeureOuverture = DateTime.Now,
             FondDepart = fondDepart,
             CaissierUserId = userId,
@@ -91,12 +89,10 @@ public class CaisseService
 
     public async Task<SessionCaisse?> GetSessionOuverteAsync(string userId)
     {
-        var today = DateTime.Today;
         return await _db.SessionCaisses
             .FirstOrDefaultAsync(s =>
                 s.CaissierUserId == userId
-                && s.Statut == SessionCaisseStatut.Ouverte
-                && s.DateSession == today);
+                && s.Statut == SessionCaisseStatut.Ouverte);
     }
 
     public async Task<SessionCaisse?> GetSessionDuJourAsync(int numeroCaisse, DateTime? date = null)

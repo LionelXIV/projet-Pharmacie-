@@ -3,13 +3,13 @@
 @{
     ViewData["Title"] = "Rapport consolidé";
     var d = (DateTime)(ViewBag.Date ?? DateTime.Today);
-    var c1 = ViewBag.Caisse1 as SessionCaisse;
-    var c2 = ViewBag.Caisse2 as SessionCaisse;
+    var sessionsCaisse1 = ViewBag.SessionsCaisse1 as IList<SessionCaisse> ?? new List<SessionCaisse>();
+    var sessionsCaisse2 = ViewBag.SessionsCaisse2 as IList<SessionCaisse> ?? new List<SessionCaisse>();
     var labels = ViewBag.Labels as Dictionary<string, string> ?? new Dictionary<string, string>();
 
-    (int nb, decimal ca, decimal especes, decimal wave, decimal om, decimal autre, decimal depots) Stats(SessionCaisse? s)
+    (int nb, decimal ca, decimal especes, decimal wave, decimal om, decimal autre, decimal depots, decimal fond) Stats(SessionCaisse? s)
     {
-        if (s == null) return (0, 0, 0, 0, 0, 0, 0);
+        if (s == null) return (0, 0, 0, 0, 0, 0, 0, 0);
         var sales = s.Ventes.Select(v => v.Sale).Where(x => x != null).Cast<Sale>().ToList();
         decimal SumPm(PaymentMethod pm) => sales.Where(x => x.PaymentMethod == pm).Sum(CaisseService.CalculerTotalSale);
         var especes = SumPm(PaymentMethod.Especes);
@@ -19,11 +19,35 @@
             .Where(x => x.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
             .Sum(CaisseService.CalculerTotalSale);
         var depots = s.Depots.Sum(x => x.MontantDepose);
-        return (sales.Count, especes + wave + om + autre, especes, wave, om, autre, depots);
+        return (sales.Count, especes + wave + om + autre, especes, wave, om, autre, depots, s.FondDepart);
     }
 
-    var s1 = Stats(c1);
-    var s2 = Stats(c2);
+    (int nb, decimal ca, decimal especes, decimal wave, decimal om, decimal autre, decimal depots, decimal fond) SumStats(IEnumerable<SessionCaisse> list)
+    {
+        int nb = 0;
+        decimal ca = 0, especes = 0, wave = 0, om = 0, autre = 0, depots = 0, fond = 0;
+        foreach (var s in list)
+        {
+            var st = Stats(s);
+            nb += st.nb;
+            ca += st.ca;
+            especes += st.especes;
+            wave += st.wave;
+            om += st.om;
+            autre += st.autre;
+            depots += st.depots;
+            fond += st.fond;
+        }
+        return (nb, ca, especes, wave, om, autre, depots, fond);
+    }
+
+    var tot1 = SumStats(sessionsCaisse1);
+    var tot2 = SumStats(sessionsCaisse2);
+    var blocs = new[]
+    {
+        ("CAISSE 1 — MATIN", "border-success", sessionsCaisse1, tot1),
+        ("CAISSE 2 — SOIR", "border-primary", sessionsCaisse2, tot2)
+    };
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -40,72 +64,93 @@
 <p class="text-muted">Journée du <strong>@d.ToString("dd/MM/yyyy")</strong></p>
 
 <div class="row g-3 mb-3">
-    @foreach (var item in new[] { (c1, s1, "Caisse 1 — Matin", "border-success"), (c2, s2, "Caisse 2 — Soir", "border-primary") })
-    {
-        var session = item.Item1;
-        var st = item.Item2;
-        <div class="col-md-6">
-            <div class="card h-100 @item.Item4">
-                <div class="card-header fw-bold">@item.Item3</div>
-                <div class="card-body">
-                    @if (session == null)
+@foreach (var (titre, borderCss, sessions, sousTotal) in blocs)
+{
+    <div class="col-12 col-lg-6">
+        <div class="card h-100 @borderCss">
+            <div class="card-header fw-bold">@titre</div>
+            <div class="card-body">
+                @if (sessions.Count == 0)
+                {
+                    <p class="text-muted mb-0">Aucune session ce jour.</p>
+                }
+                else
+                {
+                    var i = 0;
+                    foreach (var session in sessions)
                     {
-                        <p class="text-muted mb-0">Aucune session ce jour.</p>
+                        i++;
+                        var st = Stats(session);
+                        var fin = session.HeureFermeture?.ToString("HH:mm") ?? "en cours";
+                        <div class="@(i < sessions.Count ? "mb-3 pb-3 border-bottom" : "mb-2")">
+                            <p class="mb-1 fw-semibold">
+                                Session @i :
+                                @session.HeureOuverture.ToString("HH:mm") → @fin
+                                <span class="badge @(session.Statut == SessionCaisseStatut.Ouverte ? "bg-success" : "bg-secondary") ms-1">
+                                    @session.Statut
+                                </span>
+                            </p>
+                            <p class="mb-1 small">
+                                Caissier : <strong>@UserDisplayResolver.Resolve(labels, session.CaissierUserId)</strong>
+                                · Fond : @session.FondDepart.ToString("N0") FCFA
+                            </p>
+                            <p class="mb-1">
+                                Ventes : @st.nb
+                                · CA : <strong class="text-success">@st.ca.ToString("N0") FCFA</strong>
+                                · Dépôts : <strong class="text-primary">@st.depots.ToString("N0") FCFA</strong>
+                            </p>
+                            <p class="mb-1 small text-muted">
+                                Espèces @st.especes.ToString("N0") · Wave @st.wave.ToString("N0") · OM @st.om.ToString("N0")
+                            </p>
+                            @if (session.BilletageTotal.HasValue)
+                            {
+                                <p class="mb-1 small">Billetage : @session.BilletageTotal.Value.ToString("N0") FCFA</p>
+                            }
+                            <a asp-action="Rapport" asp-route-id="@session.Id" class="btn btn-sm btn-outline-primary">Détail</a>
+                        </div>
                     }
-                    else
-                    {
-                        <p class="mb-1">
-                            Statut :
-                            <span class="badge @(session.Statut == SessionCaisseStatut.Ouverte ? "bg-success" : "bg-secondary")">
-                                @session.Statut
-                            </span>
-                        </p>
-                        <p class="mb-1">Caissier : <strong>@UserDisplayResolver.Resolve(labels, session.CaissierUserId)</strong></p>
-                        <p class="mb-1">Fond : @session.FondDepart.ToString("N0") FCFA</p>
-                        <p class="mb-1">Ventes : @st.nb</p>
-                        <p class="mb-1">CA total : <strong>@st.ca.ToString("N0") FCFA</strong></p>
-                        <p class="mb-1">Total dépôts : <strong class="text-primary">@st.depots.ToString("N0") FCFA</strong></p>
-                        <p class="mb-1 small text-muted">Espèces @st.especes.ToString("N0") · Wave @st.wave.ToString("N0") · OM @st.om.ToString("N0")</p>
-                        @if (session.BilletageTotal.HasValue)
-                        {
-                            <p class="mb-1">Billetage : @session.BilletageTotal.Value.ToString("N0") FCFA</p>
-                        }
-                        <a asp-action="Rapport" asp-route-id="@session.Id" class="btn btn-sm btn-outline-primary mt-2">Détail</a>
-                    }
-                </div>
+                    <div class="alert alert-secondary py-2 mb-0 mt-2">
+                        <strong>SOUS-TOTAL @titre</strong> —
+                        CA : <strong class="text-success">@sousTotal.ca.ToString("N0") FCFA</strong>
+                        · Ventes : @sousTotal.nb
+                        · Dépôts : @sousTotal.depots.ToString("N0") FCFA
+                    </div>
+                }
             </div>
         </div>
-    }
+    </div>
+}
 </div>
 
 <div class="card border-dark">
-    <div class="card-header bg-dark text-white fw-bold">Total consolidé</div>
+    <div class="card-header bg-dark text-white fw-bold">TOTAL JOURNALIER</div>
     <div class="card-body">
         <div class="row text-center">
             <div class="col-6 col-md-3 mb-2">
                 <div class="text-muted small">Ventes</div>
-                <div class="fs-4 fw-bold">@(s1.nb + s2.nb)</div>
+                <div class="fs-4 fw-bold">@(tot1.nb + tot2.nb)</div>
             </div>
             <div class="col-6 col-md-3 mb-2">
                 <div class="text-muted small">CA journalier</div>
-                <div class="fs-4 fw-bold text-success">@((s1.ca + s2.ca).ToString("N0")) FCFA</div>
+                <div class="fs-4 fw-bold text-success">@((tot1.ca + tot2.ca).ToString("N0")) FCFA</div>
             </div>
             <div class="col-6 col-md-3 mb-2">
                 <div class="text-muted small">Total dépôts</div>
-                <div class="fs-4 fw-bold text-primary">@((s1.depots + s2.depots).ToString("N0")) FCFA</div>
+                <div class="fs-4 fw-bold text-primary">@((tot1.depots + tot2.depots).ToString("N0")) FCFA</div>
             </div>
             <div class="col-6 col-md-3 mb-2">
                 <div class="text-muted small">Espèces</div>
-                <div class="fs-5 fw-bold">@((s1.especes + s2.especes).ToString("N0"))</div>
+                <div class="fs-5 fw-bold">@((tot1.especes + tot2.especes).ToString("N0"))</div>
             </div>
         </div>
         <hr />
         <div class="d-flex flex-wrap gap-3 small">
-            <span>Wave : <strong>@((s1.wave + s2.wave).ToString("N0")) FCFA</strong></span>
-            <span>Orange Money : <strong>@((s1.om + s2.om).ToString("N0")) FCFA</strong></span>
-            <span>Autres : <strong>@((s1.autre + s2.autre).ToString("N0")) FCFA</strong></span>
-            <span>Fonds départ : <strong>@(((c1?.FondDepart ?? 0) + (c2?.FondDepart ?? 0)).ToString("N0")) FCFA</strong></span>
-            <span>Wave + OM : <strong>@((s1.wave + s2.wave + s1.om + s2.om).ToString("N0")) FCFA</strong></span>
+            <span>Wave : <strong>@((tot1.wave + tot2.wave).ToString("N0")) FCFA</strong></span>
+            <span>Orange Money : <strong>@((tot1.om + tot2.om).ToString("N0")) FCFA</strong></span>
+            <span>Autres : <strong>@((tot1.autre + tot2.autre).ToString("N0")) FCFA</strong></span>
+            <span>Fonds départ : <strong>@((tot1.fond + tot2.fond).ToString("N0")) FCFA</strong></span>
+            <span>Wave + OM : <strong>@((tot1.wave + tot2.wave + tot1.om + tot2.om).ToString("N0")) FCFA</strong></span>
+            <span>Sessions : <strong>@(sessionsCaisse1.Count + sessionsCaisse2.Count)</strong></span>
         </div>
     </div>
 </div>
