@@ -92,12 +92,6 @@
                             <a class="nav-link @(isDashboard && IsAction("Index") ? "active" : null)" asp-controller="Dashboard" asp-action="Index" aria-current="@(isDashboard && IsAction("Index") ? "page" : null)">
                                 <i class="bi bi-speedometer2" aria-hidden="true"></i>Tableau de bord
                             </a>
-                            @if (AppRoles.CanAccessFinances(User))
-                            {
-                                <a class="nav-link @(isDashboard && IsAction("Finances") ? "active" : null)" asp-controller="Dashboard" asp-action="Finances" aria-current="@(isDashboard && IsAction("Finances") ? "page" : null)">
-                                    <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>Finances
-                                </a>
-                            }
                         }
                         @if (User?.Identity?.IsAuthenticated == true
                              && (AppRoles.IsTitulaire(User)
@@ -213,24 +207,49 @@
                         <a class="nav-link @(isReports && IsAction("StockStatus") ? "active" : null)" asp-controller="Reports" asp-action="StockStatus" aria-current="@(isReports && IsAction("StockStatus") ? "page" : null)">
                             <i class="bi bi-clipboard-data" aria-hidden="true"></i>État du stock
                         </a>
-                        <a class="nav-link @(isReports && IsAction("NearExpiration") ? "active" : null)" asp-controller="Reports" asp-action="NearExpiration" aria-current="@(isReports && IsAction("NearExpiration") ? "page" : null)">
-                            <i class="bi bi-hourglass-split" aria-hidden="true"></i>Proches expiration
-                        </a>
-                        <a class="nav-link @(isReports && IsAction("ExpiredProducts") ? "active" : null)" asp-controller="Reports" asp-action="ExpiredProducts" aria-current="@(isReports && IsAction("ExpiredProducts") ? "page" : null)">
-                            <i class="bi bi-calendar-x" aria-hidden="true"></i>Produits expirés
-                        </a>
-                        <a class="nav-link @(isReports && IsAction("SalesHistory") ? "active" : null)" asp-controller="Reports" asp-action="SalesHistory" aria-current="@(isReports && IsAction("SalesHistory") ? "page" : null)">
-                            <i class="bi bi-receipt" aria-hidden="true"></i>Historique ventes
-                        </a>
-                        <a class="nav-link @(isReports && IsAction("StockMovementsHistory") ? "active" : null)" asp-controller="Reports" asp-action="StockMovementsHistory" aria-current="@(isReports && IsAction("StockMovementsHistory") ? "page" : null)">
-                            <i class="bi bi-arrow-left-right" aria-hidden="true"></i>Historique mouvements
-                        </a>
+                        @if (AppRoles.CanAccessStockReports(User!))
+                        {
+                            <a class="nav-link @(isReports && IsAction("NearExpiration") ? "active" : null)" asp-controller="Reports" asp-action="NearExpiration" aria-current="@(isReports && IsAction("NearExpiration") ? "page" : null)">
+                                <i class="bi bi-hourglass-split" aria-hidden="true"></i>Proches expiration
+                            </a>
+                            <a class="nav-link @(isReports && IsAction("ExpiredProducts") ? "active" : null)" asp-controller="Reports" asp-action="ExpiredProducts" aria-current="@(isReports && IsAction("ExpiredProducts") ? "page" : null)">
+                                <i class="bi bi-calendar-x" aria-hidden="true"></i>Produits expirés
+                            </a>
+                        }
+                        @if (AppRoles.CanAccessOperationalReports(User!))
+                        {
+                            <a class="nav-link @(isReports && IsAction("SalesHistory") ? "active" : null)" asp-controller="Reports" asp-action="SalesHistory" aria-current="@(isReports && IsAction("SalesHistory") ? "page" : null)">
+                                <i class="bi bi-receipt" aria-hidden="true"></i>Historique ventes
+                            </a>
+                            <a class="nav-link @(isReports && IsAction("StockMovementsHistory") ? "active" : null)" asp-controller="Reports" asp-action="StockMovementsHistory" aria-current="@(isReports && IsAction("StockMovementsHistory") ? "page" : null)">
+                                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>Historique mouvements
+                            </a>
+                        }
                         @if (showPerformanceVendeurs)
                         {
                             <a class="nav-link @(isReports && IsActionAny("VendeursDuJour", "ExportVendeursCsv") ? "active" : null)" asp-controller="Reports" asp-action="VendeursDuJour" aria-current="@(isReports && IsActionAny("VendeursDuJour", "ExportVendeursCsv") ? "page" : null)">
                                 <i class="bi bi-bar-chart-steps" aria-hidden="true"></i>Performance vendeurs
                             </a>
                         }
+                    </div>
+                }
+
+                @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessFinances(User))
+                {
+                    <div class="ph-nav-section">
+                        <span class="ph-nav-label">Finances</span>
+                        <a class="nav-link @(isDashboard && IsAction("Finances") ? "active" : null)" asp-controller="Dashboard" asp-action="Finances" aria-current="@(isDashboard && IsAction("Finances") ? "page" : null)">
+                            <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>Finances
+                        </a>
+                        <a class="nav-link @(isReports && IsActionAny("EtatTVA", "EtatTVAPrint", "ExportTVAPdf") ? "active" : null)" asp-controller="Reports" asp-action="EtatTVA" aria-current="@(isReports && IsActionAny("EtatTVA", "EtatTVAPrint", "ExportTVAPdf") ? "page" : null)">
+                            <i class="bi bi-percent" aria-hidden="true"></i>TVA / DGID
+                        </a>
+                        <a class="nav-link @(isReports && IsActionAny("Recapitulatif", "ExportRecapitulatifCSV") ? "active" : null)" asp-controller="Reports" asp-action="Recapitulatif" aria-current="@(isReports && IsActionAny("Recapitulatif", "ExportRecapitulatifCSV") ? "page" : null)">
+                            <i class="bi bi-journal-richtext" aria-hidden="true"></i>Récapitulatif
+                        </a>
+                        <a class="nav-link @(isReports && IsActionAny("RapportCA", "ExportRapportCACSV") ? "active" : null)" asp-controller="Reports" asp-action="RapportCA" aria-current="@(isReports && IsActionAny("RapportCA", "ExportRapportCACSV") ? "page" : null)">
+                            <i class="bi bi-cash-coin" aria-hidden="true"></i>Rapport CA
+                        </a>
                     </div>
                 }
 

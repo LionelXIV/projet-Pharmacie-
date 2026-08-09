@@ -1,6 +1,9 @@
 @using Pharmacie.Authorization
 @{
     ViewData["Title"] = "Rapports";
+    var showOperational = AppRoles.CanAccessOperationalReports(User);
+    var showStockReports = AppRoles.CanAccessStockReports(User);
+    var showFinances = AppRoles.CanAccessFinances(User);
 }
 
 <div class="page-header">
@@ -9,52 +12,58 @@
 </div>
 
 <div class="row g-3">
-    <div class="col-md-6 col-xl-4">
-        <div class="card border-0 shadow-sm h-100 report-hub-card">
-            <div class="card-body">
-                <h2 class="h5 card-title"><i class="bi bi-clipboard-data" aria-hidden="true"></i>État du stock</h2>
-                <p class="card-text small text-muted">Quantités, seuils et statut par produit actif.</p>
-                <a class="btn btn-outline-primary stretched-link" asp-action="StockStatus">Ouvrir</a>
+    @if (showStockReports)
+    {
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 report-hub-card">
+                <div class="card-body">
+                    <h2 class="h5 card-title"><i class="bi bi-clipboard-data" aria-hidden="true"></i>État du stock</h2>
+                    <p class="card-text small text-muted">Quantités, seuils et statut par produit actif.</p>
+                    <a class="btn btn-outline-primary stretched-link" asp-action="StockStatus">Ouvrir</a>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-6 col-xl-4">
-        <div class="card border-0 shadow-sm h-100 report-hub-card">
-            <div class="card-body">
-                <h2 class="h5 card-title"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Proches de l’expiration</h2>
-                <p class="card-text small text-muted">Lots encore valides dans la fenêtre d’alerte (@ViewBag.ExpirationHorizonDays jours).</p>
-                <a class="btn btn-outline-primary stretched-link" asp-action="NearExpiration">Ouvrir</a>
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 report-hub-card">
+                <div class="card-body">
+                    <h2 class="h5 card-title"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Proches de l’expiration</h2>
+                    <p class="card-text small text-muted">Lots encore valides dans la fenêtre d’alerte (@ViewBag.ExpirationHorizonDays jours).</p>
+                    <a class="btn btn-outline-primary stretched-link" asp-action="NearExpiration">Ouvrir</a>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-6 col-xl-4">
-        <div class="card border-0 shadow-sm h-100 report-hub-card">
-            <div class="card-body">
-                <h2 class="h5 card-title"><i class="bi bi-calendar-x" aria-hidden="true"></i>Produits expirés</h2>
-                <p class="card-text small text-muted">Lots encore en stock après date de péremption.</p>
-                <a class="btn btn-outline-primary stretched-link" asp-action="ExpiredProducts">Ouvrir</a>
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 report-hub-card">
+                <div class="card-body">
+                    <h2 class="h5 card-title"><i class="bi bi-calendar-x" aria-hidden="true"></i>Produits expirés</h2>
+                    <p class="card-text small text-muted">Lots encore en stock après date de péremption.</p>
+                    <a class="btn btn-outline-primary stretched-link" asp-action="ExpiredProducts">Ouvrir</a>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-6 col-xl-4">
-        <div class="card border-0 shadow-sm h-100 report-hub-card">
-            <div class="card-body">
-                <h2 class="h5 card-title"><i class="bi bi-receipt" aria-hidden="true"></i>Historique des ventes</h2>
-                <p class="card-text small text-muted">Dernières ventes enregistrées.</p>
-                <a class="btn btn-outline-primary stretched-link" asp-action="SalesHistory">Ouvrir</a>
+    }
+    @if (showOperational)
+    {
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 report-hub-card">
+                <div class="card-body">
+                    <h2 class="h5 card-title"><i class="bi bi-receipt" aria-hidden="true"></i>Historique des ventes</h2>
+                    <p class="card-text small text-muted">Dernières ventes enregistrées.</p>
+                    <a class="btn btn-outline-primary stretched-link" asp-action="SalesHistory">Ouvrir</a>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-6 col-xl-4">
-        <div class="card border-0 shadow-sm h-100 report-hub-card">
-            <div class="card-body">
-                <h2 class="h5 card-title"><i class="bi bi-arrow-left-right" aria-hidden="true"></i>Historique des mouvements</h2>
-                <p class="card-text small text-muted">Derniers mouvements et responsable.</p>
-                <a class="btn btn-outline-primary stretched-link" asp-action="StockMovementsHistory">Ouvrir</a>
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100 report-hub-card">
+                <div class="card-body">
+                    <h2 class="h5 card-title"><i class="bi bi-arrow-left-right" aria-hidden="true"></i>Historique des mouvements</h2>
+                    <p class="card-text small text-muted">Derniers mouvements et responsable.</p>
+                    <a class="btn btn-outline-primary stretched-link" asp-action="StockMovementsHistory">Ouvrir</a>
+                </div>
             </div>
         </div>
-    </div>
-    @if (AppRoles.CanAccessFinances(User))
+    }
+    @if (showFinances)
     {
         <div class="col-md-6 col-xl-4">
             <div class="card border-0 shadow-sm h-100 report-hub-card">
@@ -83,19 +92,19 @@
                 </div>
             </div>
         </div>
-        @if (AppRoles.IsTitulaire(User))
-        {
-            <div class="col-md-6 col-xl-4">
-                <div class="card border-primary shadow-sm h-100 report-hub-card">
-                    <div class="card-body">
-                        <h2 class="h5 card-title"><i class="bi bi-journal-richtext me-1" aria-hidden="true"></i>Récapitulatif global</h2>
-                        <p class="card-text small text-muted">
-                            CA, PA, marge, TVA, bons et avoirs sur une période.
-                        </p>
-                        <a class="btn btn-primary btn-sm stretched-link" asp-action="Recapitulatif">Voir le récapitulatif</a>
-                    </div>
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-primary shadow-sm h-100 report-hub-card">
+                <div class="card-body">
+                    <h2 class="h5 card-title"><i class="bi bi-journal-richtext me-1" aria-hidden="true"></i>Récapitulatif global</h2>
+                    <p class="card-text small text-muted">
+                        CA, PA, marge, TVA, bons et avoirs sur une période.
+                    </p>
+                    <a class="btn btn-primary btn-sm stretched-link" asp-action="Recapitulatif">Voir le récapitulatif</a>
                 </div>
             </div>
+        </div>
+        @if (AppRoles.IsTitulaire(User))
+        {
             <div class="col-md-6 col-xl-4">
                 <div class="card border-warning shadow-sm h-100 report-hub-card">
                     <div class="card-body">

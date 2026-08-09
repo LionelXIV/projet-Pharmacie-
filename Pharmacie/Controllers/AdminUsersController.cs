@@ -588,6 +588,13 @@ public class AdminUsersController : Controller
                 Label = AppRoles.GetRoleLabel(AppRoles.Stagiaire),
                 Description = "Catalogue lecture + réception BL",
                 Selectionne = selectedSet.Contains(AppRoles.Stagiaire)
+            },
+            new()
+            {
+                Nom = AppRoles.Comptable,
+                Label = AppRoles.GetRoleLabel(AppRoles.Comptable),
+                Description = "Accès Finance et État du stock uniquement",
+                Selectionne = selectedSet.Contains(AppRoles.Comptable)
             }
         };
 

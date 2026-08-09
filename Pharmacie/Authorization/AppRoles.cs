@@ -11,6 +11,7 @@ public static class AppRoles
     public const string Caissier = "Caissier";
     public const string AssistantPharmacien = "AssistantPharmacien";
     public const string Stagiaire = "Stagiaire";
+    public const string Comptable = "Comptable";
 
     /// <summary>Anciens rôles conservés en base pendant la transition.</summary>
     public const string Administrateur = "Administrateur";
@@ -24,7 +25,8 @@ public static class AppRoles
         Vendeur,
         Caissier,
         AssistantPharmacien,
-        Stagiaire
+        Stagiaire,
+        Comptable
     ];
 
     public static readonly string[] LegacyRoles =
@@ -40,7 +42,8 @@ public static class AppRoles
     public const string CanManageStock =
         $"{PharmacienTitulaire},{Pharmacien},{Vendeur}";
 
-    public const string CanAccessFinance = PharmacienTitulaire;
+    public const string CanAccessFinance =
+        $"{PharmacienTitulaire},{Comptable}";
 
     public const string CanManageUsers =
         $"{PharmacienTitulaire},{Pharmacien}";
@@ -70,8 +73,14 @@ public static class AppRoles
     public const string Purchasing = CanManageStock;
     public const string GoodsReceipt = CanReceiveBL;
     public const string DashboardAccess =
-        $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Caissier},{AssistantPharmacien}";
+        $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Caissier},{AssistantPharmacien},{Comptable}";
     public const string ReportsAccess =
+        $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Comptable}";
+    /// <summary>État du stock et péremption (inclut Comptable).</summary>
+    public const string StockReportsAccess =
+        $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Comptable}";
+    /// <summary>Historiques opérationnels (sans Comptable).</summary>
+    public const string OperationalReportsAccess =
         $"{PharmacienTitulaire},{Pharmacien},{Vendeur}";
     public const string FinancesAccess = CanAccessFinance;
     public const string PatientsRead =
@@ -104,16 +113,31 @@ public static class AppRoles
         || user.IsInRole(Caissier)
         || user.IsInRole(AssistantPharmacien)
         || user.IsInRole(Assistant)
-        || user.IsInRole(GestionnaireStock);
+        || user.IsInRole(GestionnaireStock)
+        || user.IsInRole(Comptable);
 
     public static bool CanAccessReports(ClaimsPrincipal user) =>
+        IsTitulaire(user)
+        || user.IsInRole(Pharmacien)
+        || user.IsInRole(Vendeur)
+        || user.IsInRole(GestionnaireStock)
+        || user.IsInRole(Comptable);
+
+    public static bool CanAccessStockReports(ClaimsPrincipal user) =>
+        IsTitulaire(user)
+        || user.IsInRole(Pharmacien)
+        || user.IsInRole(Vendeur)
+        || user.IsInRole(GestionnaireStock)
+        || user.IsInRole(Comptable);
+
+    public static bool CanAccessOperationalReports(ClaimsPrincipal user) =>
         IsTitulaire(user)
         || user.IsInRole(Pharmacien)
         || user.IsInRole(Vendeur)
         || user.IsInRole(GestionnaireStock);
 
     public static bool CanAccessFinances(ClaimsPrincipal user) =>
-        IsTitulaire(user);
+        IsTitulaire(user) || user.IsInRole(Comptable);
 
     public static bool CanManageUsersAccounts(ClaimsPrincipal user) =>
         IsTitulaire(user) || user.IsInRole(Pharmacien);
@@ -173,6 +197,7 @@ public static class AppRoles
         Caissier => "Caissier",
         AssistantPharmacien or Assistant => "Assistant Pharmacien",
         Stagiaire => "Stagiaire",
+        Comptable => "Comptable",
         _ => role
     };
 }

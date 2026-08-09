@@ -30,12 +30,14 @@ public class ReportsController : Controller
         return View();
     }
 
+    [Authorize(Roles = AppRoles.StockReportsAccess)]
     public async Task<IActionResult> StockStatus()
     {
         var rows = await LoadStockStatusRowsAsync();
         return View(rows);
     }
 
+    [Authorize(Roles = AppRoles.StockReportsAccess)]
     public async Task<IActionResult> StockStatusCsv()
     {
         var rows = await LoadStockStatusRowsAsync();
@@ -62,6 +64,7 @@ public class ReportsController : Controller
         return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-etat-stock");
     }
 
+    [Authorize(Roles = AppRoles.StockReportsAccess)]
     public async Task<IActionResult> NearExpiration()
     {
         var (rows, horizonDays) = await LoadNearExpirationRowsAsync();
@@ -69,6 +72,7 @@ public class ReportsController : Controller
         return View(rows);
     }
 
+    [Authorize(Roles = AppRoles.StockReportsAccess)]
     public async Task<IActionResult> NearExpirationCsv()
     {
         var (rows, _) = await LoadNearExpirationRowsAsync();
@@ -93,12 +97,14 @@ public class ReportsController : Controller
         return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-proches-expiration");
     }
 
+    [Authorize(Roles = AppRoles.StockReportsAccess)]
     public async Task<IActionResult> ExpiredProducts()
     {
         var rows = await LoadExpiredProductsRowsAsync();
         return View(rows);
     }
 
+    [Authorize(Roles = AppRoles.StockReportsAccess)]
     public async Task<IActionResult> ExpiredProductsCsv()
     {
         var rows = await LoadExpiredProductsRowsAsync();
@@ -121,6 +127,7 @@ public class ReportsController : Controller
         return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-produits-expires");
     }
 
+    [Authorize(Roles = AppRoles.OperationalReportsAccess)]
     public async Task<IActionResult> SalesHistory()
     {
         var rows = await LoadSalesHistoryRowsAsync();
@@ -128,6 +135,7 @@ public class ReportsController : Controller
         return View(rows);
     }
 
+    [Authorize(Roles = AppRoles.OperationalReportsAccess)]
     public async Task<IActionResult> SalesHistoryCsv()
     {
         var rows = await LoadSalesHistoryRowsAsync();
@@ -152,6 +160,7 @@ public class ReportsController : Controller
         return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-historique-ventes");
     }
 
+    [Authorize(Roles = AppRoles.OperationalReportsAccess)]
     public async Task<IActionResult> StockMovementsHistory()
     {
         var rows = await LoadStockMovementsHistoryRowsAsync();
@@ -159,6 +168,7 @@ public class ReportsController : Controller
         return View(rows);
     }
 
+    [Authorize(Roles = AppRoles.OperationalReportsAccess)]
     public async Task<IActionResult> StockMovementsHistoryCsv()
     {
         var rows = await LoadStockMovementsHistoryRowsAsync();
@@ -664,14 +674,14 @@ public class ReportsController : Controller
         }).ToList();
     }
 
-    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    [Authorize(Roles = AppRoles.FinancesAccess)]
     public async Task<IActionResult> Recapitulatif(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
         var vm = await BuildRecapitulatifAsync(dateDebut, dateFin);
         return View(vm);
     }
 
-    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    [Authorize(Roles = AppRoles.FinancesAccess)]
     public async Task<IActionResult> ExportRecapitulatifCSV(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
         var vm = await BuildRecapitulatifAsync(dateDebut, dateFin);
