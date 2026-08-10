@@ -34,7 +34,19 @@ public class CaisseService
                 && s.Statut == SessionCaisseStatut.Ouverte);
 
         if (sessionOuverte != null)
-            return (false, $"La {sessionOuverte.NomCaisse} est déjà ouverte.", 0);
+        {
+            var labels = await UserDisplayResolver.LoadLabelsByIdAsync(
+                _db, new[] { sessionOuverte.CaissierUserId });
+            var nomCaissier = UserDisplayResolver.Resolve(labels, sessionOuverte.CaissierUserId);
+            if (string.IsNullOrWhiteSpace(nomCaissier) || nomCaissier == "—")
+                nomCaissier = "un autre caissier";
+
+            return (false,
+                $"La {sessionOuverte.NomCaisse} est déjà ouverte par {nomCaissier} depuis " +
+                $"{sessionOuverte.HeureOuverture:HH:mm}. " +
+                "Demandez au Pharmacien Titulaire de forcer la fermeture si nécessaire.",
+                0);
+        }
 
         var sessionUser = await _db.SessionCaisses
             .FirstOrDefaultAsync(s =>

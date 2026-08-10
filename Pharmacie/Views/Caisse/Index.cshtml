@@ -1,5 +1,6 @@
 @using Pharmacie.Models
 @using Pharmacie.Services
+@using Pharmacie.Authorization
 @{
     ViewData["Title"] = "Caisses";
     var sessionOuverte1 = ViewBag.SessionOuverte1 as SessionCaisse;
@@ -120,10 +121,36 @@
                                 </a>
                             </div>
                         }
+                        @if (AppRoles.IsTitulaire(User))
+                        {
+                            <form asp-action="ForcerFermeture" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="sessionId" value="@session.Id" />
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-danger mt-1"
+                                        data-confirm="Forcer la fermeture de cette caisse ? Le billetage ne sera pas enregistré.">
+                                    <i class="bi bi-lock-fill me-1"></i>
+                                    Forcer fermeture
+                                </button>
+                            </form>
+                        }
                     }
                     else
                     {
-                        <p class="text-muted small mb-0">Session ouverte — détails réservés au caissier / admin.</p>
+                        <p class="text-muted small mb-2">Session ouverte — détails réservés au caissier / admin.</p>
+                        @if (AppRoles.IsTitulaire(User))
+                        {
+                            <form asp-action="ForcerFermeture" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="sessionId" value="@session.Id" />
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-danger mt-1"
+                                        data-confirm="Forcer la fermeture de cette caisse ? Le billetage ne sera pas enregistré.">
+                                    <i class="bi bi-lock-fill me-1"></i>
+                                    Forcer fermeture
+                                </button>
+                            </form>
+                        }
                     }
                 }
                 else if (derniereFermee != null)

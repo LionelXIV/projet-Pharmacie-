@@ -342,18 +342,21 @@
                         <small class="text-muted d-none d-lg-inline me-2">
                             Cliquez ici avant de fermer →
                         </small>
-                        <form asp-area="Identity"
+                        <button type="button"
+                                id="btn-terminer-session"
+                                class="btn btn-danger btn-sm"
+                                title="Terminer ma session et déconnecter"
+                                onclick="verifierAvantDeconnexion()">
+                            <i class="bi bi-power" aria-hidden="true"></i>
+                            <span class="d-none d-md-inline ms-1">Terminer la session</span>
+                        </button>
+                        <form id="form-deconnexion"
+                              asp-area="Identity"
                               asp-page="/Account/Logout"
                               asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })"
                               method="post"
-                              class="d-inline">
+                              class="d-none">
                             @Html.AntiForgeryToken()
-                            <button type="submit"
-                                    class="btn btn-danger btn-sm"
-                                    title="Terminer ma session et déconnecter">
-                                <i class="bi bi-power" aria-hidden="true"></i>
-                                <span class="d-none d-md-inline ms-1">Terminer la session</span>
-                            </button>
                         </form>
                     }
                     <partial name="_LoginPartial" />
@@ -375,6 +378,61 @@
             </footer>
         </div>
     </div>
+
+    @if (User?.Identity?.IsAuthenticated == true)
+    {
+        <div class="modal fade" id="modal-caisse-ouverte" tabindex="-1" aria-labelledby="modal-caisse-ouverte-title" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title" id="modal-caisse-ouverte-title">
+                            <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+                            Caisse encore ouverte
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>
+                            Vous avez une caisse ouverte :
+                            <strong id="modal-nom-caisse"></strong>
+                            depuis
+                            <strong id="modal-heure"></strong>.
+                        </p>
+                        <p class="text-danger fw-bold mb-0">
+                            Fermez votre caisse avant de terminer la session.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <a id="btn-fermer-caisse-modal" href="#" class="btn btn-warning">
+                            <i class="bi bi-lock me-1" aria-hidden="true"></i>
+                            Fermer ma caisse
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            Annuler
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (User?.Identity?.IsAuthenticated == true
+         && (User.IsInRole(AppRoles.PharmacienTitulaire)
+             || User.IsInRole(AppRoles.Administrateur)
+             || User.IsInRole(AppRoles.Pharmacien)
+             || User.IsInRole(AppRoles.Caissier)
+             || User.IsInRole(AppRoles.AssistantPharmacien))
+         && !IsCtrl("Sales"))
+    {
+        <a asp-controller="Sales"
+           asp-action="Create"
+           id="fab-nouvelle-vente"
+           title="Nouvelle vente"
+           aria-label="Nouvelle vente">
+            <i class="bi bi-cart-plus fs-5" aria-hidden="true"></i>
+        </a>
+    }
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -635,6 +693,33 @@ function togglePassword(fieldId) {
     }
   });
 })();
+    </script>
+    <script>
+async function verifierAvantDeconnexion() {
+    try {
+        var response = await fetch('@Url.Action("VerifierCaisseOuverte", "Caisse")', {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        });
+        if (!response.ok) {
+            document.getElementById('form-deconnexion').submit();
+            return;
+        }
+        var data = await response.json();
+
+        if (data.ouverte) {
+            document.getElementById('modal-nom-caisse').textContent = data.nomCaisse;
+            document.getElementById('modal-heure').textContent = data.heureOuverture;
+            document.getElementById('btn-fermer-caisse-modal').href = data.fermerUrl;
+
+            new bootstrap.Modal(document.getElementById('modal-caisse-ouverte')).show();
+        } else {
+            document.getElementById('form-deconnexion').submit();
+        }
+    } catch (e) {
+        document.getElementById('form-deconnexion').submit();
+    }
+}
     </script>
 </body>
 </html>

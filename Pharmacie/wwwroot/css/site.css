@@ -1340,3 +1340,38 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
     display: inline-flex !important;
   }
 }
+
+/* FAB Nouvelle vente */
+#fab-nouvelle-vente {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1050;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--ph-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+#fab-nouvelle-vente:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  background: var(--ph-primary-dark);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  #fab-nouvelle-vente {
+    width: 48px;
+    height: 48px;
+    bottom: 16px;
+    right: 16px;
+  }
+}

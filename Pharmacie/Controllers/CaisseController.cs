@@ -89,7 +89,11 @@ public class CaisseController : Controller
 
         if (deja != null && !IsAdminOrPharmacien)
         {
-            TempData["Error"] = $"La {(numero == 1 ? "Caisse Matin" : "Caisse Soir")} est déjà ouverte.";
+            var labels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, new[] { deja.CaissierUserId });
+            var nomCaissier = UserDisplayResolver.Resolve(labels, deja.CaissierUserId);
+            TempData["Error"] =
+                $"La {deja.NomCaisse} est déjà ouverte par {nomCaissier} depuis {deja.HeureOuverture:HH:mm}. " +
+                "Demandez au Pharmacien Titulaire de forcer la fermeture si nécessaire.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -361,5 +365,65 @@ public class CaisseController : Controller
         ViewBag.ConsoPrimeTotale = primeTotaleJ;
 
         return View();
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> VerifierCaisseOuverte()
+    {
+        var userId = CurrentUserId;
+        if (string.IsNullOrEmpty(userId))
+            return Json(new { ouverte = false });
+
+        var session = await _context.SessionCaisses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s =>
+                s.CaissierUserId == userId
+                && s.Statut == SessionCaisseStatut.Ouverte);
+
+        if (session == null)
+            return Json(new { ouverte = false });
+
+        return Json(new
+        {
+            ouverte = true,
+            sessionId = session.Id,
+            nomCaisse = session.NomCaisse,
+            heureOuverture = session.HeureOuverture.ToString("HH:mm"),
+            fermerUrl = Url.Action(nameof(Fermer), "Caisse", new { id = session.Id })
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> ForcerFermeture(int sessionId)
+    {
+        if (!AppRoles.IsTitulaire(User))
+        {
+            TempData["Error"] = "Action réservée au Pharmacien Titulaire.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var session = await _context.SessionCaisses
+            .FirstOrDefaultAsync(s =>
+                s.Id == sessionId
+                && s.Statut == SessionCaisseStatut.Ouverte);
+
+        if (session == null)
+        {
+            TempData["Error"] = "Session introuvable ou déjà fermée.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        session.HeureFermeture = DateTime.Now;
+        session.Statut = SessionCaisseStatut.Fermee;
+        session.Notes =
+            $"Fermée de force par le Pharmacien Titulaire le {DateTime.Now:dd/MM/yyyy HH:mm}";
+
+        await _context.SaveChangesAsync();
+
+        TempData["Success"] = $"Session {session.NomCaisse} fermée de force.";
+        return RedirectToAction(nameof(Index));
     }
 }
