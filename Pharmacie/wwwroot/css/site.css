@@ -52,12 +52,22 @@
 }
 
 /* BASE */
+html {
+  font-size: 16px;
+  position: relative;
+  min-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--ph-font-data);
   background-color: var(--ph-bg);
   color: var(--ph-text);
   font-size: 0.9rem;
   margin-bottom: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -195,12 +205,6 @@ a:hover {
 /*
   Utilitaires pages — thème Pharmacie (design system --ph-*).
 */
-html {
-  font-size: 16px;
-  position: relative;
-  min-height: 100%;
-}
-
 @media (min-width: 768px) {
   html {
     font-size: 16px;
@@ -756,8 +760,8 @@ main h1:not(.hero-title) {
   border-bottom: 1px solid var(--ph-border);
   border-radius: 0.5rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(251, 252, 251, 0) 100%);
-  margin-left: -0.35rem;
-  margin-right: -0.35rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (min-width: 576px) {
@@ -786,6 +790,8 @@ main h1:not(.hero-title) {
   border: 1px solid rgba(26, 107, 60, 0.12);
   box-shadow: 0 1px 0 rgba(26, 107, 60, 0.06), 0 6px 20px rgba(15, 23, 42, 0.05);
   overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .table-card .table {
@@ -1058,19 +1064,25 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 .ph-app {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .ph-sidebar {
   width: var(--ph-sidebar-width);
+  min-width: var(--ph-sidebar-width);
+  flex-shrink: 0;
   background-color: var(--ph-sidebar-bg);
   color: var(--ph-sidebar-text);
   display: flex;
   flex-direction: column;
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
+  align-self: flex-start;
   height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
   z-index: 1000;
   transition: transform 0.3s ease;
 }
@@ -1124,6 +1136,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   border-radius: 0;
   transition: all 0.15s ease;
   text-decoration: none;
+  min-width: 0;
 }
 
 .ph-sidebar-nav .nav-link:hover {
@@ -1140,6 +1153,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 .ph-sidebar-nav .nav-link i {
   font-size: 1rem;
   width: 1.25rem;
+  flex-shrink: 0;
 }
 
 .ph-sidebar-user {
@@ -1150,11 +1164,16 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   border-top: 1px solid rgba(255,255,255,0.08);
   font-size: 0.8rem;
   color: var(--ph-sidebar-text);
+  min-width: 0;
 }
 
-.ph-main {
-  margin-left: var(--ph-sidebar-width);
-  flex: 1;
+/* Contenu principal : prend l'espace restant, peut rétrécir (min-width:0) */
+.ph-main,
+.main-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -1172,19 +1191,29 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   top: 0;
   z-index: 100;
   box-shadow: var(--ph-shadow);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ph-page-title {
   font-family: var(--ph-font-ui);
   font-weight: 600;
   color: var(--ph-text);
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ph-topbar-actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
 }
 
 .ph-topbar-actions .navbar-nav {
@@ -1207,15 +1236,14 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 
 .ph-content-wrapper {
   padding: 1.5rem;
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Responsive simple */
 @media (max-width: 991px) {
-  .ph-main {
-    margin-left: 0;
-  }
-
   .ph-topbar {
     padding: 0 1rem;
   }
@@ -1225,14 +1253,12 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
     flex: 1;
     text-align: center;
     font-size: 0.75rem;
+    min-width: 0;
   }
 
   .ph-page-title {
     flex: 0 1 auto;
     max-width: 40%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .ph-content-wrapper {
@@ -1255,6 +1281,9 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 
 @media (max-width: 991.98px) {
   .ph-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
     transform: translateX(-100%);
     transition: transform 0.28s ease;
     z-index: 1000;
@@ -1262,8 +1291,10 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   .ph-sidebar.sidebar-open {
     transform: translateX(0);
   }
-  .ph-main {
-    margin-left: 0 !important;
+  .ph-main,
+  .main-content {
+    width: 100%;
+    max-width: 100%;
   }
   .ph-burger {
     display: inline-flex !important;
