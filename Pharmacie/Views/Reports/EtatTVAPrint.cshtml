@@ -7,7 +7,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>État TVA @Model.MoisAnnee</title>
+    <title>État TVA @Model.PeriodeLabel</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -82,7 +82,7 @@
 
     <div class="no-print">
         <button type="button" onclick="window.print()">Imprimer / PDF</button>
-        <a href="/Reports/EtatTVA?mois=@Model.Mois&amp;annee=@Model.Annee">Retour</a>
+        <a href="/Reports/EtatTVA?dateDebut=@Model.DateDebut.ToString("yyyy-MM-dd")&amp;dateFin=@Model.DateFin.ToString("yyyy-MM-dd")">Retour</a>
     </div>
 
     <script>

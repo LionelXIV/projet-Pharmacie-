@@ -352,36 +352,39 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
-    public async Task<IActionResult> EtatTVA(int? mois = null, int? annee = null)
+    public async Task<IActionResult> EtatTVA(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
-        var vm = await BuildEtatTVAAsync(mois, annee);
+        var vm = await BuildEtatTVAAsync(dateDebut, dateFin);
         return View(vm);
     }
 
     /// <summary>Page imprimable (export PDF via impression navigateur).</summary>
     [Authorize(Roles = AppRoles.FinancesAccess)]
-    public async Task<IActionResult> ExportTVAPdf(int? mois = null, int? annee = null)
+    public async Task<IActionResult> ExportTVAPdf(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
-        var vm = await BuildEtatTVAAsync(mois, annee);
+        var vm = await BuildEtatTVAAsync(dateDebut, dateFin);
         return View("EtatTVAPrint", vm);
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
-    public async Task<IActionResult> EtatTVAPrint(int? mois = null, int? annee = null)
+    public async Task<IActionResult> EtatTVAPrint(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
-        var vm = await BuildEtatTVAAsync(mois, annee);
+        var vm = await BuildEtatTVAAsync(dateDebut, dateFin);
         return View(vm);
     }
 
-    private async Task<EtatTVAViewModel> BuildEtatTVAAsync(int? mois, int? annee)
+    private async Task<EtatTVAViewModel> BuildEtatTVAAsync(DateTime? dateDebut, DateTime? dateFin)
     {
-        var m = mois ?? DateTime.Now.Month;
-        var a = annee ?? DateTime.Now.Year;
-        if (m < 1 || m > 12) m = DateTime.Now.Month;
-        if (a < 2020 || a > 2100) a = DateTime.Now.Year;
+        var debut = (dateDebut ?? new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1)).Date;
+        var fin = (dateFin ?? DateTime.Today).Date;
+        if (fin < debut)
+            (debut, fin) = (fin, debut);
 
-        var debut = new DateTime(a, m, 1);
-        var finExclusive = debut.AddMonths(1);
+        // Garde-fou : période max 366 jours
+        if ((fin - debut).TotalDays > 366)
+            fin = debut.AddDays(366);
+
+        var finExclusive = fin.AddDays(1);
 
         var ventes = await ProduitsExtrasFilter.WhereSansExtras(
                 _db.Sales
@@ -407,9 +410,8 @@ public class ReportsController : Controller
             })
             .ToList();
 
-        // Jours du mois sans vente : afficher 0 pour compléter le tableau DGID
         var joursComplets = new List<EtatTVALigneViewModel>();
-        for (var day = debut; day < finExclusive; day = day.AddDays(1))
+        for (var day = debut; day <= fin; day = day.AddDays(1))
         {
             var existing = lignesParJour.FirstOrDefault(l => l.Date == day);
             joursComplets.Add(existing ?? new EtatTVALigneViewModel { Date = day });
@@ -417,8 +419,8 @@ public class ReportsController : Controller
 
         return new EtatTVAViewModel
         {
-            Mois = m,
-            Annee = a,
+            DateDebut = debut,
+            DateFin = fin,
             Lignes = joursComplets,
             TotalExonere = joursComplets.Sum(l => l.MontantExonere),
             TotalHT = joursComplets.Sum(l => l.MontantHT),

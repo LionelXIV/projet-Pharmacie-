@@ -4,19 +4,27 @@ namespace Pharmacie.Models;
 
 public class EtatTVAViewModel
 {
-    public int Mois { get; set; }
-    public int Annee { get; set; }
+    public DateTime DateDebut { get; set; }
+    public DateTime DateFin { get; set; }
+
     public List<EtatTVALigneViewModel> Lignes { get; set; } = new();
     public decimal TotalExonere { get; set; }
     public decimal TotalHT { get; set; }
     public decimal TotalTVA { get; set; }
     public decimal TotalTTC { get; set; }
 
-    public string MoisAnnee =>
-        new DateTime(Annee, Mois, 1).ToString("MMMM yyyy", new CultureInfo("fr-FR"));
+    public string PeriodeLabel =>
+        $"DU {DateDebut:dd/MM/yyyy} AU {DateFin:dd/MM/yyyy}";
 
-    public DateTime DebutPeriode => new(Annee, Mois, 1);
-    public DateTime FinPeriode => DebutPeriode.AddMonths(1).AddDays(-1);
+    /// <summary>Conservé pour compatibilité affichage (mois de début).</summary>
+    public int Mois => DateDebut.Month;
+    public int Annee => DateDebut.Year;
+
+    public string MoisAnnee =>
+        DateDebut.ToString("MMMM yyyy", new CultureInfo("fr-FR"));
+
+    public DateTime DebutPeriode => DateDebut.Date;
+    public DateTime FinPeriode => DateFin.Date;
 }
 
 public class EtatTVALigneViewModel

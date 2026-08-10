@@ -14,5 +14,8 @@ public enum TarifType
     ParapharmSansTVA = 2,
 
     [Display(Name = "Parapharmacie avec TVA (×1.5 + 18%)")]
-    ParapharmAvecTVA = 3
+    ParapharmAvecTVA = 3,
+
+    [Display(Name = "Prix public (PPH) avec TVA 18%")]
+    PrixPublicPPHAvecTVA = 4
 }

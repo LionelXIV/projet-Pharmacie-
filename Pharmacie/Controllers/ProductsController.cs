@@ -711,6 +711,48 @@ public class ProductsController : Controller
         });
     }
 
+    [HttpGet]
+    [Authorize(Roles = AppRoles.CatalogManage)]
+    public async Task<IActionResult> Anomalies(string? filtre = null)
+    {
+        const string categorieACategoriser = "À catégoriser";
+
+        var produits = await _context.Products
+            .AsNoTracking()
+            .Include(p => p.Category)
+            .Include(p => p.Supplier)
+            .Where(p => p.IsActive &&
+                (p.SalePrice == 0
+                 || p.PurchasePrice == 0
+                 || p.ProductType == ProductType.Inconnu
+                 || p.AlertThreshold == 0
+                 || (p.Category != null && p.Category.Name == categorieACategoriser)))
+            .OrderBy(p => p.CommercialName)
+            .ToListAsync();
+
+        ViewBag.PrixVenteZero = produits.Count(p => p.SalePrice == 0);
+        ViewBag.PrixAchatZero = produits.Count(p => p.PurchasePrice == 0);
+        ViewBag.TypeInconnu = produits.Count(p => p.ProductType == ProductType.Inconnu);
+        ViewBag.SeuilZero = produits.Count(p => p.AlertThreshold == 0);
+        ViewBag.SansCategorie = produits.Count(p =>
+            p.Category != null && p.Category.Name == categorieACategoriser);
+        ViewBag.Filtre = filtre;
+        ViewBag.TotalAnomalies = produits.Count;
+
+        if (filtre == "prix")
+            produits = produits.Where(p => p.SalePrice == 0).ToList();
+        else if (filtre == "type")
+            produits = produits.Where(p => p.ProductType == ProductType.Inconnu).ToList();
+        else if (filtre == "seuil")
+            produits = produits.Where(p => p.AlertThreshold == 0).ToList();
+        else if (filtre == "categorie")
+            produits = produits
+                .Where(p => p.Category != null && p.Category.Name == categorieACategoriser)
+                .ToList();
+
+        return View(produits);
+    }
+
     private async Task<bool> ProductExistsAsync(int id) =>
         await _context.Products.AnyAsync(e => e.Id == id);
 

@@ -28,6 +28,7 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+@inject Pharmacie.Data.ApplicationDbContext DbContext
 @{
     var routeController = (ViewContext.RouteData.Values["controller"] as string) ?? string.Empty;
     var routeAction = (ViewContext.RouteData.Values["action"] as string) ?? string.Empty;
@@ -59,6 +60,13 @@
     var showVendeursMenu = showAdminSection;
     var showPerformanceVendeurs = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessFinances(User);
     var antiforgeryTokens = Antiforgery.GetAndStoreTokens(Context);
+
+    var nbAnomalies = 0;
+    if (User?.Identity?.IsAuthenticated == true && AppRoles.CanManageCatalog(User))
+    {
+        nbAnomalies = DbContext.Products.Count(p =>
+            p.IsActive && (p.SalePrice == 0 || p.ProductType == Pharmacie.Models.ProductType.Inconnu));
+    }
 }
 <body>
     <input type="hidden"
@@ -113,11 +121,22 @@
                 {
                     <div class="ph-nav-section">
                         <span class="ph-nav-label">Catalogue</span>
-                        <a class="nav-link @(IsCtrl("Products") ? "active" : null)" asp-controller="Products" asp-action="Index" aria-current="@(IsCtrl("Products") ? "page" : null)">
+                        <a class="nav-link @(IsCtrl("Products") && IsAction("Index") ? "active" : null)" asp-controller="Products" asp-action="Index" aria-current="@(IsCtrl("Products") && IsAction("Index") ? "page" : null)">
                             <i class="bi bi-capsule" aria-hidden="true"></i>Produits
                         </a>
                         @if (User?.Identity?.IsAuthenticated == true && AppRoles.CanManageCatalog(User))
                         {
+                            <a class="nav-link d-flex align-items-center @(IsCtrl("Products") && IsAction("Anomalies") ? "active" : null)"
+                               asp-controller="Products"
+                               asp-action="Anomalies"
+                               aria-current="@(IsCtrl("Products") && IsAction("Anomalies") ? "page" : null)">
+                                <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+                                <span>Anomalies produits</span>
+                                @if (nbAnomalies > 0)
+                                {
+                                    <span class="badge bg-danger ms-auto">@nbAnomalies</span>
+                                }
+                            </a>
                             <a class="nav-link @(IsCtrl("Categories") ? "active" : null)" asp-controller="Categories" asp-action="Index" aria-current="@(IsCtrl("Categories") ? "page" : null)">
                                 <i class="bi bi-bookmark" aria-hidden="true"></i>Catégories
                             </a>

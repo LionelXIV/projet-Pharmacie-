@@ -48,6 +48,13 @@ public static class TVACalculator
                     product.SalePrice = Math.Round(ht * (1 + TauxStandard), 0);
                 }
                 break;
+
+            case TarifType.PrixPublicPPHAvecTVA:
+                product.Coefficient = null;
+                product.AssujettiTVA = true;
+                product.TauxTVA = 18;
+                // Prix de vente = PPH (pas de recalcul automatique)
+                break;
         }
     }
 
@@ -65,7 +72,9 @@ public static class TVACalculator
                 return (total, 0, 0, total);
 
             case TarifType.Consommable:
+            case TarifType.PrixPublicPPHAvecTVA:
             {
+                // Prix TTC → extraction TVA 18%
                 var ht = Math.Round(total / (1 + TauxStandard), 0);
                 var tva = total - ht;
                 return (0, ht, tva, total);

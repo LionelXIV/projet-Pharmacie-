@@ -1,0 +1,137 @@
+@model IList<Product>
+@{
+    ViewData["Title"] = "Anomalies produits";
+    var filtre = ViewBag.Filtre as string;
+    var total = (int)(ViewBag.TotalAnomalies ?? 0);
+
+    string TypeLabel(ProductType type) => type switch
+    {
+        ProductType.Medicament => "Médicament",
+        ProductType.Parapharmacie => "Parapharmacie",
+        _ => "Inconnu"
+    };
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+    <div>
+        <h1 class="page-title">Anomalies produits</h1>
+        <p class="page-lead mb-0">Produits actifs à corriger après import ou saisie incomplète.</p>
+    </div>
+</div>
+
+<div class="row g-2 mb-3">
+    <div class="col-auto">
+        <span class="badge bg-danger fs-6">@ViewBag.PrixVenteZero sans prix de vente</span>
+    </div>
+    <div class="col-auto">
+        <span class="badge bg-danger fs-6">@ViewBag.PrixAchatZero sans prix d'achat</span>
+    </div>
+    <div class="col-auto">
+        <span class="badge bg-warning text-dark fs-6">@ViewBag.TypeInconnu type inconnu</span>
+    </div>
+    <div class="col-auto">
+        <span class="badge bg-secondary fs-6">@ViewBag.SeuilZero sans seuil d'alerte</span>
+    </div>
+    <div class="col-auto">
+        <span class="badge bg-info fs-6">@ViewBag.SansCategorie sans catégorie</span>
+    </div>
+</div>
+
+<div class="d-flex gap-2 mb-3 flex-wrap">
+    <a asp-action="Anomalies"
+       class="btn btn-sm @(string.IsNullOrEmpty(filtre) ? "btn-secondary" : "btn-outline-secondary")">
+        Tous (@total)
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="prix"
+       class="btn btn-sm @(filtre == "prix" ? "btn-danger" : "btn-outline-danger")">
+        Prix = 0
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="type"
+       class="btn btn-sm @(filtre == "type" ? "btn-warning" : "btn-outline-warning")">
+        Type inconnu
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="seuil"
+       class="btn btn-sm @(filtre == "seuil" ? "btn-secondary" : "btn-outline-secondary")">
+        Seuil = 0
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="categorie"
+       class="btn btn-sm @(filtre == "categorie" ? "btn-info" : "btn-outline-info")">
+        Sans catégorie
+    </a>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Nom</th>
+                <th>CIP</th>
+                <th class="text-end">Prix achat</th>
+                <th class="text-end">Prix vente</th>
+                <th>Type</th>
+                <th>Catégorie</th>
+                <th class="text-end">Seuil</th>
+                <th>Anomalies</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @if (Model.Count == 0)
+        {
+            <tr>
+                <td colspan="9" class="text-muted text-center py-4">Aucune anomalie pour ce filtre.</td>
+            </tr>
+        }
+        else
+        {
+            foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.CommercialName</td>
+                    <td>@(item.Cip ?? "—")</td>
+                    <td class="text-end">@item.PurchasePrice.ToString("N0") F</td>
+                    <td class="text-end">@item.SalePrice.ToString("N0") F</td>
+                    <td>@TypeLabel(item.ProductType)</td>
+                    <td>@(item.Category?.Name ?? "—")</td>
+                    <td class="text-end">@item.AlertThreshold</td>
+                    <td>
+                        @if (item.SalePrice == 0)
+                        {
+                            <span class="badge bg-danger">Prix vente = 0</span>
+                        }
+                        @if (item.PurchasePrice == 0)
+                        {
+                            <span class="badge bg-danger">Prix achat = 0</span>
+                        }
+                        @if (item.ProductType == ProductType.Inconnu)
+                        {
+                            <span class="badge bg-warning text-dark">Type inconnu</span>
+                        }
+                        @if (item.AlertThreshold == 0)
+                        {
+                            <span class="badge bg-secondary">Seuil = 0</span>
+                        }
+                        @if (item.Category != null && item.Category.Name == "À catégoriser")
+                        {
+                            <span class="badge bg-info">Sans catégorie</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-action="Edit"
+                           asp-route-id="@item.Id"
+                           class="btn btn-sm btn-warning">
+                            <i class="bi bi-pencil me-1"></i>Corriger
+                        </a>
+                    </td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>
