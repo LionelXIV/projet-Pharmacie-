@@ -250,12 +250,12 @@ public class DashboardController : Controller
             .GroupBy(s => s.SoldAt.Date)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        var days = Enumerable.Range(0, 30)
-            .Select(offset =>
+        // Uniquement les jours avec au moins une vente officielle (pas de lignes à 0)
+        var days = byDay
+            .Select(kv =>
             {
-                var day = from.AddDays(offset);
-                byDay.TryGetValue(day, out var daySales);
-                daySales ??= [];
+                var day = kv.Key;
+                var daySales = kv.Value;
 
                 var lignesOff = daySales.SelectMany(s => ProduitsExtrasFilter.LignesOfficielles(s.Lines)).ToList();
                 var ca = lignesOff.Sum(l => l.UnitPrice * l.Quantity);
@@ -272,6 +272,7 @@ public class DashboardController : Controller
                     PanierMoyen = nb > 0 ? ca / nb : 0m
                 };
             })
+            .Where(d => d.NbVentes > 0)
             .OrderByDescending(d => d.Date)
             .ToList();
 
@@ -326,7 +327,6 @@ public class DashboardController : Controller
 
         var tableauJournalier = ventesParJour
             .GroupBy(s => s.SoldAt.Date)
-            .OrderBy(g => g.Key)
             .Select(g =>
             {
                 var (exonere, ht, tva, ttc) = TVACalculator.CalculerTVAJournee(g);
@@ -339,6 +339,8 @@ public class DashboardController : Controller
                     TTC = ttc,
                 };
             })
+            .Where(d => d.TTC != 0 || d.Exonere != 0 || d.HT != 0 || d.TVA != 0)
+            .OrderByDescending(d => d.Date)
             .ToList();
 
         ViewBag.TableauJournalier = JsonSerializer.Serialize(tableauJournalier);
