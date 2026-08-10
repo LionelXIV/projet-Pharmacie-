@@ -713,11 +713,14 @@ public class ProductsController : Controller
 
     [HttpGet]
     [Authorize(Roles = AppRoles.CatalogManage)]
-    public async Task<IActionResult> Anomalies(string? filtre = null)
+    public async Task<IActionResult> Anomalies(string? filtre = null, int page = 1)
     {
         const string categorieACategoriser = "À catégoriser";
+        const int pageSize = 20;
+        if (page < 1)
+            page = 1;
 
-        var produits = await _context.Products
+        var query = _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Supplier)
@@ -726,31 +729,100 @@ public class ProductsController : Controller
                  || p.PurchasePrice == 0
                  || p.ProductType == ProductType.Inconnu
                  || p.AlertThreshold == 0
-                 || (p.Category != null && p.Category.Name == categorieACategoriser)))
-            .OrderBy(p => p.CommercialName)
-            .ToListAsync();
+                 || (p.Category != null && p.Category.Name == categorieACategoriser)));
 
-        ViewBag.PrixVenteZero = produits.Count(p => p.SalePrice == 0);
-        ViewBag.PrixAchatZero = produits.Count(p => p.PurchasePrice == 0);
-        ViewBag.TypeInconnu = produits.Count(p => p.ProductType == ProductType.Inconnu);
-        ViewBag.SeuilZero = produits.Count(p => p.AlertThreshold == 0);
-        ViewBag.SansCategorie = produits.Count(p =>
+        // Compteurs badges (ensemble non filtré)
+        var allForCounts = await query.ToListAsync();
+        ViewBag.PrixVenteZero = allForCounts.Count(p => p.SalePrice == 0);
+        ViewBag.PrixAchatZero = allForCounts.Count(p => p.PurchasePrice == 0);
+        ViewBag.TypeInconnu = allForCounts.Count(p => p.ProductType == ProductType.Inconnu);
+        ViewBag.SeuilZero = allForCounts.Count(p => p.AlertThreshold == 0);
+        ViewBag.SansCategorie = allForCounts.Count(p =>
             p.Category != null && p.Category.Name == categorieACategoriser);
+        ViewBag.TotalAnomalies = allForCounts.Count;
         ViewBag.Filtre = filtre;
-        ViewBag.TotalAnomalies = produits.Count;
 
         if (filtre == "prix")
-            produits = produits.Where(p => p.SalePrice == 0).ToList();
+            query = query.Where(p => p.SalePrice == 0);
         else if (filtre == "type")
-            produits = produits.Where(p => p.ProductType == ProductType.Inconnu).ToList();
+            query = query.Where(p => p.ProductType == ProductType.Inconnu);
         else if (filtre == "seuil")
-            produits = produits.Where(p => p.AlertThreshold == 0).ToList();
+            query = query.Where(p => p.AlertThreshold == 0);
         else if (filtre == "categorie")
-            produits = produits
-                .Where(p => p.Category != null && p.Category.Name == categorieACategoriser)
-                .ToList();
+            query = query.Where(p => p.Category != null && p.Category.Name == categorieACategoriser);
+
+        var total = await query.CountAsync();
+        var totalPages = total == 0 ? 1 : (int)Math.Ceiling(total / (decimal)pageSize);
+        if (page > totalPages)
+            page = totalPages;
+
+        var produits = await query
+            .OrderBy(p => p.CommercialName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        ViewBag.Page = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.Total = total;
 
         return View(produits);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Pharmacien}")]
+    public async Task<IActionResult> CorrigerGroupeAnomalie(
+        List<int> productIds,
+        string champAcorriger,
+        string nouvelleValeur)
+    {
+        if (productIds == null || productIds.Count == 0)
+        {
+            TempData["Error"] = "Sélectionnez au moins un produit.";
+            return RedirectToAction(nameof(Anomalies));
+        }
+
+        var produits = await _context.Products
+            .Where(p => productIds.Contains(p.Id))
+            .ToListAsync();
+
+        foreach (var p in produits)
+        {
+            switch (champAcorriger)
+            {
+                case "ProductType":
+                    if (Enum.TryParse<ProductType>(nouvelleValeur, out var pt))
+                        p.ProductType = pt;
+                    break;
+                case "TarifType":
+                {
+                    TarifType? tt = null;
+                    if (Enum.TryParse<TarifType>(nouvelleValeur, ignoreCase: true, out var parsedName))
+                        tt = parsedName;
+                    else if (int.TryParse(nouvelleValeur, out var ttInt)
+                             && Enum.IsDefined(typeof(TarifType), ttInt))
+                        tt = (TarifType)ttInt;
+
+                    if (tt.HasValue)
+                    {
+                        p.TarifType = tt.Value;
+                        TVACalculator.AppliquerTarif(p);
+                    }
+                    break;
+                }
+                case "MinStockLevel":
+                case "AlertThreshold":
+                    if (int.TryParse(nouvelleValeur, out var sl))
+                        p.AlertThreshold = sl;
+                    break;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        TempData["Success"] = $"{produits.Count} produit(s) corrigé(s) avec succès.";
+        return RedirectToAction(nameof(Anomalies));
     }
 
     private async Task<bool> ProductExistsAsync(int id) =>

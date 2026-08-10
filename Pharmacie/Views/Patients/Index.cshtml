@@ -21,10 +21,19 @@
             <h1 class="page-title">Portefeuille patients</h1>
             <p class="page-lead mb-0">Coordonnées, informations de santé, ordonnances et rappels.</p>
         </div>
-        @if (canManage)
-        {
-            <a class="btn btn-primary flex-shrink-0" asp-action="Create"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Nouveau patient</a>
-        }
+        <div class="d-flex flex-wrap gap-2 flex-shrink-0">
+            <a asp-action="ImprimerPortefeuille"
+               asp-route-auto="true"
+               target="_blank"
+               class="btn btn-outline-success">
+                <i class="bi bi-file-pdf me-1"></i>
+                Exporter PDF
+            </a>
+            @if (canManage)
+            {
+                <a class="btn btn-primary" asp-action="Create"><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Nouveau patient</a>
+            }
+        </div>
     </div>
 </div>
 

@@ -3,6 +3,9 @@
     ViewData["Title"] = "Anomalies produits";
     var filtre = ViewBag.Filtre as string;
     var total = (int)(ViewBag.TotalAnomalies ?? 0);
+    var page = (int)(ViewBag.Page ?? 1);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+    var totalFiltered = (int)(ViewBag.Total ?? Model.Count);
 
     string TypeLabel(ProductType type) => type switch
     {
@@ -20,6 +23,15 @@
         <p class="page-lead mb-0">Produits actifs à corriger après import ou saisie incomplète.</p>
     </div>
 </div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
 
 <div class="row g-2 mb-3">
     <div class="col-auto">
@@ -66,72 +78,201 @@
     </a>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-sm table-hover align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>Nom</th>
-                <th>CIP</th>
-                <th class="text-end">Prix achat</th>
-                <th class="text-end">Prix vente</th>
-                <th>Type</th>
-                <th>Catégorie</th>
-                <th class="text-end">Seuil</th>
-                <th>Anomalies</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-        @if (Model.Count == 0)
-        {
-            <tr>
-                <td colspan="9" class="text-muted text-center py-4">Aucune anomalie pour ce filtre.</td>
-            </tr>
-        }
-        else
-        {
-            foreach (var item in Model)
+<form asp-action="CorrigerGroupeAnomalie" method="post" id="form-groupe">
+    @Html.AntiForgeryToken()
+
+    <div class="card border-warning mb-3" id="barre-groupe" style="display:none">
+        <div class="card-body py-2 d-flex gap-3 align-items-center flex-wrap">
+            <span class="fw-bold">
+                Action groupée sur
+                <span id="nb-selectionnes">0</span>
+                produit(s) :
+            </span>
+
+            <select name="champAcorriger"
+                    class="form-select form-select-sm"
+                    style="width:180px"
+                    id="champ-select"
+                    onchange="updateValeurOptions(this.value)">
+                <option value="">Choisir le champ...</option>
+                <option value="ProductType">Type de produit</option>
+                <option value="TarifType">Tarification TVA</option>
+                <option value="AlertThreshold">Seuil d'alerte</option>
+            </select>
+
+            <select name="nouvelleValeur"
+                    class="form-select form-select-sm"
+                    style="width:200px"
+                    id="valeur-select">
+                <option value="">Choisir la valeur...</option>
+            </select>
+
+            <button type="submit"
+                    class="btn btn-warning btn-sm"
+                    onclick="return confirm('Appliquer cette correction à tous les produits sélectionnés ?');">
+                <i class="bi bi-check-lg me-1"></i>
+                Appliquer
+            </button>
+
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    onclick="deselectionnerTout()">
+                Tout désélectionner
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th style="width:40px">
+                        <input type="checkbox" id="select-all" onchange="toggleAll(this)" />
+                    </th>
+                    <th>Nom</th>
+                    <th>CIP</th>
+                    <th class="text-end">Prix achat</th>
+                    <th class="text-end">Prix vente</th>
+                    <th>Type</th>
+                    <th>Catégorie</th>
+                    <th class="text-end">Seuil</th>
+                    <th>Anomalies</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Count == 0)
             {
                 <tr>
-                    <td>@item.CommercialName</td>
-                    <td>@(item.Cip ?? "—")</td>
-                    <td class="text-end">@item.PurchasePrice.ToString("N0") F</td>
-                    <td class="text-end">@item.SalePrice.ToString("N0") F</td>
-                    <td>@TypeLabel(item.ProductType)</td>
-                    <td>@(item.Category?.Name ?? "—")</td>
-                    <td class="text-end">@item.AlertThreshold</td>
-                    <td>
-                        @if (item.SalePrice == 0)
-                        {
-                            <span class="badge bg-danger">Prix vente = 0</span>
-                        }
-                        @if (item.PurchasePrice == 0)
-                        {
-                            <span class="badge bg-danger">Prix achat = 0</span>
-                        }
-                        @if (item.ProductType == ProductType.Inconnu)
-                        {
-                            <span class="badge bg-warning text-dark">Type inconnu</span>
-                        }
-                        @if (item.AlertThreshold == 0)
-                        {
-                            <span class="badge bg-secondary">Seuil = 0</span>
-                        }
-                        @if (item.Category != null && item.Category.Name == "À catégoriser")
-                        {
-                            <span class="badge bg-info">Sans catégorie</span>
-                        }
-                    </td>
-                    <td>
-                        <a asp-action="Edit"
-                           asp-route-id="@item.Id"
-                           class="btn btn-sm btn-warning">
-                            <i class="bi bi-pencil me-1"></i>Corriger
-                        </a>
-                    </td>
+                    <td colspan="10" class="text-muted text-center py-4">Aucune anomalie pour ce filtre.</td>
                 </tr>
             }
-        }
-        </tbody>
-    </table>
-</div>
+            else
+            {
+                foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <input type="checkbox"
+                                   name="productIds"
+                                   value="@item.Id"
+                                   class="product-cb"
+                                   onchange="updateBarre()" />
+                        </td>
+                        <td>@item.CommercialName</td>
+                        <td>@(item.Cip ?? "—")</td>
+                        <td class="text-end">@item.PurchasePrice.ToString("N0") F</td>
+                        <td class="text-end">@item.SalePrice.ToString("N0") F</td>
+                        <td>@TypeLabel(item.ProductType)</td>
+                        <td>@(item.Category?.Name ?? "—")</td>
+                        <td class="text-end">@item.AlertThreshold</td>
+                        <td>
+                            @if (item.SalePrice == 0)
+                            {
+                                <span class="badge bg-danger">Prix vente = 0</span>
+                            }
+                            @if (item.PurchasePrice == 0)
+                            {
+                                <span class="badge bg-danger">Prix achat = 0</span>
+                            }
+                            @if (item.ProductType == ProductType.Inconnu)
+                            {
+                                <span class="badge bg-warning text-dark">Type inconnu</span>
+                            }
+                            @if (item.AlertThreshold == 0)
+                            {
+                                <span class="badge bg-secondary">Seuil = 0</span>
+                            }
+                            @if (item.Category != null && item.Category.Name == "À catégoriser")
+                            {
+                                <span class="badge bg-info">Sans catégorie</span>
+                            }
+                        </td>
+                        <td>
+                            <a asp-action="Edit"
+                               asp-route-id="@item.Id"
+                               class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil me-1"></i>Corriger
+                            </a>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</form>
+
+@if (totalPages > 1)
+{
+    <nav aria-label="Pagination anomalies" class="mt-3">
+        <ul class="pagination pagination-sm mb-0">
+            @for (int i = 1; i <= totalPages; i++)
+            {
+                <li class="page-item @(i == page ? "active" : "")">
+                    <a class="page-link"
+                       asp-action="Anomalies"
+                       asp-route-page="@i"
+                       asp-route-filtre="@filtre">
+                        @i
+                    </a>
+                </li>
+            }
+        </ul>
+    </nav>
+    <p class="text-muted small mt-2 mb-0">Page @(page) / @totalPages — @totalFiltered résultat(s)</p>
+}
+
+<script>
+var optionsParChamp = {
+    ProductType: [
+        { v: 'Medicament', l: 'Médicament' },
+        { v: 'Parapharmacie', l: 'Parapharmacie' },
+        { v: 'Inconnu', l: 'Inconnu' }
+    ],
+    TarifType: [
+        { v: '0', l: 'Prix public PPH' },
+        { v: '1', l: 'Consommable ×1.436' },
+        { v: '2', l: 'Parapharmacie sans TVA' },
+        { v: '3', l: 'Parapharmacie avec TVA' },
+        { v: '4', l: 'PPH avec TVA 18%' }
+    ],
+    AlertThreshold: [
+        { v: '5', l: 'Seuil = 5' },
+        { v: '10', l: 'Seuil = 10' },
+        { v: '20', l: 'Seuil = 20' },
+        { v: '50', l: 'Seuil = 50' }
+    ]
+};
+
+function updateValeurOptions(champ) {
+    var sel = document.getElementById('valeur-select');
+    sel.innerHTML = '<option value="">Valeur...</option>';
+    if (optionsParChamp[champ]) {
+        optionsParChamp[champ].forEach(function (o) {
+            sel.innerHTML += '<option value="' + o.v + '">' + o.l + '</option>';
+        });
+    }
+}
+
+function toggleAll(cb) {
+    document.querySelectorAll('.product-cb').forEach(function (c) {
+        c.checked = cb.checked;
+    });
+    updateBarre();
+}
+
+function updateBarre() {
+    var nb = document.querySelectorAll('.product-cb:checked').length;
+    document.getElementById('nb-selectionnes').textContent = nb;
+    document.getElementById('barre-groupe').style.display = nb > 0 ? 'block' : 'none';
+}
+
+function deselectionnerTout() {
+    document.querySelectorAll('.product-cb').forEach(function (c) {
+        c.checked = false;
+    });
+    document.getElementById('select-all').checked = false;
+    updateBarre();
+}
+</script>

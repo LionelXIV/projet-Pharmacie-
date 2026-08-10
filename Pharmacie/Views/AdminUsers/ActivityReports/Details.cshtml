@@ -13,8 +13,17 @@
                 <a asp-action="ActivityReports"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Rapports utilisateurs</a>
             </nav>
         </div>
-        <a class="btn btn-outline-secondary flex-shrink-0" asp-action="ExportActivityReportCsv" asp-route-reportId="@Model.Id">
+        <a class="btn btn-outline-success flex-shrink-0"
+           asp-action="ExportActivityReportCsv"
+           asp-route-reportId="@Model.Id">
             <i class="bi bi-download me-1" aria-hidden="true"></i>Exporter en CSV
+        </a>
+        <a class="btn btn-success flex-shrink-0"
+           asp-action="ImprimerRapportUtilisateur"
+           asp-route-id="@Model.Id"
+           asp-route-auto="true"
+           target="_blank">
+            <i class="bi bi-file-pdf me-1" aria-hidden="true"></i>PDF
         </a>
     </div>
 </div>

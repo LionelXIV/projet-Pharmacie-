@@ -460,6 +460,17 @@ public class AdminUsersController : Controller
         return View("ActivityReports/Details", report);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> ImprimerRapportUtilisateur(int id)
+    {
+        var report = await _context.UserActivityReports.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (report == null)
+            return NotFound();
+
+        return View("RapportUtilisateurPrint", report);
+    }
+
     public async Task<IActionResult> ExportActivityReportCsv(int reportId)
     {
         var report = await _context.UserActivityReports.AsNoTracking()

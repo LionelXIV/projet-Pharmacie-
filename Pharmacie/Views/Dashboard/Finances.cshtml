@@ -179,9 +179,9 @@
     </button>
   </div>
   <div class="card-body p-0">
-    <div class="table-responsive">
+    <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;" class="table-responsive">
       <table class="table table-bordered table-sm table-hover mb-0">
-        <thead class="table-dark">
+        <thead class="table-dark" style="position: sticky; top: 0; z-index: 1;">
           <tr>
             <th>DATE</th>
             <th class="text-end">MONTANT EXONÉRÉ</th>
@@ -192,17 +192,19 @@
         </thead>
         <tbody id="tableau-journalier-body">
         </tbody>
-        <tfoot class="table-warning fw-bold">
-          <tr>
-            <td>TOTAL</td>
-            <td class="text-end" id="total-exonere">—</td>
-            <td class="text-end" id="total-ht">—</td>
-            <td class="text-end" id="total-tva">—</td>
-            <td class="text-end" id="total-ttc">—</td>
-          </tr>
-        </tfoot>
       </table>
     </div>
+    <table class="table table-bordered table-sm mb-0">
+      <tfoot class="table-warning fw-bold">
+        <tr>
+          <td>TOTAL</td>
+          <td class="text-end" id="total-exonere">—</td>
+          <td class="text-end" id="total-ht">—</td>
+          <td class="text-end" id="total-tva">—</td>
+          <td class="text-end" id="total-ttc">—</td>
+        </tr>
+      </tfoot>
+    </table>
   </div>
 </div>
 

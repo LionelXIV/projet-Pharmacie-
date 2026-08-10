@@ -93,6 +93,19 @@ public class PatientsController : Controller
         return View(patient);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> ImprimerPortefeuille()
+    {
+        var patients = await _db.Patients
+            .AsNoTracking()
+            .Include(p => p.Prescriptions)
+            .Include(p => p.TreatmentReminders)
+            .OrderBy(p => p.FullName)
+            .ToListAsync();
+
+        return View("PortefeuillePrint", patients);
+    }
+
     public async Task<IActionResult> IndexCsv([FromQuery] string? q, [FromQuery] string? active)
     {
         var list = await FilteredPatientsQuery(q, active).OrderBy(p => p.FullName).ToListAsync();
