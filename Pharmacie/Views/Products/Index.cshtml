@@ -184,15 +184,15 @@
         <table class="table table-striped table-sm align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>CIP</th>
+                    <th style="width:88px">Actions</th>
                     <th>Nom commercial</th>
-                    <th>Type</th>
-                    <th>Catégorie</th>
-                    <th>Fournisseur</th>
+                    <th class="d-none d-lg-table-cell">Catégorie</th>
+                    <th class="d-none d-xl-table-cell">CIP</th>
                     <th class="text-end">Prix vente</th>
-                    <th class="text-end">Stock</th>
-                    <th>État</th>
-                    <th class="text-end">Actions</th>
+                    <th class="text-end d-none d-lg-table-cell">Stock</th>
+                    <th class="d-none d-xl-table-cell">Type</th>
+                    <th class="d-none d-xl-table-cell">Fournisseur</th>
+                    <th class="d-none d-lg-table-cell">État</th>
                 </tr>
             </thead>
             <tbody>
@@ -201,7 +201,24 @@
                     var lowStock = item.IsActive && item.StockQuantity < item.AlertThreshold;
                     var outOfStock = item.StockQuantity == 0;
                     <tr>
-                        <td class="font-monospace small text-muted">@(string.IsNullOrWhiteSpace(item.Cip) ? "—" : item.Cip)</td>
+                        <td class="text-nowrap">
+                            <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id" title="Détails" data-bs-toggle="tooltip">
+                                <i class="bi bi-eye" aria-hidden="true"></i>
+                            </a>
+                            @if (AppRoles.IsTitulaire(User)
+                                 || User.IsInRole(AppRoles.Pharmacien)
+                                 || User.IsInRole(AppRoles.Caissier)
+                                 || User.IsInRole(AppRoles.AssistantPharmacien)
+                                 || User.IsInRole(AppRoles.Assistant))
+                            {
+                                <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@item.Id" title="Modifier" data-bs-toggle="tooltip">
+                                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                                </a>
+                                <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id" title="Supprimer" data-bs-toggle="tooltip">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                </a>
+                            }
+                        </td>
                         <td>
                             <div class="fw-medium">@Html.DisplayFor(m => item.CommercialName)</div>
                             @if (!string.IsNullOrWhiteSpace(item.GenericName))
@@ -209,20 +226,10 @@
                                 <div class="small text-muted">@item.GenericName</div>
                             }
                         </td>
-                        <td>
-                            @if (item.ProductType == ProductType.Parapharmacie)
-                            {
-                                <span class="badge text-white" style="background-color:#8B5CF6">@ProductTypeLabel(item.ProductType)</span>
-                            }
-                            else
-                            {
-                                <span class="badge @ProductTypeBadgeClass(item.ProductType)">@ProductTypeLabel(item.ProductType)</span>
-                            }
-                        </td>
-                        <td>@item.Category?.Name</td>
-                        <td>@item.Supplier?.Name</td>
+                        <td class="d-none d-lg-table-cell">@item.Category?.Name</td>
+                        <td class="font-monospace small text-muted d-none d-xl-table-cell">@(string.IsNullOrWhiteSpace(item.Cip) ? "—" : item.Cip)</td>
                         <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(item.SalePrice)</td>
-                        <td class="text-end">
+                        <td class="text-end d-none d-lg-table-cell">
                             @if (outOfStock)
                             {
                                 <span class="badge text-bg-danger" title="Rupture de stock"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>@item.StockQuantity</span>
@@ -236,7 +243,18 @@
                                 <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">@item.StockQuantity</span>
                             }
                         </td>
-                        <td>
+                        <td class="d-none d-xl-table-cell">
+                            @if (item.ProductType == ProductType.Parapharmacie)
+                            {
+                                <span class="badge text-white" style="background-color:#8B5CF6">@ProductTypeLabel(item.ProductType)</span>
+                            }
+                            else
+                            {
+                                <span class="badge @ProductTypeBadgeClass(item.ProductType)">@ProductTypeLabel(item.ProductType)</span>
+                            }
+                        </td>
+                        <td class="d-none d-xl-table-cell">@item.Supplier?.Name</td>
+                        <td class="d-none d-lg-table-cell">
                             @if (item.IsActive)
                             {
                                 <span class="badge text-bg-success">Actif</span>
@@ -244,24 +262,6 @@
                             else
                             {
                                 <span class="badge text-bg-secondary">Inactif</span>
-                            }
-                        </td>
-                        <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id" title="Détails" data-bs-toggle="tooltip">
-                                <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-xl-inline ms-1">Détails</span>
-                            </a>
-                            @if (AppRoles.IsTitulaire(User)
-                                 || User.IsInRole(AppRoles.Pharmacien)
-                                 || User.IsInRole(AppRoles.Caissier)
-                                 || User.IsInRole(AppRoles.AssistantPharmacien)
-                                 || User.IsInRole(AppRoles.Assistant))
-                            {
-                                <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@item.Id" title="Modifier" data-bs-toggle="tooltip">
-                                    <i class="bi bi-pencil" aria-hidden="true"></i><span class="d-none d-xl-inline ms-1">Modifier</span>
-                                </a>
-                                <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id" title="Supprimer" data-bs-toggle="tooltip">
-                                    <i class="bi bi-trash" aria-hidden="true"></i><span class="d-none d-xl-inline ms-1">Supprimer</span>
-                                </a>
                             }
                         </td>
                     </tr>

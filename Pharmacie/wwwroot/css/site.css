@@ -1069,7 +1069,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   overflow-x: hidden;
 }
 
-/* Sidebar fixe + scroll interne indépendant */
+/* Sidebar fixe ; scroll uniquement dans .sidebar-menu-wrapper */
 .ph-sidebar,
 #sidebar {
   position: fixed;
@@ -1084,32 +1084,39 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   color: var(--ph-sidebar-text);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   z-index: 1000;
   transition: transform 0.3s ease;
+}
+
+.sidebar-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-menu-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
-.ph-sidebar::-webkit-scrollbar,
-#sidebar::-webkit-scrollbar {
+.sidebar-menu-wrapper::-webkit-scrollbar {
   width: 4px;
 }
 
-.ph-sidebar::-webkit-scrollbar-track,
-#sidebar::-webkit-scrollbar-track {
+.sidebar-menu-wrapper::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.ph-sidebar::-webkit-scrollbar-thumb,
-#sidebar::-webkit-scrollbar-thumb {
+.sidebar-menu-wrapper::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
 }
 
-.ph-sidebar::-webkit-scrollbar-thumb:hover,
-#sidebar::-webkit-scrollbar-thumb:hover {
+.sidebar-menu-wrapper::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.4);
 }
 
@@ -1122,7 +1129,6 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   font-weight: 700;
   font-size: 1.1rem;
   color: #FFFFFF;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
   flex-shrink: 0;
 }
 
@@ -1193,7 +1199,6 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   color: var(--ph-sidebar-text);
   min-width: 0;
   flex-shrink: 0;
-  margin-top: auto;
 }
 
 /* Contenu principal : décalé de la sidebar fixe (évite le scroll horizontal) */

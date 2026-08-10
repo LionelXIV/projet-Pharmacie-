@@ -94,11 +94,11 @@
                     <th>Date</th>
                     <th>Type</th>
                     <th>Produit</th>
-                    <th>Lot</th>
+                    <th class="d-none d-lg-table-cell">Lot</th>
                     <th>Impact</th>
-                    <th>Responsable</th>
-                    <th>Vente</th>
-                    <th>Motif</th>
+                    <th class="d-none d-xl-table-cell">Responsable</th>
+                    <th class="d-none d-lg-table-cell">Vente</th>
+                    <th class="d-none d-xl-table-cell">Motif</th>
                 </tr>
             </thead>
             <tbody>
@@ -133,17 +133,17 @@
                         _ => ""
                     };
                     <tr>
-                        <td class="text-nowrap small">@item.OccurredAt.ToString("g")</td>
+                        <td class="text-nowrap small">@item.OccurredAt.ToString("dd/MM HH:mm")</td>
                         <td>
                             <span class="badge @badgeClass">@badgeLabel</span>
                         </td>
                         <td>@item.Product?.CommercialName</td>
-                        <td class="small">@item.Batch?.LotNumber</td>
+                        <td class="small d-none d-lg-table-cell">@item.Batch?.LotNumber</td>
                         <td>
                             <span class="@quantityClass">@quantityPrefix@item.Quantity</span>
                         </td>
-                        <td class="small">@UserDisplayResolver.Resolve(userLabels, item.UserId)</td>
-                        <td class="small text-nowrap">
+                        <td class="small d-none d-xl-table-cell">@UserDisplayResolver.Resolve(userLabels, item.UserId)</td>
+                        <td class="small text-nowrap d-none d-lg-table-cell">
                             @if (item.SaleId is int saleId)
                             {
                                 <a asp-controller="Sales" asp-action="Details" asp-route-id="@saleId">#@saleId</a>
@@ -153,7 +153,7 @@
                                 <span class="text-muted">—</span>
                             }
                         </td>
-                        <td class="small text-muted">@item.Reason</td>
+                        <td class="small text-muted d-none d-xl-table-cell">@item.Reason</td>
                     </tr>
                 }
             </tbody>
