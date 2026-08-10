@@ -36,11 +36,10 @@ public class DashboardController : Controller
             .Where(s => s.SoldAt.Date == today)
             .ToListAsync();
 
-        var todaySales = ProduitsExtrasFilter.VentesOfficielles(todaySalesRaw).ToList();
+        var todaySalesOff = ProduitsExtrasFilter.VentesAvecLignesOfficielles(todaySalesRaw).ToList();
+        var todayLignesOff = todaySalesRaw.SelectMany(s => ProduitsExtrasFilter.LignesOfficielles(s.Lines)).ToList();
 
-        var caDuJour = todaySales
-            .SelectMany(s => s.Lines)
-            .Sum(l => l.UnitPrice * l.Quantity);
+        var caDuJour = todayLignesOff.Sum(l => l.UnitPrice * l.Quantity);
 
         var vm = new DashboardViewModel
         {
@@ -60,16 +59,15 @@ public class DashboardController : Controller
             PendingPurchaseOrdersCount = await _db.PurchaseOrders.CountAsync(o =>
                 o.Status == PurchaseOrderStatus.Envoyee
                 || o.Status == PurchaseOrderStatus.PartiellementRecue),
-            SalesTodayCount = todaySales.Count,
+            SalesTodayCount = todaySalesOff.Count,
             SalesTodayTotal = caDuJour
         };
 
         if (AppRoles.CanAccessFinances(User))
         {
-            var margeBrute = todaySales
-                .SelectMany(s => s.Lines)
+            var margeBrute = todayLignesOff
                 .Sum(l => (l.UnitPrice - (l.Product?.PurchasePrice ?? 0m)) * l.Quantity);
-            var nbVentes = todaySales.Count;
+            var nbVentes = todaySalesOff.Count;
             var panierMoyen = nbVentes > 0 ? caDuJour / nbVentes : 0m;
 
             ViewBag.ShowFinances = true;
@@ -90,11 +88,8 @@ public class DashboardController : Controller
                 .Where(s => s.SoldAt >= debutFinance && s.SoldAt < finExclusiveFinance)
                 .ToListAsync();
 
-            var ventes30j = ProduitsExtrasFilter.VentesOfficielles(ventes30jRaw).ToList();
-
-            var caParCategorie = ventes30j
-                .SelectMany(s => s.Lines)
-                .Where(l => !ProduitsExtrasFilter.IsLigneHorsSysteme(l))
+            var caParCategorie = ventes30jRaw
+                .SelectMany(s => ProduitsExtrasFilter.LignesOfficielles(s.Lines))
                 .GroupBy(l => l.Product?.Category?.Name ?? "Sans catégorie")
                 .Select(g => new
                 {
@@ -119,17 +114,16 @@ public class DashboardController : Controller
                 .SumAsync(a => (decimal?)a.MontantTotal) ?? 0m;
 
             static decimal SumPm(IEnumerable<Sale> ventes, PaymentMethod pm) =>
-                ventes.Where(s => s.PaymentMethod == pm)
-                    .SelectMany(s => s.Lines)
-                    .Sum(l => l.UnitPrice * l.Quantity);
+                ProduitsExtrasFilter.CaOfficiel(
+                    ventes.Where(s => s.PaymentMethod == pm).SelectMany(s => s.Lines));
 
-            var caEspeces = SumPm(ventes30j, PaymentMethod.Especes);
-            var caWave = SumPm(ventes30j, PaymentMethod.Wave);
-            var caOm = SumPm(ventes30j, PaymentMethod.OrangeMoney);
-            var caAutres = ventes30j
-                .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
-                .SelectMany(s => s.Lines)
-                .Sum(l => l.UnitPrice * l.Quantity);
+            var caEspeces = SumPm(ventes30jRaw, PaymentMethod.Especes);
+            var caWave = SumPm(ventes30jRaw, PaymentMethod.Wave);
+            var caOm = SumPm(ventes30jRaw, PaymentMethod.OrangeMoney);
+            var caAutres = ProduitsExtrasFilter.CaOfficiel(
+                ventes30jRaw
+                    .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
+                    .SelectMany(s => s.Lines));
 
             ViewBag.PaiementLabels = JsonSerializer.Serialize(
                 new[] { "Espèces", "Wave", "Orange Money", "Bon/Crédit", "Avoir", "Autres" });
@@ -193,18 +187,17 @@ public class DashboardController : Controller
         }
 
         var chartStart = today.AddDays(-29);
-        var salesInRange = await ProduitsExtrasFilter.WhereSansExtras(
-                _db.Sales
-                    .AsNoTracking()
-                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-                    .Where(s => s.SoldAt.Date >= chartStart && s.SoldAt.Date <= today))
+        var salesInRange = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+            .Where(s => s.SoldAt.Date >= chartStart && s.SoldAt.Date <= today)
             .ToListAsync();
 
         var salesByDay = salesInRange
             .GroupBy(s => s.SoldAt.Date)
             .ToDictionary(
                 g => g.Key,
-                g => g.SelectMany(s => s.Lines).Sum(l => l.Quantity * l.UnitPrice));
+                g => ProduitsExtrasFilter.CaOfficiel(g.SelectMany(s => s.Lines)));
 
         var salesChartData = Enumerable.Range(0, 30)
             .Select(offset =>
@@ -245,13 +238,12 @@ public class DashboardController : Controller
         var today = DateTime.Today;
         var from = today.AddDays(-29);
 
-        var sales = await ProduitsExtrasFilter.WhereSansExtras(
-                _db.Sales
-                    .AsNoTracking()
-                    .Include(s => s.Lines)
-                    .ThenInclude(l => l.Product!)
-                    .ThenInclude(p => p.Category)
-                    .Where(s => s.SoldAt.Date >= from && s.SoldAt.Date <= today))
+        var sales = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+            .ThenInclude(l => l.Product!)
+            .ThenInclude(p => p.Category)
+            .Where(s => s.SoldAt.Date >= from && s.SoldAt.Date <= today)
             .ToListAsync();
 
         var byDay = sales
@@ -265,10 +257,11 @@ public class DashboardController : Controller
                 byDay.TryGetValue(day, out var daySales);
                 daySales ??= [];
 
-                var ca = daySales.SelectMany(s => s.Lines).Sum(l => l.UnitPrice * l.Quantity);
-                var marge = daySales.SelectMany(s => s.Lines)
+                var lignesOff = daySales.SelectMany(s => ProduitsExtrasFilter.LignesOfficielles(s.Lines)).ToList();
+                var ca = lignesOff.Sum(l => l.UnitPrice * l.Quantity);
+                var marge = lignesOff
                     .Sum(l => (l.UnitPrice - (l.Product?.PurchasePrice ?? 0m)) * l.Quantity);
-                var nb = daySales.Count;
+                var nb = ProduitsExtrasFilter.VentesAvecLignesOfficielles(daySales).Count();
 
                 return new DashboardFinanceDayRow
                 {
@@ -289,24 +282,22 @@ public class DashboardController : Controller
                 return new DashboardPaymentBreakdownRow
                 {
                     PaymentMethod = method,
-                    SaleCount = methodSales.Count,
-                    Total = methodSales.SelectMany(s => s.Lines).Sum(l => l.UnitPrice * l.Quantity)
+                    SaleCount = ProduitsExtrasFilter.VentesAvecLignesOfficielles(methodSales).Count(),
+                    Total = ProduitsExtrasFilter.CaOfficiel(methodSales.SelectMany(s => s.Lines))
                 };
             })
             .ToList();
 
         static decimal SumPm(IEnumerable<Sale> ventes, PaymentMethod pm) =>
-            ventes.Where(s => s.PaymentMethod == pm)
-                .SelectMany(s => s.Lines)
-                .Sum(l => l.UnitPrice * l.Quantity);
+            ProduitsExtrasFilter.CaOfficiel(
+                ventes.Where(s => s.PaymentMethod == pm).SelectMany(s => s.Lines));
 
         var caEspeces = SumPm(sales, PaymentMethod.Especes);
         var caWave = SumPm(sales, PaymentMethod.Wave);
         var caOm = SumPm(sales, PaymentMethod.OrangeMoney);
-        var caAutres = sales
-            .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
-            .SelectMany(s => s.Lines)
-            .Sum(l => l.UnitPrice * l.Quantity);
+        var caAutres = ProduitsExtrasFilter.CaOfficiel(
+            sales.Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
+                .SelectMany(s => s.Lines));
 
         var bonsTotal = await _db.Bons
             .AsNoTracking()
@@ -325,29 +316,28 @@ public class DashboardController : Controller
             new[] { caEspeces, caWave, caOm, bonsTotal, avoirsTotal, caAutres });
 
         var debut = DateTime.Today.AddDays(-30);
-        var ventesParJour = await ProduitsExtrasFilter.WhereSansExtras(
-                _db.Sales
-                    .AsNoTracking()
-                    .Include(s => s.Lines)
-                    .ThenInclude(l => l.Product!)
-                    .ThenInclude(p => p.Category)
-                    .Where(s => s.SoldAt.Date >= debut))
+        var ventesParJour = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+            .ThenInclude(l => l.Product!)
+            .ThenInclude(p => p.Category)
+            .Where(s => s.SoldAt.Date >= debut)
             .ToListAsync();
 
         var tableauJournalier = ventesParJour
             .GroupBy(s => s.SoldAt.Date)
             .OrderBy(g => g.Key)
-            .Select(g => new
+            .Select(g =>
             {
-                Date = g.Key,
-                Exonere = g.SelectMany(s => s.Lines)
-                    .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).Exonere),
-                HT = g.SelectMany(s => s.Lines)
-                    .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantHT),
-                TVA = g.SelectMany(s => s.Lines)
-                    .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantTVA),
-                TTC = g.SelectMany(s => s.Lines)
-                    .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantTTC),
+                var (exonere, ht, tva, ttc) = TVACalculator.CalculerTVAJournee(g);
+                return new
+                {
+                    Date = g.Key,
+                    Exonere = exonere,
+                    HT = ht,
+                    TVA = tva,
+                    TTC = ttc,
+                };
             })
             .ToList();
 

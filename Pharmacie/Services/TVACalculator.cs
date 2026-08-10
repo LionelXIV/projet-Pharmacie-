@@ -102,6 +102,9 @@ public static class TVACalculator
         {
             foreach (var ligne in vente.Lines)
             {
+                if (ProduitsExtrasFilter.IsLigneHorsSysteme(ligne))
+                    continue;
+
                 var (e, h, t, tc) = CalculerTVA(ligne.Product, ligne.UnitPrice, ligne.Quantity);
                 exonere += e;
                 ht += h;

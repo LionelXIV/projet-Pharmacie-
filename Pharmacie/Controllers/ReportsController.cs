@@ -343,22 +343,25 @@ public class ReportsController : Controller
 
     private async Task<List<ReportSaleHistoryRowViewModel>> LoadSalesHistoryRowsAsync()
     {
-        var sales = await ProduitsExtrasFilter.WhereSansExtras(
-                _db.Sales
-                    .AsNoTracking()
-                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category))
+        var sales = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
             .OrderByDescending(s => s.SoldAt)
             .ThenByDescending(s => s.Id)
             .Take(ReportLimits.MaxSalesRows)
             .ToListAsync();
 
-        return sales.Select(s => new ReportSaleHistoryRowViewModel
+        return sales.Select(s =>
         {
-            SaleId = s.Id,
-            SoldAt = s.SoldAt,
-            LineCount = s.Lines.Count,
-            Total = s.Lines.Sum(l => l.Quantity * l.UnitPrice),
-            PaymentMethod = s.PaymentMethod
+            var lignesOff = ProduitsExtrasFilter.LignesOfficielles(s.Lines).ToList();
+            return new ReportSaleHistoryRowViewModel
+            {
+                SaleId = s.Id,
+                SoldAt = s.SoldAt,
+                LineCount = lignesOff.Count,
+                Total = lignesOff.Sum(l => l.Quantity * l.UnitPrice),
+                PaymentMethod = s.PaymentMethod
+            };
         }).ToList();
     }
 
@@ -397,11 +400,10 @@ public class ReportsController : Controller
 
         var finExclusive = fin.AddDays(1);
 
-        var ventes = await ProduitsExtrasFilter.WhereSansExtras(
-                _db.Sales
-                    .AsNoTracking()
-                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-                    .Where(s => s.SoldAt >= debut && s.SoldAt < finExclusive))
+        var ventes = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+            .Where(s => s.SoldAt >= debut && s.SoldAt < finExclusive)
             .ToListAsync();
 
         var lignesParJour = ventes
@@ -536,46 +538,49 @@ public class ReportsController : Controller
         var start = debut;
         var endExclusive = fin.AddDays(1);
 
-        var ventes = await ProduitsExtrasFilter.WhereSansExtras(
-                _db.Sales
-                    .AsNoTracking()
-                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-                    .Include(s => s.Vendeur)
-                    .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive))
+        var ventes = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+            .Include(s => s.Vendeur)
+            .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive)
             .OrderBy(s => s.SoldAt)
             .ToListAsync();
 
         static decimal LineCa(SaleLine l) => l.UnitPrice * l.Quantity;
         static decimal LinePa(SaleLine l) => (l.Product?.PurchasePrice ?? 0m) * l.Quantity;
 
-        decimal SumPm(PaymentMethod pm) =>
-            ventes.Where(s => s.PaymentMethod == pm).SelectMany(s => s.Lines).Sum(LineCa);
+        IEnumerable<SaleLine> LignesOff(IEnumerable<Sale> sales) =>
+            sales.SelectMany(s => ProduitsExtrasFilter.LignesOfficielles(s.Lines));
 
-        var caTotal = ventes.SelectMany(s => s.Lines).Sum(LineCa);
-        var paTotal = ventes.SelectMany(s => s.Lines).Sum(LinePa);
+        decimal SumPm(PaymentMethod pm) =>
+            LignesOff(ventes.Where(s => s.PaymentMethod == pm)).Sum(LineCa);
+
+        var lignesOfficielles = LignesOff(ventes).ToList();
+        var ventesOfficielles = ProduitsExtrasFilter.VentesAvecLignesOfficielles(ventes).ToList();
+
+        var caTotal = lignesOfficielles.Sum(LineCa);
+        var paTotal = lignesOfficielles.Sum(LinePa);
         var marge = caTotal - paTotal;
         var caEspeces = SumPm(PaymentMethod.Especes);
         var caWave = SumPm(PaymentMethod.Wave);
         var caOm = SumPm(PaymentMethod.OrangeMoney);
-        var caAutres = ventes
-            .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
-            .SelectMany(s => s.Lines)
+        var caAutres = LignesOff(ventes.Where(s =>
+                s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney)))
             .Sum(LineCa);
 
-        var tvaCollectee = ventes
-            .SelectMany(s => s.Lines)
+        var tvaCollectee = lignesOfficielles
             .Sum(l => TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantTVA);
 
         return new RapportCAViewModel
         {
             DateDebut = debut,
             DateFin = fin,
-            NombreVentes = ventes.Count,
+            NombreVentes = ventesOfficielles.Count,
             CATotal = caTotal,
             PATotal = paTotal,
             MargeBrute = marge,
             TauxMarge = caTotal > 0 ? marge / caTotal * 100 : 0,
-            PanierMoyen = ventes.Count > 0 ? caTotal / ventes.Count : 0,
+            PanierMoyen = ventesOfficielles.Count > 0 ? caTotal / ventesOfficielles.Count : 0,
             TVACollectee = tvaCollectee,
             CAEspeces = caEspeces,
             CAWave = caWave,
@@ -584,24 +589,35 @@ public class ReportsController : Controller
             CAParJour = ventes
                 .GroupBy(s => s.SoldAt.Date)
                 .OrderBy(g => g.Key)
-                .Select(g => new CAJourViewModel
+                .Select(g =>
                 {
-                    Date = g.Key,
-                    CA = g.SelectMany(s => s.Lines).Sum(LineCa),
-                    NbVentes = g.Count()
+                    var gOff = ProduitsExtrasFilter.VentesAvecLignesOfficielles(g).ToList();
+                    var ca = LignesOff(g).Sum(LineCa);
+                    return new CAJourViewModel
+                    {
+                        Date = g.Key,
+                        CA = ca,
+                        NbVentes = gOff.Count
+                    };
                 })
+                .Where(j => j.NbVentes > 0 || j.CA > 0)
                 .ToList(),
-            CAParVendeur = ventes
+            CAParVendeur = ventesOfficielles
                 .GroupBy(s => new
                 {
                     s.VendeurId,
                     Nom = s.Vendeur != null ? s.Vendeur.Nom : "Non attribué"
                 })
-                .Select(g => new CAVendeurViewModel
+                .Select(g =>
                 {
-                    NomVendeur = g.Key.Nom,
-                    CA = g.SelectMany(s => s.Lines).Sum(LineCa),
-                    NbVentes = g.Count()
+                    var ca = LignesOff(g).Sum(LineCa);
+                    var nb = g.Count();
+                    return new CAVendeurViewModel
+                    {
+                        NomVendeur = g.Key.Nom,
+                        CA = ca,
+                        NbVentes = nb
+                    };
                 })
                 .OrderByDescending(v => v.CA)
                 .ToList()
@@ -670,15 +686,14 @@ public class ReportsController : Controller
     {
         var start = targetDate.Date;
         var end = start.AddDays(1);
-        var sales = await ProduitsExtrasFilter.WhereSansExtras(
-                _db.Sales
-                    .AsNoTracking()
-                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-                    .Include(s => s.Vendeur)
-                    .Where(s => s.SoldAt >= start && s.SoldAt < end))
+        var sales = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+            .Include(s => s.Vendeur)
+            .Where(s => s.SoldAt >= start && s.SoldAt < end)
             .ToListAsync();
 
-        return sales
+        return ProduitsExtrasFilter.VentesAvecLignesOfficielles(sales)
             .GroupBy(s => new
             {
                 s.VendeurId,
@@ -687,7 +702,8 @@ public class ReportsController : Controller
             })
             .Select(g =>
             {
-                var ca = g.SelectMany(s => s.Lines).Sum(l => l.UnitPrice * l.Quantity);
+                var lignesOff = g.SelectMany(s => ProduitsExtrasFilter.LignesOfficielles(s.Lines)).ToList();
+                var ca = lignesOff.Sum(l => l.UnitPrice * l.Quantity);
                 var count = g.Count();
                 return new VendeurRapportViewModel
                 {
@@ -696,7 +712,7 @@ public class ReportsController : Controller
                     CouleurTicket = g.Key.Couleur,
                     NombreVentes = count,
                     ChiffreAffaires = ca,
-                    NombreArticles = g.SelectMany(s => s.Lines).Sum(l => l.Quantity),
+                    NombreArticles = lignesOff.Sum(l => l.Quantity),
                     PanierMoyen = count > 0 ? ca / count : 0
                 };
             })
@@ -800,14 +816,14 @@ public class ReportsController : Controller
         var start = debut;
         var endExclusive = fin.AddDays(1);
 
-        var ventes = await ProduitsExtrasFilter.WhereSansExtras(
-                _db.Sales
-                    .AsNoTracking()
-                    .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-                    .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive))
+        var ventes = await _db.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
+            .Where(s => s.SoldAt >= start && s.SoldAt < endExclusive)
             .ToListAsync();
 
-        var lignes = ventes.SelectMany(s => s.Lines).ToList();
+        var lignes = ventes.SelectMany(s => ProduitsExtrasFilter.LignesOfficielles(s.Lines)).ToList();
+        var ventesOfficielles = ProduitsExtrasFilter.VentesAvecLignesOfficielles(ventes).ToList();
         var caTotal = lignes.Sum(l => l.UnitPrice * l.Quantity);
         var paTotal = lignes.Sum(l => (l.Product?.PurchasePrice ?? 0m) * l.Quantity);
         var marge = caTotal - paTotal;
@@ -831,14 +847,14 @@ public class ReportsController : Controller
         {
             DateDebut = debut,
             DateFin = fin,
-            NombreVentes = ventes.Count,
+            NombreVentes = ventesOfficielles.Count,
             CATotal = caTotal,
             PATotal = paTotal,
             MargeBrute = marge,
             TauxMarge = caTotal > 0 ? marge / caTotal * 100 : 0,
             TVACollectee = lignes.Sum(l =>
                 TVACalculator.CalculerTVA(l.Product, l.UnitPrice, l.Quantity).MontantTVA),
-            PanierMoyen = ventes.Count > 0 ? caTotal / ventes.Count : 0,
+            PanierMoyen = ventesOfficielles.Count > 0 ? caTotal / ventesOfficielles.Count : 0,
             TotalBons = totalBons,
             TotalBonsRegle = totalBonsRegle,
             TotalAvoirs = totalAvoirs,
