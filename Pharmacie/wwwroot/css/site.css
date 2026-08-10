@@ -1064,6 +1064,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 .ph-app {
   display: flex;
   min-height: 100vh;
+  align-items: stretch; /* sidebar + contenu : même hauteur */
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
@@ -1073,14 +1074,12 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   width: var(--ph-sidebar-width);
   min-width: var(--ph-sidebar-width);
   flex-shrink: 0;
+  align-self: stretch; /* s'étend sur toute la hauteur du contenu */
+  min-height: 100%;
   background-color: var(--ph-sidebar-bg);
   color: var(--ph-sidebar-text);
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 0;
-  align-self: flex-start;
-  height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
   z-index: 1000;
@@ -1284,6 +1283,9 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
     position: fixed;
     left: 0;
     top: 0;
+    height: 100vh;
+    height: 100dvh;
+    align-self: auto;
     transform: translateX(-100%);
     transition: transform 0.28s ease;
     z-index: 1000;
