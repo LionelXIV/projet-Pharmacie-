@@ -181,7 +181,7 @@ public class CaisseController : Controller
         var session = await _context.SessionCaisses
             .AsNoTracking()
             .Include(s => s.Ventes).ThenInclude(v => v.Sale).ThenInclude(sale => sale!.Lines)
-            .ThenInclude(l => l.Product)
+            .ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
             .Include(s => s.Depots)
             .FirstOrDefaultAsync(s => s.Id == id);
 
@@ -222,6 +222,10 @@ public class CaisseController : Controller
 
         var labels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, new[] { session.CaissierUserId });
 
+        var toutesLignes = sales.SelectMany(s => s.Lines).ToList();
+        var (qte1, qte2, prime1, prime2, primeTotale) =
+            PrimeRisqueCalculator.CalculerPrimes(toutesLignes);
+
         ViewBag.CaissierNom = UserDisplayResolver.Resolve(labels, session.CaissierUserId);
         ViewBag.Sales = sales;
         ViewBag.Depots = depots;
@@ -235,6 +239,11 @@ public class CaisseController : Controller
         ViewBag.TotalCa = caEspeces + caWave + caOM + caAutre;
         ViewBag.Billetage = billetage;
         ViewBag.Ecart = ecart;
+        ViewBag.QteTableau1 = qte1;
+        ViewBag.QteTableau2 = qte2;
+        ViewBag.PrimeTableau1 = prime1;
+        ViewBag.PrimeTableau2 = prime2;
+        ViewBag.PrimeTotale = primeTotale;
 
         return View(session);
     }
@@ -319,6 +328,7 @@ public class CaisseController : Controller
         var sessions = await _context.SessionCaisses
             .AsNoTracking()
             .Include(s => s.Ventes).ThenInclude(v => v.Sale).ThenInclude(sale => sale!.Lines)
+            .ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
             .Include(s => s.Depots)
             .Where(s => s.DateSession == d)
             .OrderBy(s => s.NumeroCaisse)
@@ -328,11 +338,27 @@ public class CaisseController : Controller
         var labels = await UserDisplayResolver.LoadLabelsByIdAsync(
             _context, sessions.Select(s => s.CaissierUserId));
 
+        var toutesLignesJour = sessions
+            .SelectMany(s => s.Ventes)
+            .Select(v => v.Sale)
+            .Where(s => s != null)
+            .Cast<Sale>()
+            .SelectMany(s => s.Lines)
+            .ToList();
+
+        var (qte1J, qte2J, prime1J, prime2J, primeTotaleJ) =
+            PrimeRisqueCalculator.CalculerPrimes(toutesLignesJour);
+
         ViewBag.Date = d;
         ViewBag.Sessions = sessions;
         ViewBag.SessionsCaisse1 = sessions.Where(s => s.NumeroCaisse == 1).ToList();
         ViewBag.SessionsCaisse2 = sessions.Where(s => s.NumeroCaisse == 2).ToList();
         ViewBag.Labels = labels;
+        ViewBag.ConsoQteTableau1 = qte1J;
+        ViewBag.ConsoQteTableau2 = qte2J;
+        ViewBag.ConsoPrimeTableau1 = prime1J;
+        ViewBag.ConsoPrimeTableau2 = prime2J;
+        ViewBag.ConsoPrimeTotale = primeTotaleJ;
 
         return View();
     }

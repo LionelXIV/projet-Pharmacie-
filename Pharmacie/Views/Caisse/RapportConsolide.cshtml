@@ -48,6 +48,12 @@
         ("CAISSE 1 — MATIN", "border-success", sessionsCaisse1, tot1),
         ("CAISSE 2 — SOIR", "border-primary", sessionsCaisse2, tot2)
     };
+
+    int consoQte1 = ViewBag.ConsoQteTableau1 as int? ?? 0;
+    int consoQte2 = ViewBag.ConsoQteTableau2 as int? ?? 0;
+    decimal consoPrime1 = ViewBag.ConsoPrimeTableau1 as decimal? ?? 0m;
+    decimal consoPrime2 = ViewBag.ConsoPrimeTableau2 as decimal? ?? 0m;
+    decimal consoPrimeTotale = ViewBag.ConsoPrimeTotale as decimal? ?? 0m;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -154,3 +160,54 @@
         </div>
     </div>
 </div>
+
+@if (consoQte1 > 0 || consoQte2 > 0)
+{
+    <div class="card border-danger mt-3">
+        <div class="card-header bg-danger text-white fw-bold">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            PRIMES DE RISQUE JOURNALIÈRES — TOTAL À RETIRER
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card border-danger h-100">
+                        <div class="card-body text-center">
+                            <div class="fs-4 fw-bold text-danger">@consoPrime1.ToString("N0") FCFA</div>
+                            <div class="text-muted small">Tableau I (@consoQte1 unités × 40 F)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-warning h-100">
+                        <div class="card-body text-center">
+                            <div class="fs-4 fw-bold text-warning">@consoPrime2.ToString("N0") FCFA</div>
+                            <div class="text-muted small">Tableau II (@consoQte2 unités × 30 F)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-danger text-white h-100">
+                        <div class="card-body text-center">
+                            <div class="fs-3 fw-bold">@consoPrimeTotale.ToString("N0") FCFA</div>
+                            <div class="small">TOTAL À RETIRER DE LA CAISSE</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="alert alert-warning py-2 mt-3 mb-0">
+                <i class="bi bi-cash me-1"></i>
+                <strong>Action requise :</strong>
+                Retirer <strong>@consoPrimeTotale.ToString("N0") FCFA</strong>
+                de la caisse et remettre à l'assurance.
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-success py-2 mt-3 mb-0">
+        <i class="bi bi-check-circle me-1"></i>
+        Aucune prime de risque journalière (pas de ventes Tableau I/II)
+    </div>
+}

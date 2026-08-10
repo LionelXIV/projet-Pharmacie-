@@ -16,6 +16,11 @@
     string caissierNom = ViewBag.CaissierNom as string ?? "—";
     var depots = ViewBag.Depots as List<DepotCaisse> ?? new List<DepotCaisse>();
     decimal totalDepots = ViewBag.TotalDepots ?? depots.Sum(d => d.MontantDepose);
+    int qteTableau1 = ViewBag.QteTableau1 as int? ?? 0;
+    int qteTableau2 = ViewBag.QteTableau2 as int? ?? 0;
+    decimal primeTableau1 = ViewBag.PrimeTableau1 as decimal? ?? 0m;
+    decimal primeTableau2 = ViewBag.PrimeTableau2 as decimal? ?? 0m;
+    decimal primeTotale = ViewBag.PrimeTotale as decimal? ?? 0m;
 
     var coupures = new (string Label, int Count, int Valeur)[]
     {
@@ -140,6 +145,68 @@
         </div>
     </div>
 </div>
+
+@if (qteTableau1 > 0 || qteTableau2 > 0)
+{
+    <div class="card border-warning mb-3">
+        <div class="card-header bg-warning text-dark fw-bold">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Primes de risque — À retirer de la caisse
+        </div>
+        <div class="card-body">
+            <table class="table table-sm mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Catégorie</th>
+                        <th class="text-center">Nb unités vendues</th>
+                        <th class="text-end">Prime/unité</th>
+                        <th class="text-end">Total prime</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (qteTableau1 > 0)
+                    {
+                        <tr>
+                            <td><span class="badge bg-danger">Tableau I</span></td>
+                            <td class="text-center">@qteTableau1</td>
+                            <td class="text-end">40 FCFA</td>
+                            <td class="text-end fw-bold">@primeTableau1.ToString("N0") FCFA</td>
+                        </tr>
+                    }
+                    @if (qteTableau2 > 0)
+                    {
+                        <tr>
+                            <td><span class="badge bg-warning text-dark">Tableau II</span></td>
+                            <td class="text-center">@qteTableau2</td>
+                            <td class="text-end">30 FCFA</td>
+                            <td class="text-end fw-bold">@primeTableau2.ToString("N0") FCFA</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot class="table-danger">
+                    <tr>
+                        <td colspan="3" class="fw-bold">TOTAL À RETIRER DE LA CAISSE</td>
+                        <td class="text-end fw-bold fs-5">@primeTotale.ToString("N0") FCFA</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div class="alert alert-warning py-2 mt-2 mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                <small>
+                    Ces primes correspondent aux suppléments réglementaires sur les médicaments à risque.
+                    Retirer ce montant de la caisse et le remettre à l'assurance.
+                </small>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-success py-2 mb-3">
+        <i class="bi bi-check-circle me-1"></i>
+        Aucune prime de risque (pas de ventes Tableau I/II)
+    </div>
+}
 
 <div class="card mb-3">
     <div class="card-header fw-bold">Dépôts effectués (@depots.Count)</div>
