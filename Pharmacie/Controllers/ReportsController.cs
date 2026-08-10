@@ -900,4 +900,68 @@ public class ReportsController : Controller
             Ventes = ventesExtras
         };
     }
+
+    [HttpGet]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Pharmacien},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> RapportEcarts(DateTime? date = null)
+    {
+        var targetDate = (date ?? DateTime.Today).Date;
+        var nextDay = targetDate.AddDays(1);
+
+        var produitsDetail = await _db.Products
+            .AsNoTracking()
+            .Include(p => p.ParentProduct)
+            .Where(p => p.ParentProductId != null && p.IsActive)
+            .OrderBy(p => p.CommercialName)
+            .ToListAsync();
+
+        var lignes = new List<EcartDetailViewModel>();
+
+        foreach (var enfant in produitsDetail)
+        {
+            var parent = enfant.ParentProduct;
+            if (parent == null)
+                continue;
+
+            var boitesOuvertes = await _db.StockMovements
+                .AsNoTracking()
+                .Where(m =>
+                    m.ProductId == parent.Id
+                    && m.Type == StockMovementType.Sortie
+                    && m.Reason != null
+                    && m.Reason.Contains("Ouverture boîte")
+                    && m.OccurredAt >= targetDate
+                    && m.OccurredAt < nextDay)
+                .SumAsync(m => (int?)m.Quantity) ?? 0;
+
+            var unitesVendues = await _db.SaleLines
+                .AsNoTracking()
+                .Where(l =>
+                    l.ProductId == enfant.Id
+                    && l.Sale != null
+                    && l.Sale.SoldAt >= targetDate
+                    && l.Sale.SoldAt < nextDay)
+                .SumAsync(l => (int?)l.Quantity) ?? 0;
+
+            var nbParBoite = enfant.NbUnitesParBoite ?? 0;
+            var unitesTheorique = boitesOuvertes * nbParBoite;
+            var ecart = unitesTheorique - unitesVendues;
+
+            lignes.Add(new EcartDetailViewModel
+            {
+                ProduitBoite = parent.CommercialName,
+                ProduitUnite = enfant.CommercialName,
+                NbUnitesParBoite = nbParBoite,
+                BoitesOuvertes = boitesOuvertes,
+                UnitesTheorique = unitesTheorique,
+                UnitesVendues = unitesVendues,
+                StockUnitesActuel = enfant.StockQuantity,
+                Ecart = ecart
+            });
+        }
+
+        ViewBag.Date = targetDate;
+        ViewBag.SuspectCount = lignes.Count(l => l.EstSuspect);
+        return View(lignes);
+    }
 }

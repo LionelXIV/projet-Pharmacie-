@@ -15,6 +15,8 @@ public class SaleService
 
     /// <summary>
     /// Enregistre une vente : lignes de ticket, sorties stock par lots (FIFO par date de péremption).
+    /// Si le produit est une unité (enfant) et que le stock est insuffisant, ouvre automatiquement
+    /// le nombre de boîtes parent nécessaires (mouvements tracés « Ouverture boîte »).
     /// </summary>
     public async Task<(bool Ok, string? Error, int? SaleId)> RecordSaleAsync(
         DateTime soldAt,
@@ -46,9 +48,27 @@ public class SaleService
                 if (product == null || !product.IsActive)
                     return await RollbackAsync(tx, "Un produit est introuvable ou inactif.");
 
-                var availableNonExpired = await _db.ProductBatches
-                    .Where(b => b.ProductId == productId && b.Quantity > 0 && b.ExpirationDate.Date >= refDate)
-                    .SumAsync(b => b.Quantity);
+                var availableNonExpired = await SumAvailableAsync(productId, refDate);
+
+                // Produit unité : ouvrir des boîtes parent si stock insuffisant
+                if (quantity > availableNonExpired
+                    && product.ParentProductId.HasValue
+                    && product.NbUnitesParBoite is > 0)
+                {
+                    var unitsNeeded = quantity - availableNonExpired;
+                    var (opened, openError) = await TryOpenParentBoxesAsync(
+                        product,
+                        unitsNeeded,
+                        refDate,
+                        soldAt,
+                        userId);
+
+                    if (!string.IsNullOrEmpty(openError))
+                        return await RollbackAsync(tx, openError);
+
+                    if (opened)
+                        availableNonExpired = await SumAvailableAsync(productId, refDate);
+                }
 
                 if (quantity > availableNonExpired)
                 {
@@ -117,6 +137,120 @@ public class SaleService
             await tx.RollbackAsync();
             throw;
         }
+    }
+
+    private async Task<int> SumAvailableAsync(int productId, DateTime refDate)
+    {
+        return await _db.ProductBatches
+            .Where(b => b.ProductId == productId && b.Quantity > 0 && b.ExpirationDate.Date >= refDate)
+            .SumAsync(b => b.Quantity);
+    }
+
+    /// <summary>
+    /// Ouvre le nombre de boîtes parent nécessaires pour couvrir <paramref name="unitsNeeded"/> unités.
+    /// </summary>
+    private async Task<(bool Opened, string? Error)> TryOpenParentBoxesAsync(
+        Product unitProduct,
+        int unitsNeeded,
+        DateTime refDate,
+        DateTime soldAt,
+        string? userId)
+    {
+        if (unitsNeeded <= 0 || unitProduct.NbUnitesParBoite is not > 0)
+            return (false, null);
+
+        var parentId = unitProduct.ParentProductId!.Value;
+        var parent = await _db.Products.FirstOrDefaultAsync(p => p.Id == parentId);
+        if (parent == null || !parent.IsActive)
+            return (false, $"Produit boîte introuvable pour « {unitProduct.CommercialName} ».");
+
+        var nbParBoite = unitProduct.NbUnitesParBoite.Value;
+        var boitesAOuvrir = (int)Math.Ceiling(unitsNeeded / (decimal)nbParBoite);
+
+        var parentStock = await SumAvailableAsync(parentId, refDate);
+        if (parentStock < boitesAOuvrir)
+        {
+            return (false,
+                $"Stock insuffisant pour « {unitProduct.CommercialName} » : " +
+                $"{unitsNeeded} unité(s) requise(s) → {boitesAOuvrir} boîte(s) à ouvrir, " +
+                $"mais seulement {parentStock} boîte(s) disponible(s) pour « {parent.CommercialName} ».");
+        }
+
+        var remainingToOpen = boitesAOuvrir;
+        var parentBatches = await _db.ProductBatches
+            .Where(b => b.ProductId == parentId && b.Quantity > 0 && b.ExpirationDate.Date >= refDate)
+            .OrderBy(b => b.ExpirationDate)
+            .ThenBy(b => b.Id)
+            .ToListAsync();
+
+        foreach (var parentBatch in parentBatches)
+        {
+            if (remainingToOpen <= 0)
+                break;
+
+            var boitesFromThisBatch = Math.Min(parentBatch.Quantity, remainingToOpen);
+            parentBatch.Quantity -= boitesFromThisBatch;
+            parent.StockQuantity -= boitesFromThisBatch;
+            remainingToOpen -= boitesFromThisBatch;
+
+            var unitesOuvertes = boitesFromThisBatch * nbParBoite;
+
+            var enfantBatch = await _db.ProductBatches
+                .FirstOrDefaultAsync(b =>
+                    b.ProductId == unitProduct.Id
+                    && b.LotNumber == parentBatch.LotNumber
+                    && b.ExpirationDate.Date == parentBatch.ExpirationDate.Date);
+
+            if (enfantBatch == null)
+            {
+                enfantBatch = new ProductBatch
+                {
+                    ProductId = unitProduct.Id,
+                    LotNumber = parentBatch.LotNumber,
+                    ExpirationDate = parentBatch.ExpirationDate.Date,
+                    Quantity = unitesOuvertes
+                };
+                _db.ProductBatches.Add(enfantBatch);
+            }
+            else
+            {
+                enfantBatch.Quantity += unitesOuvertes;
+            }
+
+            unitProduct.StockQuantity += unitesOuvertes;
+
+            _db.StockMovements.Add(new StockMovement
+            {
+                ProductId = parent.Id,
+                BatchId = parentBatch.Id,
+                Type = StockMovementType.Sortie,
+                Quantity = boitesFromThisBatch,
+                Reason =
+                    $"Ouverture boîte → {unitesOuvertes} unités pour {unitProduct.CommercialName}",
+                OccurredAt = soldAt,
+                UserId = userId
+            });
+
+            _db.StockMovements.Add(new StockMovement
+            {
+                ProductId = unitProduct.Id,
+                Batch = enfantBatch,
+                Type = StockMovementType.Entree,
+                Quantity = unitesOuvertes,
+                Reason =
+                    $"Ouverture boîte ← {boitesFromThisBatch} boîte(s) de {parent.CommercialName}",
+                OccurredAt = soldAt,
+                UserId = userId
+            });
+        }
+
+        if (remainingToOpen > 0)
+            return (false, $"Impossible d'ouvrir assez de boîtes pour « {unitProduct.CommercialName} ».");
+
+        if (parent.StockQuantity < 0)
+            parent.StockQuantity = 0;
+
+        return (true, null);
     }
 
     private static async Task<(bool Ok, string? Error, int? SaleId)> RollbackAsync(

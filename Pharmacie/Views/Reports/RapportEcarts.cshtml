@@ -1,0 +1,106 @@
+@model IReadOnlyList<EcartDetailViewModel>
+@{
+    ViewData["Title"] = "Contrôle ventes en détail";
+    var d = (DateTime)(ViewBag.Date ?? DateTime.Today);
+    var suspectCount = ViewBag.SuspectCount as int? ?? Model.Count(l => l.EstSuspect);
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+    <div>
+        <h1 class="page-title">Contrôle ventes en détail</h1>
+        <p class="page-lead mb-0">Écarts boîtes ouvertes / unités vendues — anti-fraude.</p>
+    </div>
+    <button type="button" class="btn btn-outline-secondary btn-sm d-print-none" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>Imprimer
+    </button>
+</div>
+
+<form method="get" asp-action="RapportEcarts" class="row g-2 mb-3 align-items-end d-print-none">
+    <div class="col-auto">
+        <label class="form-label small mb-0" for="date">Date</label>
+        <input type="date" name="date" id="date" class="form-control form-control-sm"
+               value="@d.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+    </div>
+</form>
+
+<div class="alert alert-info py-2 mb-3">
+    <i class="bi bi-shield-check me-1"></i>
+    <strong>Contrôle anti-fraude</strong> —
+    Ce rapport compare les boîtes ouvertes aux unités vendues enregistrées le <strong>@d.ToString("dd/MM/yyyy")</strong>.
+    Un écart négatif indique des ventes d'unités sans ouverture de boîte tracée.
+</div>
+
+@if (suspectCount > 0)
+{
+    <div class="alert alert-danger py-2 mb-3">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        <strong>@suspectCount</strong> ligne(s) suspecte(s) (écart négatif).
+    </div>
+}
+
+<div class="table-card mb-3">
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Produit boîte</th>
+                    <th>Produit unité</th>
+                    <th class="text-end">U./boîte</th>
+                    <th class="text-end">Boîtes ouvertes</th>
+                    <th class="text-end">Unités théoriques</th>
+                    <th class="text-end">Unités vendues</th>
+                    <th class="text-end">Stock actuel</th>
+                    <th class="text-end">Écart</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Count == 0)
+            {
+                <tr>
+                    <td colspan="8" class="text-muted text-center py-4">
+                        Aucun produit en vente au détail configuré.
+                    </td>
+                </tr>
+            }
+            else
+            {
+                foreach (var ligne in Model)
+                {
+                    <tr class="@(ligne.EstSuspect ? "table-danger fw-bold" : null)">
+                        <td>@ligne.ProduitBoite</td>
+                        <td>@ligne.ProduitUnite</td>
+                        <td class="text-end">@ligne.NbUnitesParBoite</td>
+                        <td class="text-end">@ligne.BoitesOuvertes</td>
+                        <td class="text-end">@ligne.UnitesTheorique</td>
+                        <td class="text-end">@ligne.UnitesVendues</td>
+                        <td class="text-end">@ligne.StockUnitesActuel</td>
+                        <td class="text-end">
+                            @if (ligne.EstSuspect)
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    @Math.Abs(ligne.Ecart) unités non enregistrées
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="@(ligne.Ecart > 0 ? "text-success" : "text-muted")">@ligne.Ecart</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<p class="small text-muted mb-0">
+    Écart = unités théoriques (boîtes ouvertes × unités/boîte) − unités vendues.
+    Un écart positif en fin de journée est normal (unités restantes en stock).
+</p>
