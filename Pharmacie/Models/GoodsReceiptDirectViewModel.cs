@@ -46,4 +46,8 @@ public class GoodsReceiptDirectLigne
 
     [Range(0, 999_999_999.99)]
     public decimal? PrixUnite { get; set; }
+
+    /// <summary>Boîtes du lot reçu à convertir immédiatement en unités/tablettes.</summary>
+    [Range(0, int.MaxValue)]
+    public int NbBoitesAOuvrir { get; set; }
 }

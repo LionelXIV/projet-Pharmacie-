@@ -16,7 +16,7 @@ public class InventoryService
     /// <summary>
     /// Prépare entrée stock (lot + mouvement + produit) sans SaveChanges — à utiliser dans une transaction globale.
     /// </summary>
-    public async Task<(bool Ok, string? Error)> StageEntreeAsync(
+    public async Task<(bool Ok, string? Error, ProductBatch? Batch)> StageEntreeAsync(
         int productId,
         string lotNumber,
         DateTime expirationDate,
@@ -25,11 +25,11 @@ public class InventoryService
         string? userId)
     {
         if (quantity <= 0)
-            return (false, "La quantité doit être positive.");
+            return (false, "La quantité doit être positive.", null);
 
         var product = await _db.Products.FindAsync(productId);
         if (product == null)
-            return (false, "Produit introuvable.");
+            return (false, "Produit introuvable.", null);
 
         var batch = new ProductBatch
         {
@@ -50,7 +50,7 @@ public class InventoryService
             UserId = userId
         });
         product.StockQuantity += quantity;
-        return (true, null);
+        return (true, null, batch);
     }
 
     public async Task<(bool Ok, string? Error)> RecordEntreeAsync(
@@ -64,7 +64,7 @@ public class InventoryService
         await using var tx = await _db.Database.BeginTransactionAsync();
         try
         {
-            var (ok, err) = await StageEntreeAsync(productId, lotNumber, expirationDate, quantity, reason, userId);
+            var (ok, err, _) = await StageEntreeAsync(productId, lotNumber, expirationDate, quantity, reason, userId);
             if (!ok)
             {
                 await tx.RollbackAsync();

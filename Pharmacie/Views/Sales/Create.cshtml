@@ -40,7 +40,24 @@
 
 <div class="row g-0 pos-layout" style="min-height: calc(100vh - 120px);">
     <div class="col-lg-8 p-3" id="pos-left">
-        <div class="mb-3 position-relative">
+        <div class="d-flex gap-2 mb-3">
+            <button type="button"
+                    id="btn-mode-panier"
+                    class="btn btn-sm btn-success active"
+                    onclick="setMode('panier')">
+                <i class="bi bi-cart me-1" aria-hidden="true"></i>
+                Mode panier
+            </button>
+            <button type="button"
+                    id="btn-mode-rapide"
+                    class="btn btn-sm btn-outline-success"
+                    onclick="setMode('rapide')">
+                <i class="bi bi-lightning me-1" aria-hidden="true"></i>
+                Saisie rapide
+            </button>
+        </div>
+
+        <div class="mb-3 position-relative" id="pos-search-wrap">
             <div class="input-group input-group-lg">
                 <span class="input-group-text bg-success text-white">
                     <i class="bi bi-search" aria-hidden="true"></i>
@@ -88,7 +105,30 @@
             </select>
         </div>
 
-        <div class="table-responsive">
+        <div id="mode-rapide-section" style="display:none" class="mb-3">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-2">
+                    <thead class="table-success">
+                        <tr>
+                            <th>Produit</th>
+                            <th style="width:90px">Qté</th>
+                            <th style="width:110px">Prix unit.</th>
+                            <th style="width:110px">Total</th>
+                            <th style="width:40px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lignes-rapides"></tbody>
+                </table>
+            </div>
+            <button type="button"
+                    class="btn btn-sm btn-outline-success"
+                    onclick="ajouterLigneRapide()">
+                <i class="bi bi-plus me-1" aria-hidden="true"></i>
+                Ajouter une ligne
+            </button>
+        </div>
+
+        <div class="table-responsive" id="cart-table-wrap">
             <table class="table table-hover align-middle mb-0" id="cart-table">
                 <thead class="table-success">
                     <tr>
@@ -290,6 +330,9 @@
   var searchTimer = null;
   var selectedPayment = @((int)Model.PaymentMethod);
   var modeCredit = false;
+  var posMode = 'panier';
+  var ligneRapideCount = 0;
+  window.tomSelectRapides = window.tomSelectRapides || {};
 
   function notifyError(msg) {
     if (window.toastr) toastr.error(msg);
@@ -560,8 +603,21 @@
       items.forEach(function (p) {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'dropdown-item';
-        btn.textContent = p.text;
+        btn.className = 'dropdown-item d-flex align-items-center justify-content-between gap-2';
+        var label = document.createElement('span');
+        label.textContent = p.text;
+        btn.appendChild(label);
+        if (p.estTablette) {
+          var badgeT = document.createElement('span');
+          badgeT.className = 'badge text-bg-primary';
+          badgeT.textContent = 'Tablette';
+          btn.appendChild(badgeT);
+        } else if (p.estBoite) {
+          var badgeB = document.createElement('span');
+          badgeB.className = 'badge text-bg-success';
+          badgeB.textContent = 'Boîte';
+          btn.appendChild(badgeB);
+        }
         btn.addEventListener('click', function () { addToCart(p); });
         el.appendChild(btn);
       });
@@ -627,6 +683,11 @@
   }
 
   document.getElementById('btn-valider').addEventListener('click', function () {
+    if (posMode === 'rapide') {
+      cart = [];
+      collecterLignesRapides();
+    }
+
     if (cart.length === 0) {
       notifyError('Ajoutez au moins un produit.');
       return;
@@ -748,6 +809,210 @@
 
   document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
     if (window.bootstrap) new bootstrap.Tooltip(el);
+  });
+
+  function renderOptionBadge(item, escape) {
+    var name = escape(item.text || '');
+    var badge = '';
+    if (item.estTablette) {
+      badge = ' <span class="badge text-bg-primary">Tablette</span>';
+    } else if (item.estBoite) {
+      badge = ' <span class="badge text-bg-success">Boîte</span>';
+    }
+    return '<div>' + name + badge + '</div>';
+  }
+
+  window.ajouterLigneRapide = function () {
+    var idx = ligneRapideCount++;
+    var tr = document.createElement('tr');
+    tr.className = 'ligne-rapide';
+    tr.dataset.idx = String(idx);
+    tr.innerHTML =
+      '<td><select class="form-select form-select-sm tomselect-product-rapide" data-idx="' + idx + '">' +
+      '<option value="">Chercher...</option></select></td>' +
+      '<td><input type="number" class="form-control form-control-sm qte-rapide" data-idx="' + idx +
+      '" min="1" value="1"></td>' +
+      '<td class="text-end prix-rapide" data-idx="' + idx + '">—</td>' +
+      '<td class="text-end total-rapide fw-bold" data-idx="' + idx + '">—</td>' +
+      '<td><button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" data-remove-rapide="' + idx +
+      '"><i class="bi bi-x" aria-hidden="true"></i></button></td>';
+    document.getElementById('lignes-rapides').appendChild(tr);
+
+    tr.querySelector('.qte-rapide').addEventListener('change', function () {
+      updateLigneRapide(idx);
+    });
+    tr.querySelector('.qte-rapide').addEventListener('input', function () {
+      updateLigneRapide(idx);
+    });
+    tr.querySelector('[data-remove-rapide]').addEventListener('click', function () {
+      supprimerLigneRapide(idx);
+    });
+
+    initTomSelectRapide(tr.querySelector('.tomselect-product-rapide'), idx);
+  };
+
+  function initLignesRapides() {
+    for (var i = 0; i < 4; i++) {
+      window.ajouterLigneRapide();
+    }
+  }
+
+  function initTomSelectRapide(select, idx) {
+    if (!window.TomSelect || !select || select.tomselect) return;
+    var ts = new TomSelect(select, {
+      valueField: 'value',
+      labelField: 'text',
+      searchField: ['text'],
+      placeholder: 'Tapez au moins 2 caractères...',
+      maxOptions: 25,
+      preload: false,
+      create: false,
+      loadThrottle: 300,
+      render: {
+        option: function (item, escape) { return renderOptionBadge(item, escape); },
+        item: function (item, escape) { return renderOptionBadge(item, escape); }
+      },
+      load: function (query, callback) {
+        if (!query || query.length < 2) {
+          callback();
+          return;
+        }
+        fetch(searchUrl + '?term=' + encodeURIComponent(query))
+          .then(function (r) { return r.json(); })
+          .then(function (data) { callback(data); })
+          .catch(function () { callback(); });
+      },
+      onChange: function (value) {
+        var tr = document.querySelector('tr.ligne-rapide[data-idx="' + idx + '"]');
+        if (!tr) return;
+        if (!value) {
+          tr.dataset.price = '0';
+          tr.dataset.productId = '';
+          tr.dataset.productName = '';
+          updateLigneRapide(idx);
+          return;
+        }
+        var opt = this.options[value];
+        if (!opt) return;
+        tr.dataset.price = String(opt.salePrice || 0);
+        tr.dataset.productId = String(value);
+        tr.dataset.productName = opt.text || '';
+        updateLigneRapide(idx);
+      }
+    });
+    window.tomSelectRapides[idx] = ts;
+  }
+
+  function updateLigneRapide(idx) {
+    var tr = document.querySelector('tr.ligne-rapide[data-idx="' + idx + '"]');
+    if (!tr) return;
+    var price = parseFloat(tr.dataset.price || 0);
+    var qteInput = tr.querySelector('.qte-rapide');
+    var qte = parseInt(qteInput && qteInput.value, 10) || 0;
+    var total = price * qte;
+    var prixEl = tr.querySelector('.prix-rapide');
+    var totalEl = tr.querySelector('.total-rapide');
+    if (prixEl) {
+      prixEl.textContent = price > 0
+        ? Math.round(price).toLocaleString('fr-FR') + ' F'
+        : '—';
+    }
+    if (totalEl) {
+      totalEl.textContent = price > 0 && qte > 0
+        ? Math.round(total).toLocaleString('fr-FR') + ' F'
+        : '—';
+    }
+    updateTotalRapide();
+  }
+
+  function updateTotalRapide() {
+    var total = 0;
+    var count = 0;
+    document.querySelectorAll('tr.ligne-rapide').forEach(function (tr) {
+      var price = parseFloat(tr.dataset.price || 0);
+      var qte = parseInt(tr.querySelector('.qte-rapide')?.value || 0, 10) || 0;
+      if (tr.dataset.productId && qte > 0 && price > 0) {
+        total += price * qte;
+        count += qte;
+      }
+    });
+    document.getElementById('summary-count').textContent = String(count);
+    document.getElementById('summary-subtotal').textContent = formatFcfa(total);
+    var remise = parseFloat(document.getElementById('remise-globale').value) || 0;
+    var discount = total * remise / 100;
+    document.getElementById('summary-total').textContent = formatFcfa(total - discount);
+  }
+
+  function supprimerLigneRapide(idx) {
+    var tr = document.querySelector('tr.ligne-rapide[data-idx="' + idx + '"]');
+    if (tr) {
+      var sel = tr.querySelector('.tomselect-product-rapide');
+      if (sel && sel.tomselect) sel.tomselect.destroy();
+      tr.remove();
+    }
+    delete window.tomSelectRapides[idx];
+    updateTotalRapide();
+  }
+
+  function collecterLignesRapides() {
+    document.querySelectorAll('tr.ligne-rapide').forEach(function (tr) {
+      var productId = tr.dataset.productId;
+      var productName = tr.dataset.productName;
+      var price = parseFloat(tr.dataset.price || 0);
+      var qte = parseInt(tr.querySelector('.qte-rapide')?.value || 0, 10) || 0;
+      if (!productId || qte <= 0 || !(price > 0)) return;
+      var id = parseInt(productId, 10);
+      var existing = cart.find(function (p) { return p.productId === id; });
+      if (existing) {
+        existing.quantity += qte;
+      } else {
+        cart.push({
+          productId: id,
+          productName: productName,
+          unitPrice: price,
+          quantity: qte,
+          discountValue: 0,
+          discountType: 'percent'
+        });
+      }
+    });
+  }
+
+  window.setMode = function (mode) {
+    posMode = mode;
+    var rapideSection = document.getElementById('mode-rapide-section');
+    var cartWrap = document.getElementById('cart-table-wrap');
+    var searchWrap = document.getElementById('pos-search-wrap');
+    var btnRapide = document.getElementById('btn-mode-rapide');
+    var btnPanier = document.getElementById('btn-mode-panier');
+
+    if (mode === 'rapide') {
+      rapideSection.style.display = 'block';
+      cartWrap.style.display = 'none';
+      searchWrap.style.display = 'none';
+      btnRapide.classList.add('active', 'btn-success');
+      btnRapide.classList.remove('btn-outline-success');
+      btnPanier.classList.remove('active', 'btn-success');
+      btnPanier.classList.add('btn-outline-success');
+      if (document.querySelectorAll('.ligne-rapide').length === 0) {
+        initLignesRapides();
+      }
+      updateTotalRapide();
+    } else {
+      rapideSection.style.display = 'none';
+      cartWrap.style.display = '';
+      searchWrap.style.display = '';
+      btnPanier.classList.add('active', 'btn-success');
+      btnPanier.classList.remove('btn-outline-success');
+      btnRapide.classList.remove('active', 'btn-success');
+      btnRapide.classList.add('btn-outline-success');
+      renderCart();
+      updateSummary();
+    }
+  };
+
+  document.getElementById('remise-globale').addEventListener('input', function () {
+    if (posMode === 'rapide') updateTotalRapide();
   });
 
   renderCart();

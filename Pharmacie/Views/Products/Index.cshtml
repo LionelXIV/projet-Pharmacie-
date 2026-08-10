@@ -225,22 +225,55 @@
                             {
                                 <div class="small text-muted">@item.GenericName</div>
                             }
+                            @if (item.EstVenteDetail && item.ChildProducts.Any())
+                            {
+                                var enfant = item.ChildProducts.OrderBy(c => c.Id).First();
+                                <div class="ms-2 mt-1 text-muted small">
+                                    <i class="bi bi-diagram-2 me-1 text-success" aria-hidden="true"></i>
+                                    <span class="text-success fw-semibold">Tablette :</span>
+                                    @enfant.StockQuantity tablettes —
+                                    @enfant.SalePrice.ToString("N0") FCFA/tablette
+                                    <a asp-action="Edit" asp-route-id="@enfant.Id"
+                                       class="btn btn-outline-success ms-1 py-0 px-1"
+                                       style="font-size:10px;line-height:1.2">Voir</a>
+                                </div>
+                            }
+                            else if (item.EstVenteDetail)
+                            {
+                                <div class="ms-2 mt-1 text-warning small">
+                                    <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+                                    Vente en détail activée mais produit tablette non créé
+                                </div>
+                            }
                         </td>
                         <td class="d-none d-lg-table-cell">@item.Category?.Name</td>
                         <td class="font-monospace small text-muted d-none d-xl-table-cell">@(string.IsNullOrWhiteSpace(item.Cip) ? "—" : item.Cip)</td>
-                        <td class="text-end text-nowrap">@ReportCsvFormatter.FormatFcfa(item.SalePrice)</td>
+                        <td class="text-end text-nowrap">
+                            <div>@ReportCsvFormatter.FormatFcfa(item.SalePrice)</div>
+                            @if (item.EstVenteDetail && item.ChildProducts.Any())
+                            {
+                                <div class="text-muted small">
+                                    @item.ChildProducts.OrderBy(c => c.Id).First().SalePrice.ToString("N0") F/tab
+                                </div>
+                            }
+                        </td>
                         <td class="text-end d-none d-lg-table-cell">
                             @if (outOfStock)
                             {
-                                <span class="badge text-bg-danger" title="Rupture de stock"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>@item.StockQuantity</span>
+                                <span class="badge text-bg-danger" title="Rupture de stock"><i class="bi bi-x-circle me-1" aria-hidden="true"></i>@item.StockQuantity boîtes</span>
                             }
                             else if (lowStock)
                             {
-                                <span class="badge text-bg-danger" title="Sous le seuil (@item.AlertThreshold)"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>@item.StockQuantity</span>
+                                <span class="badge text-bg-danger" title="Sous le seuil (@item.AlertThreshold)"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>@item.StockQuantity boîtes</span>
                             }
                             else
                             {
-                                <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">@item.StockQuantity</span>
+                                <span class="badge text-bg-success-subtle text-success-emphasis border border-success-subtle">@item.StockQuantity boîtes</span>
+                            }
+                            @if (item.EstVenteDetail && item.ChildProducts.Any())
+                            {
+                                var enfantStock = item.ChildProducts.OrderBy(c => c.Id).First();
+                                <div class="text-success small mt-1">+ @enfantStock.StockQuantity tablettes</div>
                             }
                         </td>
                         <td class="d-none d-xl-table-cell">

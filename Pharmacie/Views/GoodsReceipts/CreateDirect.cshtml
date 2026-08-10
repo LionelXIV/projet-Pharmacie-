@@ -135,7 +135,12 @@
           '<td class="small">' +
           '<div class="form-check mb-1"><input class="form-check-input bl-vd-check" type="checkbox" name="Lignes[' + index + '].CreerVenteDetail" value="true" id="vd' + index + '"><label class="form-check-label" for="vd' + index + '">Créer unité</label></div>' +
           '<input type="number" name="Lignes[' + index + '].NbUnitesParBoite" class="form-control form-control-sm mb-1" min="1" placeholder="Nb/boîte">' +
-          '<input type="number" name="Lignes[' + index + '].PrixUnite" class="form-control form-control-sm" min="1" step="1" placeholder="Prix unité">' +
+          '<input type="number" name="Lignes[' + index + '].PrixUnite" class="form-control form-control-sm mb-1" min="1" step="1" placeholder="Prix unité">' +
+          '<div class="mt-2">' +
+          '<label class="form-label small fw-bold mb-0" for="boites-ouvrir-' + index + '">Nb boîtes à ouvrir maintenant</label>' +
+          '<input type="number" name="Lignes[' + index + '].NbBoitesAOuvrir" id="boites-ouvrir-' + index + '" class="form-control form-control-sm" min="0" value="0" placeholder="0 = aucune">' +
+          '<div class="form-text text-warning">Ces boîtes seront converties en tablettes immédiatement.</div>' +
+          '</div>' +
           '</td>' +
           '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove(); document.getElementById(\'bl-resume\').textContent=document.querySelectorAll(\'#bl-tbody tr.bl-ligne\').length+\' ligne(s)\';">✕</button></td>' +
           '</tr>';

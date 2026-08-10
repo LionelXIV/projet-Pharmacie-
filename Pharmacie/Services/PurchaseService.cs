@@ -148,7 +148,7 @@ public class PurchaseService
                         $"Indiquez une date d’expiration pour « {poLine.Product?.CommercialName} ».");
 
                 var reason = $"Réception commande #{order.Id}";
-                var (ok, err) = await _inventory.StageEntreeAsync(
+                var (ok, err, _) = await _inventory.StageEntreeAsync(
                     poLine.ProductId,
                     row.LotNumber!,
                     row.ExpirationDate.Value,

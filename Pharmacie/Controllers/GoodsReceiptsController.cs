@@ -265,18 +265,33 @@ public class GoodsReceiptsController : Controller
                 var reason = $"BL Direct #{receipt.Id}"
                     + (string.IsNullOrWhiteSpace(receipt.Reference) ? "" : $" — {receipt.Reference}");
 
-                var (ok, err) = await _inventory.StageEntreeAsync(
+                var (ok, err, batch) = await _inventory.StageEntreeAsync(
                     product.Id,
                     lotNumber,
                     expiration,
                     ligne.QuantiteLivree,
                     reason,
                     userId);
-                if (!ok)
+                if (!ok || batch == null)
                 {
                     await tx.RollbackAsync();
                     ModelState.AddModelError(string.Empty, err ?? "Entrée stock impossible.");
                     return View(model);
+                }
+
+                if (ligne.NbBoitesAOuvrir > 0)
+                {
+                    var openError = await TryOpenBoxesOnReceiptAsync(
+                        product,
+                        batch,
+                        ligne.NbBoitesAOuvrir,
+                        userId);
+                    if (openError != null)
+                    {
+                        await tx.RollbackAsync();
+                        ModelState.AddModelError(string.Empty, openError);
+                        return View(model);
+                    }
                 }
 
                 _context.GoodsReceiptLines.Add(new GoodsReceiptLine
@@ -332,6 +347,89 @@ public class GoodsReceiptsController : Controller
         parent.EstVenteDetail = true;
         _context.Products.Add(enfant);
         await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Convertit immédiatement des boîtes du lot reçu en unités (tablettes) sur le produit enfant.
+    /// </summary>
+    private async Task<string?> TryOpenBoxesOnReceiptAsync(
+        Product parent,
+        ProductBatch lotParent,
+        int nbBoitesAOuvrir,
+        string? userId)
+    {
+        if (nbBoitesAOuvrir <= 0)
+            return null;
+
+        if (nbBoitesAOuvrir > lotParent.Quantity)
+        {
+            return $"Impossible d'ouvrir {nbBoitesAOuvrir} boîte(s) pour « {parent.CommercialName} » : " +
+                   $"seulement {lotParent.Quantity} reçue(s) sur ce lot.";
+        }
+
+        var enfant = await _context.Products
+            .FirstOrDefaultAsync(p => p.ParentProductId == parent.Id);
+        if (enfant == null || enfant.NbUnitesParBoite is not > 0)
+        {
+            return $"« {parent.CommercialName} » n'a pas de produit tablette (vente détail) " +
+                   "— créez l'unité ou cochez « Créer unité » avant d'ouvrir des boîtes.";
+        }
+
+        var nbTablettes = nbBoitesAOuvrir * enfant.NbUnitesParBoite.Value;
+        var now = DateTime.Now;
+
+        lotParent.Quantity -= nbBoitesAOuvrir;
+        parent.StockQuantity -= nbBoitesAOuvrir;
+        if (parent.StockQuantity < 0)
+            parent.StockQuantity = 0;
+
+        var lotEnfant = await _context.ProductBatches
+            .FirstOrDefaultAsync(b =>
+                b.ProductId == enfant.Id
+                && b.LotNumber == lotParent.LotNumber
+                && b.ExpirationDate.Date == lotParent.ExpirationDate.Date);
+
+        if (lotEnfant == null)
+        {
+            lotEnfant = new ProductBatch
+            {
+                ProductId = enfant.Id,
+                LotNumber = lotParent.LotNumber,
+                ExpirationDate = lotParent.ExpirationDate.Date,
+                Quantity = nbTablettes
+            };
+            _context.ProductBatches.Add(lotEnfant);
+        }
+        else
+        {
+            lotEnfant.Quantity += nbTablettes;
+        }
+
+        enfant.StockQuantity += nbTablettes;
+
+        _context.StockMovements.Add(new StockMovement
+        {
+            ProductId = parent.Id,
+            Batch = lotParent,
+            Type = StockMovementType.Sortie,
+            Quantity = nbBoitesAOuvrir,
+            OccurredAt = now,
+            UserId = userId,
+            Reason = $"Ouverture boîte → {nbTablettes} tablettes (BL Direct)"
+        });
+
+        _context.StockMovements.Add(new StockMovement
+        {
+            ProductId = enfant.Id,
+            Batch = lotEnfant,
+            Type = StockMovementType.Entree,
+            Quantity = nbTablettes,
+            OccurredAt = now,
+            UserId = userId,
+            Reason = $"Ouverture boîte ← {nbBoitesAOuvrir} boîte(s) de {parent.CommercialName} (BL Direct)"
+        });
+
+        return null;
     }
 
     private static ReceptionFormViewModel BuildReceptionViewModel(

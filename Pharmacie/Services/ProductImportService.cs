@@ -391,7 +391,7 @@ public class ProductImportService
                 var reason =
                     $"Import initial catalogue — ImportBatch #{importBatchId}, ligne Excel {line.RowNumber}, date d'expiration provisoire à corriger";
 
-                var (ok, err) = await _inventory.StageEntreeAsync(
+                var (ok, err, _) = await _inventory.StageEntreeAsync(
                     productId,
                     lotNumber,
                     provisionalExpirationDate,

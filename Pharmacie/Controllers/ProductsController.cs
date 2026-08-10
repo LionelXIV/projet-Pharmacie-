@@ -81,11 +81,20 @@ public class ProductsController : Controller
                 value = p.Id,
                 text = (p.Cip != null && p.Cip != ""
                     ? p.Cip + " — " + p.CommercialName
-                    : p.CommercialName) + " (stock: " + p.StockQuantity + ")",
+                    : p.CommercialName)
+                    + (p.ParentProductId != null
+                        ? " 〔tablette〕"
+                        : p.EstVenteDetail
+                            ? " 〔boîte〕"
+                            : "")
+                    + " (stock: " + p.StockQuantity + ")",
                 salePrice = p.SalePrice,
                 purchasePrice = p.PurchasePrice,
                 stockQuantity = p.StockQuantity,
-                assujettiTVA = p.AssujettiTVA
+                assujettiTVA = p.AssujettiTVA,
+                estTablette = p.ParentProductId != null,
+                estBoite = p.EstVenteDetail && p.ParentProductId == null,
+                nomParent = p.ParentProduct != null ? p.ParentProduct.CommercialName : ""
             })
             .ToListAsync();
 
@@ -843,6 +852,8 @@ public class ProductsController : Controller
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Supplier)
+            .Include(p => p.ChildProducts)
+            .Where(p => p.ParentProductId == null)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Q))
@@ -850,7 +861,10 @@ public class ProductsController : Controller
             var term = filter.Q.Trim();
             q = q.Where(p =>
                 p.CommercialName.Contains(term)
-                || (p.GenericName != null && p.GenericName.Contains(term)));
+                || (p.GenericName != null && p.GenericName.Contains(term))
+                || p.ChildProducts.Any(c =>
+                    c.CommercialName.Contains(term)
+                    || (c.GenericName != null && c.GenericName.Contains(term))));
         }
 
         if (filter.CategoryId > 0)
