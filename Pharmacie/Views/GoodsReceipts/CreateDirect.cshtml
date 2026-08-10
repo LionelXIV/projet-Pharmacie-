@@ -53,11 +53,8 @@
     </div>
 
     <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white py-3 border-bottom">
             <span class="fw-semibold"><i class="bi bi-list-ul text-primary me-1"></i>Lignes</span>
-            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-ligne">
-                <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
-            </button>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -78,11 +75,18 @@
                 </table>
             </div>
         </div>
-        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-            <span class="text-muted small" id="bl-resume">0 ligne(s)</span>
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-check-lg me-1"></i>Enregistrer le BL
-            </button>
+        <div class="card-footer bg-white sticky-bottom border-top py-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-primary" id="btn-add-ligne">
+                        <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+                    </button>
+                    <span class="text-muted small" id="bl-resume">0 ligne(s)</span>
+                </div>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-lg me-1"></i>Enregistrer le BL
+                </button>
+            </div>
         </div>
     </div>
 </form>
@@ -168,6 +172,13 @@
         var select = tbody.querySelector('select[name="Lignes[' + index + '].ProductId"]');
         initTomSelect(select);
         updateResume();
+        var newRow = tbody.querySelector('tr.bl-ligne:last-child');
+        if (newRow) {
+          newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(function () {
+            if (select && select.tomselect) select.tomselect.focus();
+          }, 150);
+        }
       }
 
       document.getElementById('btn-add-ligne').addEventListener('click', addLigne);

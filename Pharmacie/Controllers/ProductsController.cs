@@ -729,10 +729,12 @@ public class ProductsController : Controller
         if (page < 1)
             page = 1;
 
+        // Parents + tablettes avec anomalies (les tablettes restent visibles pour les prix)
         var query = _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Supplier)
+            .Include(p => p.ParentProduct)
             .Where(p => p.IsActive &&
                 (p.SalePrice == 0
                  || p.PurchasePrice == 0
@@ -740,7 +742,6 @@ public class ProductsController : Controller
                  || p.AlertThreshold == 0
                  || (p.Category != null && p.Category.Name == categorieACategoriser)));
 
-        // Compteurs badges (ensemble non filtré)
         var allForCounts = await query.ToListAsync();
         ViewBag.PrixVenteZero = allForCounts.Count(p => p.SalePrice == 0);
         ViewBag.PrixAchatZero = allForCounts.Count(p => p.PurchasePrice == 0);
@@ -751,8 +752,10 @@ public class ProductsController : Controller
         ViewBag.TotalAnomalies = allForCounts.Count;
         ViewBag.Filtre = filtre;
 
-        if (filtre == "prix")
+        if (filtre == "prix" || filtre == "prixvente")
             query = query.Where(p => p.SalePrice == 0);
+        else if (filtre == "prixachat")
+            query = query.Where(p => p.PurchasePrice == 0);
         else if (filtre == "type")
             query = query.Where(p => p.ProductType == ProductType.Inconnu);
         else if (filtre == "seuil")
@@ -774,8 +777,94 @@ public class ProductsController : Controller
         ViewBag.Page = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.Total = total;
+        ViewBag.Categories = await _context.Categories
+            .AsNoTracking()
+            .OrderBy(c => c.Name)
+            .ToListAsync();
 
         return View(produits);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Pharmacien}")]
+    public async Task<IActionResult> CorrigerLigneAnomalie(
+        int productId,
+        decimal? purchasePrice,
+        decimal? salePrice,
+        string? productType,
+        int? categoryId,
+        int? alertThreshold,
+        string? filtre = null,
+        int page = 1)
+    {
+        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId);
+        if (product == null)
+        {
+            TempData["Error"] = "Produit introuvable.";
+            return RedirectToAction(nameof(Anomalies), new { filtre, page });
+        }
+
+        var changed = false;
+
+        if (purchasePrice.HasValue && purchasePrice.Value >= 0 && purchasePrice.Value != product.PurchasePrice)
+        {
+            product.PurchasePrice = purchasePrice.Value;
+            changed = true;
+        }
+
+        if (salePrice.HasValue && salePrice.Value >= 0 && salePrice.Value != product.SalePrice)
+        {
+            var ancien = product.SalePrice;
+            product.SalePrice = salePrice.Value;
+            _context.PrixModifications.Add(new PrixModification
+            {
+                ProductId = product.Id,
+                AncienPrix = ancien,
+                NouveauPrix = salePrice.Value,
+                ModifiedAt = DateTime.Now,
+                ModifiedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "",
+                ModifiedByDisplayName = User.Identity?.Name
+                    ?? User.FindFirstValue(ClaimTypes.Name)
+                    ?? "",
+                Raison = "Correction anomalie (ligne)"
+            });
+            changed = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(productType)
+            && Enum.TryParse<ProductType>(productType, out var pt)
+            && pt != product.ProductType)
+        {
+            product.ProductType = pt;
+            changed = true;
+        }
+
+        if (categoryId.HasValue && categoryId.Value > 0 && categoryId.Value != product.CategoryId)
+        {
+            var catExists = await _context.Categories.AnyAsync(c => c.Id == categoryId.Value);
+            if (catExists)
+            {
+                product.CategoryId = categoryId.Value;
+                changed = true;
+            }
+        }
+
+        if (alertThreshold.HasValue && alertThreshold.Value >= 0 && alertThreshold.Value != product.AlertThreshold)
+        {
+            product.AlertThreshold = alertThreshold.Value;
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            TempData["Error"] = "Aucune modification à enregistrer.";
+            return RedirectToAction(nameof(Anomalies), new { filtre, page });
+        }
+
+        await _context.SaveChangesAsync();
+        TempData["Success"] = $"« {product.CommercialName} » corrigé.";
+        return RedirectToAction(nameof(Anomalies), new { filtre, page });
     }
 
     [HttpPost]
@@ -784,12 +873,13 @@ public class ProductsController : Controller
     public async Task<IActionResult> CorrigerGroupeAnomalie(
         List<int> productIds,
         string champAcorriger,
-        string nouvelleValeur)
+        string nouvelleValeur,
+        string? filtre = null)
     {
         if (productIds == null || productIds.Count == 0)
         {
             TempData["Error"] = "Sélectionnez au moins un produit.";
-            return RedirectToAction(nameof(Anomalies));
+            return RedirectToAction(nameof(Anomalies), new { filtre });
         }
 
         var produits = await _context.Products
@@ -825,13 +915,21 @@ public class ProductsController : Controller
                     if (int.TryParse(nouvelleValeur, out var sl))
                         p.AlertThreshold = sl;
                     break;
+                case "CategoryId":
+                    if (int.TryParse(nouvelleValeur, out var catId) && catId > 0)
+                    {
+                        var exists = await _context.Categories.AnyAsync(c => c.Id == catId);
+                        if (exists)
+                            p.CategoryId = catId;
+                    }
+                    break;
             }
         }
 
         await _context.SaveChangesAsync();
 
         TempData["Success"] = $"{produits.Count} produit(s) corrigé(s) avec succès.";
-        return RedirectToAction(nameof(Anomalies));
+        return RedirectToAction(nameof(Anomalies), new { filtre });
     }
 
     private async Task<bool> ProductExistsAsync(int id) =>

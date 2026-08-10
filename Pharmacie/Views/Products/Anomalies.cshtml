@@ -6,6 +6,8 @@
     var page = (int)(ViewBag.Page ?? 1);
     var totalPages = (int)(ViewBag.TotalPages ?? 1);
     var totalFiltered = (int)(ViewBag.Total ?? Model.Count);
+    var categories = ViewBag.Categories as IEnumerable<Category>
+        ?? Enumerable.Empty<Category>();
 
     string TypeLabel(ProductType type) => type switch
     {
@@ -13,6 +15,9 @@
         ProductType.Parapharmacie => "Parapharmacie",
         _ => "Inconnu"
     };
+
+    bool IsSansCategorie(Product p) =>
+        p.Category != null && p.Category.Name == "À catégoriser";
 }
 
 @await Html.PartialAsync("_BackButton")
@@ -20,188 +25,293 @@
 <div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
     <div>
         <h1 class="page-title">Anomalies produits</h1>
-        <p class="page-lead mb-0">Produits actifs à corriger après import ou saisie incomplète.</p>
+        <p class="page-lead mb-0">
+            Cliquez un badge pour filtrer. Corrigez directement dans le tableau
+            (listes + Valider). Les tablettes (vente détail) sont indiquées.
+        </p>
     </div>
 </div>
 
 @if (TempData["Success"] != null)
 {
-    <div class="alert alert-success">@TempData["Success"]</div>
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+    </div>
 }
 @if (TempData["Error"] != null)
 {
-    <div class="alert alert-danger">@TempData["Error"]</div>
+    <div class="alert alert-danger alert-dismissible fade show">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+    </div>
 }
 
 <div class="row g-2 mb-3">
     <div class="col-auto">
-        <span class="badge bg-danger fs-6">@ViewBag.PrixVenteZero sans prix de vente</span>
+        <a asp-action="Anomalies" asp-route-filtre="prixvente"
+           class="badge bg-danger fs-6 text-decoration-none @(filtre is "prixvente" or "prix" ? "border border-dark border-2" : null)"
+           title="Filtrer : sans prix de vente">
+            @ViewBag.PrixVenteZero sans prix de vente
+        </a>
     </div>
     <div class="col-auto">
-        <span class="badge bg-danger fs-6">@ViewBag.PrixAchatZero sans prix d'achat</span>
+        <a asp-action="Anomalies" asp-route-filtre="prixachat"
+           class="badge bg-danger fs-6 text-decoration-none @(filtre == "prixachat" ? "border border-dark border-2" : null)"
+           title="Filtrer : sans prix d'achat">
+            @ViewBag.PrixAchatZero sans prix d'achat
+        </a>
     </div>
     <div class="col-auto">
-        <span class="badge bg-warning text-dark fs-6">@ViewBag.TypeInconnu type inconnu</span>
+        <a asp-action="Anomalies" asp-route-filtre="type"
+           class="badge bg-warning text-dark fs-6 text-decoration-none @(filtre == "type" ? "border border-dark border-2" : null)"
+           title="Filtrer : type inconnu">
+            @ViewBag.TypeInconnu type inconnu
+        </a>
     </div>
     <div class="col-auto">
-        <span class="badge bg-secondary fs-6">@ViewBag.SeuilZero sans seuil d'alerte</span>
+        <a asp-action="Anomalies" asp-route-filtre="seuil"
+           class="badge bg-secondary fs-6 text-decoration-none @(filtre == "seuil" ? "border border-dark border-2" : null)"
+           title="Filtrer : sans seuil d'alerte">
+            @ViewBag.SeuilZero sans seuil d'alerte
+        </a>
     </div>
     <div class="col-auto">
-        <span class="badge bg-info fs-6">@ViewBag.SansCategorie sans catégorie</span>
+        <a asp-action="Anomalies" asp-route-filtre="categorie"
+           class="badge bg-info fs-6 text-decoration-none @(filtre == "categorie" ? "border border-dark border-2" : null)"
+           title="Filtrer : sans catégorie">
+            @ViewBag.SansCategorie sans catégorie
+        </a>
     </div>
-</div>
-
-<div class="d-flex gap-2 mb-3 flex-wrap">
-    <a asp-action="Anomalies"
-       class="btn btn-sm @(string.IsNullOrEmpty(filtre) ? "btn-secondary" : "btn-outline-secondary")">
-        Tous (@total)
-    </a>
-    <a asp-action="Anomalies"
-       asp-route-filtre="prix"
-       class="btn btn-sm @(filtre == "prix" ? "btn-danger" : "btn-outline-danger")">
-        Prix = 0
-    </a>
-    <a asp-action="Anomalies"
-       asp-route-filtre="type"
-       class="btn btn-sm @(filtre == "type" ? "btn-warning" : "btn-outline-warning")">
-        Type inconnu
-    </a>
-    <a asp-action="Anomalies"
-       asp-route-filtre="seuil"
-       class="btn btn-sm @(filtre == "seuil" ? "btn-secondary" : "btn-outline-secondary")">
-        Seuil = 0
-    </a>
-    <a asp-action="Anomalies"
-       asp-route-filtre="categorie"
-       class="btn btn-sm @(filtre == "categorie" ? "btn-info" : "btn-outline-info")">
-        Sans catégorie
-    </a>
+    <div class="col-auto">
+        <a asp-action="Anomalies"
+           class="badge bg-dark fs-6 text-decoration-none @(string.IsNullOrEmpty(filtre) ? "border border-light border-2" : null)">
+            Tous @total
+        </a>
+    </div>
 </div>
 
 <form asp-action="CorrigerGroupeAnomalie" method="post" id="form-groupe">
     @Html.AntiForgeryToken()
-
-    <div class="card border-warning mb-3" id="barre-groupe" style="display:none">
-        <div class="card-body py-2 d-flex gap-3 align-items-center flex-wrap">
-            <span class="fw-bold">
-                Action groupée sur
-                <span id="nb-selectionnes">0</span>
-                produit(s) :
-            </span>
-
-            <select name="champAcorriger"
-                    class="form-select form-select-sm"
-                    style="width:180px"
-                    id="champ-select"
-                    onchange="updateValeurOptions(this.value)">
-                <option value="">Choisir le champ...</option>
-                <option value="ProductType">Type de produit</option>
-                <option value="TarifType">Tarification TVA</option>
-                <option value="AlertThreshold">Seuil d'alerte</option>
-            </select>
-
-            <select name="nouvelleValeur"
-                    class="form-select form-select-sm"
-                    style="width:200px"
-                    id="valeur-select">
-                <option value="">Choisir la valeur...</option>
-            </select>
-
-            <button type="submit"
-                    class="btn btn-warning btn-sm"
-                    onclick="return confirm('Appliquer cette correction à tous les produits sélectionnés ?');">
-                <i class="bi bi-check-lg me-1"></i>
-                Appliquer
-            </button>
-
-            <button type="button"
-                    class="btn btn-outline-secondary btn-sm"
-                    onclick="deselectionnerTout()">
-                Tout désélectionner
-            </button>
-        </div>
-    </div>
-
-    <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th style="width:40px">
-                        <input type="checkbox" id="select-all" onchange="toggleAll(this)" />
-                    </th>
-                    <th>Nom</th>
-                    <th>CIP</th>
-                    <th class="text-end">Prix achat</th>
-                    <th class="text-end">Prix vente</th>
-                    <th>Type</th>
-                    <th>Catégorie</th>
-                    <th class="text-end">Seuil</th>
-                    <th>Anomalies</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-            @if (Model.Count == 0)
-            {
-                <tr>
-                    <td colspan="10" class="text-muted text-center py-4">Aucune anomalie pour ce filtre.</td>
-                </tr>
-            }
-            else
-            {
-                foreach (var item in Model)
-                {
-                    <tr>
-                        <td>
-                            <input type="checkbox"
-                                   name="productIds"
-                                   value="@item.Id"
-                                   class="product-cb"
-                                   onchange="updateBarre()" />
-                        </td>
-                        <td>@item.CommercialName</td>
-                        <td>@(item.Cip ?? "—")</td>
-                        <td class="text-end">@item.PurchasePrice.ToString("N0") F</td>
-                        <td class="text-end">@item.SalePrice.ToString("N0") F</td>
-                        <td>@TypeLabel(item.ProductType)</td>
-                        <td>@(item.Category?.Name ?? "—")</td>
-                        <td class="text-end">@item.AlertThreshold</td>
-                        <td>
-                            @if (item.SalePrice == 0)
-                            {
-                                <span class="badge bg-danger">Prix vente = 0</span>
-                            }
-                            @if (item.PurchasePrice == 0)
-                            {
-                                <span class="badge bg-danger">Prix achat = 0</span>
-                            }
-                            @if (item.ProductType == ProductType.Inconnu)
-                            {
-                                <span class="badge bg-warning text-dark">Type inconnu</span>
-                            }
-                            @if (item.AlertThreshold == 0)
-                            {
-                                <span class="badge bg-secondary">Seuil = 0</span>
-                            }
-                            @if (item.Category != null && item.Category.Name == "À catégoriser")
-                            {
-                                <span class="badge bg-info">Sans catégorie</span>
-                            }
-                        </td>
-                        <td>
-                            <a asp-action="Edit"
-                               asp-route-id="@item.Id"
-                               class="btn btn-sm btn-warning">
-                                <i class="bi bi-pencil me-1"></i>Corriger
-                            </a>
-                        </td>
-                    </tr>
-                }
-            }
-            </tbody>
-        </table>
-    </div>
+    <input type="hidden" name="filtre" value="@filtre" />
 </form>
+
+<div class="card border-warning mb-3" id="barre-groupe" style="display:none">
+    <div class="card-body py-2 d-flex gap-3 align-items-center flex-wrap">
+        <span class="fw-bold">
+            Action groupée sur
+            <span id="nb-selectionnes">0</span>
+            produit(s) :
+        </span>
+        <select name="champAcorriger" form="form-groupe"
+                class="form-select form-select-sm" style="width:180px"
+                id="champ-select" onchange="updateValeurOptions(this.value)">
+            <option value="">Choisir le champ...</option>
+            <option value="ProductType">Type de produit</option>
+            <option value="CategoryId">Catégorie</option>
+            <option value="AlertThreshold">Seuil d'alerte</option>
+            <option value="TarifType">Tarification TVA</option>
+        </select>
+        <select name="nouvelleValeur" form="form-groupe"
+                class="form-select form-select-sm" style="width:220px" id="valeur-select">
+            <option value="">Choisir la valeur...</option>
+        </select>
+        <button type="submit" form="form-groupe" class="btn btn-warning btn-sm"
+                onclick="return confirm('Appliquer cette correction à tous les produits sélectionnés ?');">
+            <i class="bi bi-check-lg me-1"></i>Appliquer
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectionnerTout()">
+            Tout désélectionner
+        </button>
+    </div>
+</div>
+
+<div class="table-responsive card border-0 shadow-sm">
+    <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-dark">
+            <tr>
+                <th style="width:36px">
+                    <input type="checkbox" id="select-all" onchange="toggleAll(this)" title="Tout sélectionner" />
+                </th>
+                <th>Nom</th>
+                <th>CIP</th>
+                <th>Prix achat</th>
+                <th>Prix vente</th>
+                <th>Type</th>
+                <th>Catégorie</th>
+                <th>Seuil</th>
+                <th>Anomalies</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        @if (Model.Count == 0)
+        {
+            <tr>
+                <td colspan="10" class="text-muted text-center py-4">Aucune anomalie pour ce filtre.</td>
+            </tr>
+        }
+        else
+        {
+            foreach (var item in Model)
+            {
+                var sansCat = IsSansCategorie(item);
+                var formId = "ligne-" + item.Id;
+                <tr>
+                    <td>
+                        <input type="checkbox" name="productIds" value="@item.Id"
+                               class="product-cb" form="form-groupe" onchange="updateBarre()" />
+                    </td>
+                    <td>
+                        <div class="fw-medium">@item.CommercialName</div>
+                        @if (item.ParentProductId.HasValue)
+                        {
+                            <div class="small text-primary">
+                                <i class="bi bi-diagram-2"></i> Tablette
+                                @if (item.ParentProduct != null)
+                                {
+                                    <span class="text-muted">← @item.ParentProduct.CommercialName</span>
+                                }
+                            </div>
+                        }
+                        else if (item.EstVenteDetail)
+                        {
+                            <div class="small text-success">
+                                <i class="bi bi-box-seam"></i> Boîte (vente détail)
+                            </div>
+                        }
+                    </td>
+                    <td class="small font-monospace">@(string.IsNullOrWhiteSpace(item.Cip) ? "—" : item.Cip)</td>
+
+                    <td>
+                        @if (item.PurchasePrice == 0)
+                        {
+                            <input type="number" name="purchasePrice" form="@formId"
+                                   class="form-control form-control-sm border-danger"
+                                   min="0" step="1" value="0" style="width:6.5rem"
+                                   title="Prix d'achat" />
+                        }
+                        else
+                        {
+                            @item.PurchasePrice.ToString("N0") <span class="text-muted">F</span>
+                            <input type="hidden" name="purchasePrice" form="@formId"
+                                   value="@item.PurchasePrice.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                        }
+                    </td>
+                    <td>
+                        @if (item.SalePrice == 0)
+                        {
+                            <input type="number" name="salePrice" form="@formId"
+                                   class="form-control form-control-sm border-danger"
+                                   min="0" step="1" value="0" style="width:6.5rem"
+                                   title="Prix de vente" />
+                        }
+                        else
+                        {
+                            @item.SalePrice.ToString("N0") <span class="text-muted">F</span>
+                            <input type="hidden" name="salePrice" form="@formId"
+                                   value="@item.SalePrice.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                        }
+                    </td>
+                    <td>
+                        @if (item.ProductType == ProductType.Inconnu)
+                        {
+                            <select name="productType" form="@formId" class="form-select form-select-sm border-warning" style="min-width:8rem">
+                                <option value="Inconnu" selected>Inconnu</option>
+                                <option value="Medicament">Médicament</option>
+                                <option value="Parapharmacie">Parapharmacie</option>
+                            </select>
+                        }
+                        else
+                        {
+                            @TypeLabel(item.ProductType)
+                            <input type="hidden" name="productType" form="@formId" value="@item.ProductType" />
+                        }
+                    </td>
+                    <td>
+                        @if (sansCat)
+                        {
+                            <select name="categoryId" form="@formId" class="form-select form-select-sm border-info" style="min-width:9rem">
+                                <option value="">— Choisir —</option>
+                                @foreach (var c in categories)
+                                {
+                                    if (c.Name == "À catégoriser")
+                                    {
+                                        <option value="@c.Id" selected>@c.Name</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@c.Id">@c.Name</option>
+                                    }
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            @(item.Category?.Name ?? "—")
+                            <input type="hidden" name="categoryId" form="@formId" value="@item.CategoryId" />
+                        }
+                    </td>
+                    <td>
+                        @if (item.AlertThreshold == 0)
+                        {
+                            <select name="alertThreshold" form="@formId" class="form-select form-select-sm" style="width:4.5rem">
+                                <option value="0" selected>0</option>
+                                <option value="5">5</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        }
+                        else
+                        {
+                            @item.AlertThreshold
+                            <input type="hidden" name="alertThreshold" form="@formId" value="@item.AlertThreshold" />
+                        }
+                    </td>
+                    <td>
+                        @if (item.SalePrice == 0)
+                        {
+                            <span class="badge bg-danger">PV=0</span>
+                        }
+                        @if (item.PurchasePrice == 0)
+                        {
+                            <span class="badge bg-danger">PA=0</span>
+                        }
+                        @if (item.ProductType == ProductType.Inconnu)
+                        {
+                            <span class="badge bg-warning text-dark">Type</span>
+                        }
+                        @if (item.AlertThreshold == 0)
+                        {
+                            <span class="badge bg-secondary">Seuil</span>
+                        }
+                        @if (sansCat)
+                        {
+                            <span class="badge bg-info">Catégorie</span>
+                        }
+                    </td>
+                    <td class="text-nowrap">
+                        <form asp-action="CorrigerLigneAnomalie" method="post" id="@formId" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="productId" value="@item.Id" />
+                            <input type="hidden" name="filtre" value="@filtre" />
+                            <input type="hidden" name="page" value="@(page)" />
+                            <button type="submit" class="btn btn-sm btn-success" title="Valider les corrections">
+                                <i class="bi bi-check-lg"></i> Valider
+                            </button>
+                        </form>
+                        <a asp-action="Edit" asp-route-id="@item.Id"
+                           class="btn btn-sm btn-outline-secondary" title="Fiche complète">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>
 
 @if (totalPages > 1)
 {
@@ -224,6 +334,13 @@
 }
 
 <script>
+var categoriesOptions = [
+@foreach (var c in categories)
+{
+    @: { v: '@c.Id', l: '@Html.Raw(c.Name.Replace("\\", "\\\\").Replace("'", "\\'"))' },
+}
+];
+
 var optionsParChamp = {
     ProductType: [
         { v: 'Medicament', l: 'Médicament' },
@@ -242,7 +359,8 @@ var optionsParChamp = {
         { v: '10', l: 'Seuil = 10' },
         { v: '20', l: 'Seuil = 20' },
         { v: '50', l: 'Seuil = 50' }
-    ]
+    ],
+    CategoryId: categoriesOptions
 };
 
 function updateValeurOptions(champ) {
@@ -256,9 +374,7 @@ function updateValeurOptions(champ) {
 }
 
 function toggleAll(cb) {
-    document.querySelectorAll('.product-cb').forEach(function (c) {
-        c.checked = cb.checked;
-    });
+    document.querySelectorAll('.product-cb').forEach(function (c) { c.checked = cb.checked; });
     updateBarre();
 }
 
@@ -269,9 +385,7 @@ function updateBarre() {
 }
 
 function deselectionnerTout() {
-    document.querySelectorAll('.product-cb').forEach(function (c) {
-        c.checked = false;
-    });
+    document.querySelectorAll('.product-cb').forEach(function (c) { c.checked = false; });
     document.getElementById('select-all').checked = false;
     updateBarre();
 }
