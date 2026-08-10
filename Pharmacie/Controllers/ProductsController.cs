@@ -21,12 +21,10 @@ public class ProductsController : Controller
     private const int ClassifyPageSize = 50;
 
     private readonly ApplicationDbContext _context;
-    private readonly InventoryService _inventory;
 
-    public ProductsController(ApplicationDbContext context, InventoryService inventory)
+    public ProductsController(ApplicationDbContext context)
     {
         _context = context;
-        _inventory = inventory;
     }
 
     [Authorize(Roles = AppRoles.CatalogRead)]
@@ -417,47 +415,118 @@ public class ProductsController : Controller
                 ?? userId;
             var reason = $"Ajustement manuel — {ajustementRaison.Trim()} (par {displayName})";
 
-            var lot = await _context.ProductBatches
-                .Where(b => b.ProductId == product.Id)
-                .OrderByDescending(b => b.Id)
-                .FirstOrDefaultAsync();
+            var tracked = await _context.Products.FirstOrDefaultAsync(p => p.Id == product.Id);
+            if (tracked == null)
+                return NotFound();
 
-            if (lot != null)
+            if (delta > 0)
             {
-                var (ok, err) = await _inventory.RecordAjustementAsync(lot.Id, delta, reason, userId);
-                if (!ok)
+                var lot = await _context.ProductBatches
+                    .Where(b => b.ProductId == product.Id)
+                    .OrderByDescending(b => b.Id)
+                    .FirstOrDefaultAsync();
+
+                if (lot == null)
                 {
-                    TempData["Warning"] = $"Produit enregistré, mais ajustement de stock refusé : {err}";
-                    return RedirectToAction(nameof(Edit), new { id });
+                    lot = new ProductBatch
+                    {
+                        ProductId = product.Id,
+                        LotNumber = $"AJUST-{product.Id}-{DateTime.Now:yyyyMMddHHmmss}",
+                        ExpirationDate = DateTime.Today.AddYears(2),
+                        Quantity = delta
+                    };
+                    _context.ProductBatches.Add(lot);
+                    _context.StockMovements.Add(new StockMovement
+                    {
+                        ProductId = product.Id,
+                        Batch = lot,
+                        Type = StockMovementType.Entree,
+                        Quantity = delta,
+                        Reason = reason,
+                        OccurredAt = DateTime.Now,
+                        UserId = userId
+                    });
+                }
+                else
+                {
+                    lot.Quantity += delta;
+                    _context.StockMovements.Add(new StockMovement
+                    {
+                        ProductId = product.Id,
+                        BatchId = lot.Id,
+                        Type = StockMovementType.Entree,
+                        Quantity = delta,
+                        Reason = reason,
+                        OccurredAt = DateTime.Now,
+                        UserId = userId
+                    });
                 }
 
+                tracked.StockQuantity = ajustementStock.Value;
+                await _context.SaveChangesAsync();
                 successMessage =
                     $"Produit mis à jour. Stock ajusté de {existing.StockQuantity} à {ajustementStock.Value} unités. Mouvement tracé.";
             }
-            else if (delta > 0)
-            {
-                var lotNumber = $"AJUST-{product.Id}-{DateTime.Now:yyyyMMddHHmmss}";
-                var (ok, err) = await _inventory.RecordEntreeAsync(
-                    product.Id,
-                    lotNumber,
-                    DateTime.Today.AddYears(2),
-                    delta,
-                    reason,
-                    userId);
-                if (!ok)
-                {
-                    TempData["Warning"] = $"Produit enregistré, mais ajustement de stock refusé : {err}";
-                    return RedirectToAction(nameof(Edit), new { id });
-                }
-
-                successMessage =
-                    $"Produit mis à jour. Stock ajusté de {existing.StockQuantity} à {ajustementStock.Value} unités (nouveau lot créé). Mouvement tracé.";
-            }
             else
             {
-                TempData["Warning"] =
-                    "Produit enregistré, mais impossible de diminuer le stock : aucun lot. Créez un lot d'abord.";
-                return RedirectToAction(nameof(Edit), new { id });
+                // Diminution : FIFO sur les lots, jamais de quantité négative
+                var toRemove = Math.Abs(delta);
+                var lots = await _context.ProductBatches
+                    .Where(b => b.ProductId == product.Id && b.Quantity > 0)
+                    .OrderBy(b => b.ExpirationDate)
+                    .ThenBy(b => b.Id)
+                    .ToListAsync();
+
+                var removed = 0;
+                foreach (var lot in lots)
+                {
+                    if (toRemove <= 0)
+                        break;
+
+                    var take = Math.Min(lot.Quantity, toRemove);
+                    if (take <= 0)
+                        continue;
+
+                    lot.Quantity -= take;
+                    toRemove -= take;
+                    removed += take;
+
+                    _context.StockMovements.Add(new StockMovement
+                    {
+                        ProductId = product.Id,
+                        BatchId = lot.Id,
+                        Type = StockMovementType.Sortie,
+                        Quantity = take,
+                        Reason = reason,
+                        OccurredAt = DateTime.Now,
+                        UserId = userId
+                    });
+                }
+
+                tracked.StockQuantity = ajustementStock.Value;
+                await _context.SaveChangesAsync();
+
+                if (toRemove > 0)
+                {
+                    TempData["Warning"] =
+                        $"Stock produit fixé à {ajustementStock.Value} unités, mais seulement {removed} unité(s) " +
+                        $"ont pu être retirées des lots (lots insuffisants — écart inventaire/lots).";
+                    successMessage =
+                        $"Produit mis à jour. Stock ajusté de {existing.StockQuantity} à {ajustementStock.Value} unités.";
+                }
+                else if (removed == 0)
+                {
+                    TempData["Warning"] =
+                        $"Stock produit fixé à {ajustementStock.Value} unités, mais aucun lot positif n'existait. " +
+                        "Créez ou corrigez les lots si nécessaire.";
+                    successMessage =
+                        $"Produit mis à jour. Stock ajusté de {existing.StockQuantity} à {ajustementStock.Value} unités.";
+                }
+                else
+                {
+                    successMessage =
+                        $"Produit mis à jour. Stock ajusté de {existing.StockQuantity} à {ajustementStock.Value} unités. Mouvement tracé.";
+                }
             }
         }
 
