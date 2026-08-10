@@ -92,6 +92,7 @@ public class ProductsController : Controller
                 purchasePrice = p.PurchasePrice,
                 stockQuantity = p.StockQuantity,
                 assujettiTVA = p.AssujettiTVA,
+                tauxTVA = p.TauxTVA,
                 estTablette = p.ParentProductId != null,
                 estBoite = p.EstVenteDetail && p.ParentProductId == null,
                 nomParent = p.ParentProduct != null ? p.ParentProduct.CommercialName : ""
@@ -801,6 +802,8 @@ public class ProductsController : Controller
         var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId);
         if (product == null)
         {
+            if (IsAjaxRequest())
+                return Json(new { ok = false, message = "Produit introuvable." });
             TempData["Error"] = "Produit introuvable.";
             return RedirectToAction(nameof(Anomalies), new { filtre, page });
         }
@@ -858,12 +861,32 @@ public class ProductsController : Controller
 
         if (!changed)
         {
+            if (IsAjaxRequest())
+                return Json(new { ok = false, message = "Aucune modification à enregistrer." });
             TempData["Error"] = "Aucune modification à enregistrer.";
             return RedirectToAction(nameof(Anomalies), new { filtre, page });
         }
 
         await _context.SaveChangesAsync();
-        TempData["Success"] = $"« {product.CommercialName} » corrigé.";
+
+        await _context.Entry(product).Reference(p => p.Category).LoadAsync();
+        var stillVisible = ProductMatchesAnomalyFiltre(product, filtre);
+        var counts = await GetAnomalyCountsAsync();
+        var message = $"« {product.CommercialName} » corrigé.";
+
+        if (IsAjaxRequest())
+        {
+            return Json(new
+            {
+                ok = true,
+                message,
+                productId,
+                removed = !stillVisible,
+                counts
+            });
+        }
+
+        TempData["Success"] = message;
         return RedirectToAction(nameof(Anomalies), new { filtre, page });
     }
 
@@ -934,6 +957,59 @@ public class ProductsController : Controller
 
     private async Task<bool> ProductExistsAsync(int id) =>
         await _context.Products.AnyAsync(e => e.Id == id);
+
+    private bool IsAjaxRequest() =>
+        string.Equals(Request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase);
+
+    private const string CategorieACategoriser = "À catégoriser";
+
+    private static bool ProductHasAnomaly(Product p) =>
+        p.SalePrice == 0
+        || p.PurchasePrice == 0
+        || p.ProductType == ProductType.Inconnu
+        || p.AlertThreshold == 0
+        || (p.Category != null && p.Category.Name == CategorieACategoriser);
+
+    /// <summary>True si le produit doit encore apparaître dans la liste Anomalies pour ce filtre.</summary>
+    private static bool ProductMatchesAnomalyFiltre(Product p, string? filtre)
+    {
+        if (!ProductHasAnomaly(p))
+            return false;
+
+        return filtre switch
+        {
+            "prix" or "prixvente" => p.SalePrice == 0,
+            "prixachat" => p.PurchasePrice == 0,
+            "type" => p.ProductType == ProductType.Inconnu,
+            "seuil" => p.AlertThreshold == 0,
+            "categorie" => p.Category != null && p.Category.Name == CategorieACategoriser,
+            _ => true
+        };
+    }
+
+    private async Task<object> GetAnomalyCountsAsync()
+    {
+        var list = await _context.Products
+            .AsNoTracking()
+            .Include(p => p.Category)
+            .Where(p => p.IsActive &&
+                (p.SalePrice == 0
+                 || p.PurchasePrice == 0
+                 || p.ProductType == ProductType.Inconnu
+                 || p.AlertThreshold == 0
+                 || (p.Category != null && p.Category.Name == CategorieACategoriser)))
+            .ToListAsync();
+
+        return new
+        {
+            prixVenteZero = list.Count(p => p.SalePrice == 0),
+            prixAchatZero = list.Count(p => p.PurchasePrice == 0),
+            typeInconnu = list.Count(p => p.ProductType == ProductType.Inconnu),
+            seuilZero = list.Count(p => p.AlertThreshold == 0),
+            sansCategorie = list.Count(p => p.Category != null && p.Category.Name == CategorieACategoriser),
+            total = list.Count
+        };
+    }
 
     private async Task PopulateLookupsAsync(int? selectedCategoryId = null, int? selectedSupplierId = null)
     {

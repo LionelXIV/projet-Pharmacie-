@@ -82,6 +82,7 @@ builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<PurchaseService>();
 builder.Services.AddScoped<SaleService>();
 builder.Services.AddScoped<ExcelReaderService>();
+builder.Services.AddScoped<BlImportService>();
 builder.Services.AddScoped<ImportValidationService>();
 builder.Services.AddScoped<ImportMatchingService>();
 builder.Services.AddScoped<ProductImportService>();
@@ -103,14 +104,13 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
     context.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
 
     Console.WriteLine("=== Remise a zero des donnees metier (--reset-data) ===");
-    Console.WriteLine("Conserve : AspNetUsers/Roles, Categories, Suppliers, Vendeurs");
-    Console.WriteLine("Supprime : imports, patients, ventes, achats, stock, produits, rapports activite");
+    Console.WriteLine("Conserve : AspNetUsers/Roles, Categories, Suppliers, Products (catalogue + anomalies)");
+    Console.WriteLine("Supprime : ventes, caisse, bons, avoirs, patients, BL, commandes, lots, mouvements, imports, histo prix, Vendeurs");
     Console.WriteLine("Conseil : arrete temporairement l'App Service Azure pour liberer les verrous.");
 
     await using var transaction = await context.Database.BeginTransactionAsync();
     try
     {
-        // Couper les FK croisees avant DELETE (evite SET NULL / Restrict lents sous verrous)
         await context.Database.ExecuteSqlRawAsync(
             "UPDATE ProductBatches SET SourceImportLineId = NULL WHERE SourceImportLineId IS NOT NULL");
         await context.Database.ExecuteSqlRawAsync(
@@ -118,32 +118,59 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
         await context.Database.ExecuteSqlRawAsync(
             "UPDATE StockMovements SET SaleId = NULL WHERE SaleId IS NOT NULL");
 
-        // Ordre FK — ne pas toucher Identity / Categories / Suppliers / Vendeurs
-        await context.ImportAnomalies.ExecuteDeleteAsync();
-        await context.ImportLines.ExecuteDeleteAsync();
-        await context.ImportBatches.ExecuteDeleteAsync();
-        await context.UserActivityReports.ExecuteDeleteAsync();
-        await context.PatientTreatmentReminders.ExecuteDeleteAsync();
-        await context.PatientPrescriptions.ExecuteDeleteAsync();
-        await context.Patients.ExecuteDeleteAsync();
+        // Ventes et caisses
         await context.VenteCaisses.ExecuteDeleteAsync();
         await context.DepotCaisses.ExecuteDeleteAsync();
         await context.SessionCaisses.ExecuteDeleteAsync();
+        await context.SaleLines.ExecuteDeleteAsync();
+        await context.Sales.ExecuteDeleteAsync();
+
+        // Bons et avoirs
         await context.ReglementBons.ExecuteDeleteAsync();
         await context.BonLignes.ExecuteDeleteAsync();
         await context.Bons.ExecuteDeleteAsync();
         await context.AvoirLignes.ExecuteDeleteAsync();
         await context.Avoirs.ExecuteDeleteAsync();
-        await context.SaleLines.ExecuteDeleteAsync();
-        await context.Sales.ExecuteDeleteAsync();
+
+        // Patients
+        await context.PatientTreatmentReminders.ExecuteDeleteAsync();
+        await context.PatientPrescriptions.ExecuteDeleteAsync();
+        await context.Patients.ExecuteDeleteAsync();
+
+        // BL et commandes fournisseur (tests)
         await context.GoodsReceiptLines.ExecuteDeleteAsync();
         await context.GoodsReceipts.ExecuteDeleteAsync();
         await context.PurchaseOrderLines.ExecuteDeleteAsync();
         await context.PurchaseOrders.ExecuteDeleteAsync();
+
+        // Stock et mouvements — Products conserve
         await context.StockMovements.ExecuteDeleteAsync();
         await context.ProductBatches.ExecuteDeleteAsync();
+        await context.Database.ExecuteSqlRawAsync("UPDATE Products SET StockQuantity = 0");
+
+        // Imports et traces
+        await context.ImportAnomalies.ExecuteDeleteAsync();
+        await context.ImportLines.ExecuteDeleteAsync();
+        await context.ImportBatches.ExecuteDeleteAsync();
         await context.PrixModifications.ExecuteDeleteAsync();
-        await context.Products.ExecuteDeleteAsync();
+        await context.UserActivityReports.ExecuteDeleteAsync();
+
+        // Vendeurs (liste encaissement)
+        await context.Vendeurs.ExecuteDeleteAsync();
+
+        foreach (var table in new[]
+                 {
+                     "Sales", "SaleLines", "SessionCaisses", "DepotCaisses", "VenteCaisses",
+                     "Bons", "BonLignes", "ReglementBons", "Avoirs", "AvoirLignes",
+                     "Patients", "PatientPrescriptions", "PatientTreatmentReminders",
+                     "GoodsReceiptLines", "GoodsReceipts", "PurchaseOrderLines", "PurchaseOrders",
+                     "StockMovements", "ProductBatches",
+                     "ImportBatches", "ImportLines", "ImportAnomalies",
+                     "PrixModifications", "UserActivityReports", "Vendeurs"
+                 })
+        {
+            await context.Database.ExecuteSqlRawAsync($"DBCC CHECKIDENT ('{table}', RESEED, 0)");
+        }
 
         await transaction.CommitAsync();
     }
@@ -161,11 +188,13 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
     var usersLeft = await context.Users.CountAsync();
     var vendeursLeft = await context.Vendeurs.CountAsync();
     var bonsLeft = await context.Bons.CountAsync();
+    var blLeft = await context.GoodsReceipts.CountAsync();
     var caisseLeft = await context.SessionCaisses.CountAsync();
+    var lotsLeft = await context.ProductBatches.CountAsync();
 
-    Console.WriteLine("OK: Donnees metier supprimees avec succes.");
-    Console.WriteLine($"OK: Utilisateurs conserves ({usersLeft}), vendeurs conserves ({vendeursLeft}).");
-    Console.WriteLine($"Verification: Products={productsLeft}, Sales={salesLeft}, Bons={bonsLeft}, SessionsCaisse={caisseLeft} (attendu 0).");
+    Console.WriteLine("OK: nettoyage complet termine (Products conserve, BL + Vendeurs supprimes).");
+    Console.WriteLine($"OK: Utilisateurs={usersLeft}, produits={productsLeft}, vendeurs={vendeursLeft} (attendu 0).");
+    Console.WriteLine($"Verification: Sales={salesLeft}, Bons={bonsLeft}, BL={blLeft}, SessionsCaisse={caisseLeft}, Lots={lotsLeft} (attendu 0).");
     logger.LogWarning(
         "RESET DATA CLI effectue. Users={Users}, Vendeurs={Vendeurs}, Products={Products}, Sales={Sales}",
         usersLeft, vendeursLeft, productsLeft, salesLeft);

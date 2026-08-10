@@ -33,6 +33,12 @@ Desktop.ini
 **/appsettings.Development.json
 secrets.json
 
+# Reset Azure SQL (ne pas publier script/sortie sensibles)
+Scripts/reset-data.sql
+Scripts/reset-output.txt
+Scripts/reset-production-data.sql
+Scripts/run-reset-azure.ps1
+
 # Archives / exports locaux
 *.zip
 Pharmacie.zip

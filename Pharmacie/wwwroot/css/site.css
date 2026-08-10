@@ -238,6 +238,13 @@ a:hover {
   padding: 0.35em 0.7em;
 }
 
+/* Liens-badges : forcer le noir (sinon la couleur de lien a { } prend le dessus) */
+a.badge.text-dark,
+a.badge.text-dark:hover,
+a.badge.text-dark:focus {
+  color: #111827 !important;
+}
+
 /*
   Utilitaires pages — thème Pharmacie (design system --ph-*).
 */

@@ -26,8 +26,8 @@
     <div>
         <h1 class="page-title">Anomalies produits</h1>
         <p class="page-lead mb-0">
-            Cliquez un badge pour filtrer. Corrigez directement dans le tableau
-            (listes + Valider). Les tablettes (vente détail) sont indiquées.
+            Cliquez un badge pour filtrer. Corrigez dans le tableau puis Valider :
+            la ligne disparaît sans remonter en haut de page.
         </p>
     </div>
 </div>
@@ -50,45 +50,51 @@
 <div class="row g-2 mb-3">
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="prixvente"
-           class="badge bg-danger fs-6 text-decoration-none"
-           title="Filtrer : sans prix de vente">
-            @ViewBag.PrixVenteZero sans prix de vente
+           class="badge bg-danger fs-6 text-decoration-none text-dark"
+           title="Filtrer : sans prix de vente"
+           data-count-badge="prixVenteZero">
+            <span data-count>@ViewBag.PrixVenteZero</span> sans prix de vente
         </a>
     </div>
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="prixachat"
-           class="badge bg-danger fs-6 text-decoration-none"
-           title="Filtrer : sans prix d'achat">
-            @ViewBag.PrixAchatZero sans prix d'achat
+           class="badge bg-danger fs-6 text-decoration-none text-dark"
+           title="Filtrer : sans prix d'achat"
+           data-count-badge="prixAchatZero">
+            <span data-count>@ViewBag.PrixAchatZero</span> sans prix d'achat
         </a>
     </div>
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="type"
-           class="badge bg-warning text-dark fs-6 text-decoration-none"
-           title="Filtrer : type inconnu">
-            @ViewBag.TypeInconnu type inconnu
+           class="badge bg-warning fs-6 text-decoration-none text-dark"
+           title="Filtrer : type inconnu"
+           data-count-badge="typeInconnu">
+            <span data-count>@ViewBag.TypeInconnu</span> type inconnu
         </a>
     </div>
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="seuil"
-           class="badge bg-secondary fs-6 text-decoration-none"
-           title="Filtrer : sans seuil d'alerte">
-            @ViewBag.SeuilZero sans seuil d'alerte
+           class="badge bg-secondary fs-6 text-decoration-none text-dark"
+           title="Filtrer : sans seuil d'alerte"
+           data-count-badge="seuilZero">
+            <span data-count>@ViewBag.SeuilZero</span> sans seuil d'alerte
         </a>
     </div>
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="categorie"
-           class="badge bg-info fs-6 text-decoration-none"
-           title="Filtrer : sans catégorie">
-            @ViewBag.SansCategorie sans catégorie
+           class="badge bg-info fs-6 text-decoration-none text-dark"
+           title="Filtrer : sans catégorie"
+           data-count-badge="sansCategorie">
+            <span data-count>@ViewBag.SansCategorie</span> sans catégorie
         </a>
     </div>
 </div>
 
 <div class="d-flex gap-2 mb-3 flex-wrap">
     <a asp-action="Anomalies"
-       class="btn btn-sm @(string.IsNullOrEmpty(filtre) ? "btn-secondary" : "btn-outline-secondary")">
-        Tous (@total)
+       class="btn btn-sm @(string.IsNullOrEmpty(filtre) ? "btn-secondary" : "btn-outline-secondary")"
+       data-count-btn="total">
+        Tous (<span data-count>@total</span>)
     </a>
     <a asp-action="Anomalies"
        asp-route-filtre="prixvente"
@@ -183,7 +189,7 @@
             {
                 var sansCat = IsSansCategorie(item);
                 var formId = "ligne-" + item.Id;
-                <tr>
+                <tr data-product-id="@item.Id">
                     <td>
                         <input type="checkbox" name="productIds" value="@item.Id"
                                class="product-cb" form="form-groupe" onchange="updateBarre()" />
@@ -318,7 +324,8 @@
                         }
                     </td>
                     <td class="text-nowrap">
-                        <form asp-action="CorrigerLigneAnomalie" method="post" id="@formId" class="d-inline">
+                        <form asp-action="CorrigerLigneAnomalie" method="post" id="@formId"
+                              class="d-inline form-corriger-ligne">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="productId" value="@item.Id" />
                             <input type="hidden" name="filtre" value="@filtre" />
@@ -415,4 +422,104 @@ function deselectionnerTout() {
     document.getElementById('select-all').checked = false;
     updateBarre();
 }
+
+function showAnomalieFlash(message, isError) {
+    var existing = document.getElementById('anomalie-flash');
+    if (existing) existing.remove();
+    var div = document.createElement('div');
+    div.id = 'anomalie-flash';
+    div.className = 'alert alert-' + (isError ? 'danger' : 'success') + ' alert-dismissible fade show';
+    div.setAttribute('role', 'status');
+    div.innerHTML = message +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>';
+    var header = document.querySelector('.page-header');
+    if (header && header.parentNode) {
+        header.parentNode.insertBefore(div, header.nextSibling);
+    }
+}
+
+function applyAnomalyCounts(counts) {
+    if (!counts) return;
+    var map = {
+        prixVenteZero: counts.prixVenteZero,
+        prixAchatZero: counts.prixAchatZero,
+        typeInconnu: counts.typeInconnu,
+        seuilZero: counts.seuilZero,
+        sansCategorie: counts.sansCategorie,
+        total: counts.total
+    };
+    Object.keys(map).forEach(function (key) {
+        document.querySelectorAll('[data-count-badge="' + key + '"] [data-count], [data-count-btn="' + key + '"] [data-count]')
+            .forEach(function (el) { el.textContent = map[key]; });
+    });
+}
+
+function focusNextAnomalyRow(startTr) {
+    var next = startTr;
+    while (next && (next.tagName !== 'TR' || !next.getAttribute('data-product-id'))) {
+        next = next.nextElementSibling;
+    }
+    if (!next) return;
+    var focusable = next.querySelector('input:not([type="hidden"]):not([type="checkbox"]), select');
+    if (focusable) {
+        focusable.focus();
+        focusable.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else {
+        next.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+}
+
+document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!(form instanceof HTMLFormElement) || !form.classList.contains('form-corriger-ligne'))
+        return;
+
+    e.preventDefault();
+    var btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.disabled = true;
+
+    var tr = form.closest('tr');
+    var nextSibling = tr ? tr.nextElementSibling : null;
+    var body = new FormData(form);
+
+    fetch(form.action, {
+        method: 'POST',
+        body: body,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+    })
+        .then(function (r) {
+            if (!r.ok) throw new Error('Erreur serveur (' + r.status + ')');
+            return r.json();
+        })
+        .then(function (data) {
+            if (!data || !data.ok) {
+                showAnomalieFlash((data && data.message) || 'Correction impossible.', true);
+                if (btn) btn.disabled = false;
+                return;
+            }
+
+            showAnomalieFlash(data.message || 'Corrigé.', false);
+            applyAnomalyCounts(data.counts);
+
+            if (data.removed && tr) {
+                tr.remove();
+                updateBarre();
+                var tbody = document.querySelector('table tbody');
+                if (tbody && !tbody.querySelector('tr[data-product-id]')) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-muted text-center py-4">Aucune anomalie pour ce filtre.</td></tr>';
+                } else {
+                    focusNextAnomalyRow(nextSibling);
+                }
+            } else {
+                if (btn) btn.disabled = false;
+                var focusable = tr && tr.querySelector('input.border-danger, select.border-warning, select.border-info');
+                if (focusable) focusable.focus();
+            }
+        })
+        .catch(function () {
+            showAnomalieFlash('Erreur réseau — réessayez.', true);
+            if (btn) btn.disabled = false;
+        });
+});
 </script>

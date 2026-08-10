@@ -15,15 +15,18 @@ public class GoodsReceiptsController : Controller
     private readonly ApplicationDbContext _context;
     private readonly PurchaseService _purchase;
     private readonly InventoryService _inventory;
+    private readonly BlImportService _blImport;
 
     public GoodsReceiptsController(
         ApplicationDbContext context,
         PurchaseService purchase,
-        InventoryService inventory)
+        InventoryService inventory,
+        BlImportService blImport)
     {
         _context = context;
         _purchase = purchase;
         _inventory = inventory;
+        _blImport = blImport;
     }
 
     public async Task<IActionResult> Index(
@@ -190,6 +193,20 @@ public class GoodsReceiptsController : Controller
         return View(new GoodsReceiptDirectViewModel());
     }
 
+    /// <summary>Prévisualisation import BL (xlsx/csv) — ne sauvegarde pas, préremplit le formulaire.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(10_000_000)]
+    public async Task<IActionResult> ImportBlPreview(IFormFile? file, CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+            return Json(new { ok = false, message = "Choisissez un fichier .xlsx, .csv ou .pdf." });
+
+        await using var stream = file.OpenReadStream();
+        var result = await _blImport.PreviewAsync(stream, file.FileName, cancellationToken);
+        return Json(result);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateDirect(GoodsReceiptDirectViewModel model)
@@ -258,7 +275,7 @@ public class GoodsReceiptsController : Controller
                     enfantsCrees++;
                 }
 
-                if (ligne.PrixAchat > 0 && ligne.PrixAchat != product.PurchasePrice)
+                if (ligne.PrixAchat > 0 && !ligne.EstUG && ligne.PrixAchat != product.PurchasePrice)
                     product.PurchasePrice = ligne.PrixAchat;
 
                 if (ligne.PrixVente > 0 && ligne.PrixVente != product.SalePrice)

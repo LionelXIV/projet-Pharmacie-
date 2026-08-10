@@ -6,8 +6,8 @@
 
 @await Html.PartialAsync("_BackButton")
 
-<div class="page-header">
-    <h1 class="page-title">Saisir un BL (sans commande)</h1>
+<div class="page-header mb-3">
+    <h1 class="page-title">Nouvelle saisie BL</h1>
     <p class="page-lead mb-0">Réception fournisseur directe — met à jour le stock et trace les mouvements.</p>
 </div>
 
@@ -20,33 +20,67 @@
 
 <form asp-action="CreateDirect" method="post" id="form-bl-direct">
     @Html.AntiForgeryToken()
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white py-3 border-bottom fw-semibold">
-            <i class="bi bi-truck text-primary me-1"></i>En-tête
+
+    <div class="row g-3 mb-3 align-items-stretch">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white py-3 border-bottom fw-semibold">
+                    <i class="bi bi-truck text-primary me-1"></i>Informations générales
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="SupplierId" class="form-label fw-bold"></label>
+                            <select asp-for="SupplierId" class="form-select">
+                                <option value="">— Fournisseur —</option>
+                                @foreach (var s in fournisseurs)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Reference" class="form-label fw-bold"></label>
+                            <input asp-for="Reference" class="form-control" placeholder="N° bon de livraison" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="DateReception" class="form-label fw-bold"></label>
+                            <input asp-for="DateReception" class="form-control" type="date" />
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Notes" class="form-label"></label>
+                            <input asp-for="Notes" class="form-control" placeholder="Optionnel" />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label asp-for="Reference" class="form-label fw-bold"></label>
-                    <input asp-for="Reference" class="form-control" placeholder="N° BL fournisseur" />
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100" id="bl-resume-card" aria-live="polite">
+                <div class="card-header bg-white py-3 border-bottom fw-semibold">
+                    <i class="bi bi-calculator text-primary me-1"></i>Résumé
                 </div>
-                <div class="col-md-4">
-                    <label asp-for="SupplierId" class="form-label fw-bold"></label>
-                    <select asp-for="SupplierId" class="form-select">
-                        <option value="">— Fournisseur —</option>
-                        @foreach (var s in fournisseurs)
-                        {
-                            <option value="@s.Id">@s.Name</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label asp-for="DateReception" class="form-label fw-bold"></label>
-                    <input asp-for="DateReception" class="form-control" type="date" />
-                </div>
-                <div class="col-12">
-                    <label asp-for="Notes" class="form-label"></label>
-                    <input asp-for="Notes" class="form-control" />
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Total prix achat</span>
+                        <span class="fw-bold"><span id="bl-total-achat">0</span> FCFA</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Total prix public</span>
+                        <span class="fw-bold"><span id="bl-total-vente">0</span> FCFA</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Total TVA</span>
+                        <span class="fw-bold"><span id="bl-total-tva">0</span> FCFA</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Lignes</span>
+                        <span class="fw-bold" id="bl-nb-lignes">0</span>
+                    </div>
+                    <div class="small text-muted mt-2 mb-0">
+                        Les lignes <strong>UG</strong> entrent en stock mais n’entrent pas dans le total achat / TVA.
+                    </div>
                 </div>
             </div>
         </div>
@@ -54,20 +88,45 @@
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-header bg-white py-3 border-bottom">
-            <span class="fw-semibold"><i class="bi bi-list-ul text-primary me-1"></i>Lignes</span>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="fw-semibold"><i class="bi bi-capsule text-primary me-1"></i>Produits / médicaments</span>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="btn-erreurs" style="display:none">
+                        Lignes avec erreur (<span id="bl-nb-erreurs">0</span>)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-import-bl"
+                            title="Préremplir depuis Excel, CSV ou PDF texte (CIP, QTE, prix…)">
+                        <i class="bi bi-upload me-1"></i>Importer un BL
+                    </button>
+                    <input type="file" id="bl-import-file" accept=".xlsx,.xlsm,.csv,.txt,.pdf" class="d-none" />
+                    <button type="button" class="btn btn-sm btn-primary" id="btn-add-ligne">
+                        <i class="bi bi-plus-lg me-1"></i>Ajouter un produit
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body border-bottom py-2">
+            <div class="input-group input-group-sm" style="max-width:28rem">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="search" class="form-control" id="bl-filtre-lignes"
+                       placeholder="Rechercher un produit dans les lignes…" autocomplete="off" />
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-sm mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th style="min-width:220px">Produit</th>
-                            <th style="width:90px">Qté</th>
-                            <th style="width:140px">N° lot</th>
-                            <th style="width:140px">Péremption</th>
-                            <th style="width:110px">Prix achat</th>
-                            <th style="width:110px">Prix vente</th>
-                            <th style="width:160px">Détail</th>
+                            <th style="min-width:200px">Produit</th>
+                            <th style="width:80px">Qté</th>
+                            <th style="width:100px">Prix achat</th>
+                            <th style="width:100px">Prix public</th>
+                            <th style="width:100px" class="text-end">Montant</th>
+                            <th style="width:120px">N° lot</th>
+                            <th style="width:120px">Péremption</th>
+                            <th style="width:56px" class="text-center" title="Unité gratuite">UG</th>
+                            <th style="width:70px">TVA %</th>
+                            <th style="min-width:150px">Détail</th>
                             <th style="width:40px"></th>
                         </tr>
                     </thead>
@@ -75,16 +134,13 @@
                 </table>
             </div>
         </div>
-        <div class="card-footer bg-white sticky-bottom border-top py-3">
+        <div class="card-footer bg-white border-top py-3">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <button type="button" class="btn btn-outline-primary" id="btn-add-ligne">
-                        <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
-                    </button>
-                    <span class="text-muted small" id="bl-resume">0 ligne(s)</span>
-                </div>
+                <button type="button" class="btn btn-link text-decoration-none px-0" id="btn-add-ligne-bas">
+                    <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+                </button>
                 <button type="submit" class="btn btn-success">
-                    <i class="bi bi-check-lg me-1"></i>Enregistrer le BL
+                    <i class="bi bi-check-lg me-1"></i>Enregistrer
                 </button>
             </div>
         </div>
@@ -96,11 +152,85 @@
     (function () {
       var ligneCount = 0;
       var tbody = document.getElementById('bl-tbody');
-      var resume = document.getElementById('bl-resume');
+      var elAchat = document.getElementById('bl-total-achat');
+      var elVente = document.getElementById('bl-total-vente');
+      var elTva = document.getElementById('bl-total-tva');
+      var elLignes = document.getElementById('bl-nb-lignes');
+      var elErreurs = document.getElementById('bl-nb-erreurs');
+      var btnErreurs = document.getElementById('btn-erreurs');
+      var filtre = document.getElementById('bl-filtre-lignes');
 
-      function updateResume() {
-        var n = tbody.querySelectorAll('tr.bl-ligne').length;
-        resume.textContent = n + ' ligne(s)';
+      function formatFcfa(n) {
+        return Math.round(n || 0).toLocaleString('fr-FR');
+      }
+
+      function num(el) {
+        if (!el || el.value === '' || el.value == null) return 0;
+        return parseFloat(el.value) || 0;
+      }
+
+      function productLabel(tr) {
+        var sel = tr.querySelector('select[data-tomselect-product]');
+        if (sel && sel.tomselect) {
+          var v = sel.tomselect.getValue();
+          if (v && sel.tomselect.options[v]) return (sel.tomselect.options[v].text || '').toLowerCase();
+        }
+        return '';
+      }
+
+      function lineHasError(tr) {
+        var sel = tr.querySelector('select[data-tomselect-product]');
+        var productId = sel && sel.tomselect ? sel.tomselect.getValue() : (sel && sel.value);
+        var qty = num(tr.querySelector('.bl-qty-input'));
+        var ug = tr.querySelector('.bl-ug-check')?.checked;
+        var pa = num(tr.querySelector('.prix-achat-input'));
+        if (!productId) return true;
+        if (qty < 1) return true;
+        if (!ug && pa <= 0) return true;
+        return false;
+      }
+
+      function updateTotals() {
+        var rows = tbody.querySelectorAll('tr.bl-ligne');
+        var totalAchat = 0, totalVente = 0, totalTva = 0, erreurs = 0;
+
+        rows.forEach(function (tr) {
+          var qty = num(tr.querySelector('.bl-qty-input'));
+          var pa = num(tr.querySelector('.prix-achat-input'));
+          var pv = num(tr.querySelector('.prix-vente-input'));
+          var taux = num(tr.querySelector('.bl-tva-input'));
+          var ug = !!(tr.querySelector('.bl-ug-check') && tr.querySelector('.bl-ug-check').checked);
+
+          var montantAchat = ug ? 0 : qty * pa;
+          var montantVente = qty * pv;
+          var montantTva = ug ? 0 : Math.round(montantAchat * (taux / 100));
+
+          totalAchat += montantAchat;
+          totalVente += montantVente;
+          totalTva += montantTva;
+
+          var cell = tr.querySelector('.bl-ligne-montant');
+          if (cell) cell.textContent = formatFcfa(montantAchat);
+
+          var bad = lineHasError(tr);
+          tr.classList.toggle('table-danger', bad);
+          if (bad) erreurs++;
+        });
+
+        elAchat.textContent = formatFcfa(totalAchat);
+        elVente.textContent = formatFcfa(totalVente);
+        elTva.textContent = formatFcfa(totalTva);
+        elLignes.textContent = String(rows.length);
+        elErreurs.textContent = String(erreurs);
+        btnErreurs.style.display = erreurs > 0 ? '' : 'none';
+      }
+
+      function applyFiltre() {
+        var q = (filtre.value || '').trim().toLowerCase();
+        tbody.querySelectorAll('tr.bl-ligne').forEach(function (tr) {
+          if (!q) { tr.style.display = ''; return; }
+          tr.style.display = productLabel(tr).indexOf(q) >= 0 ? '' : 'none';
+        });
       }
 
       function initTomSelect(el) {
@@ -109,17 +239,14 @@
           valueField: 'value',
           labelField: 'text',
           searchField: ['text'],
-          placeholder: 'Tapez au moins 2 caractères...',
+          placeholder: 'Rechercher un produit…',
           maxOptions: 25,
           preload: false,
           create: false,
           loadThrottle: 300,
           dropdownParent: 'body',
           load: function (query, callback) {
-            if (!query || query.length < 2) {
-              callback();
-              return;
-            }
+            if (!query || query.length < 2) { callback(); return; }
             var url = (el.dataset.url || '/Products/Search') + '?term=' + encodeURIComponent(query);
             fetch(url)
               .then(function (r) { return r.json(); })
@@ -127,64 +254,194 @@
               .catch(function () { callback(); });
           },
           onChange: function (value) {
-            if (!value) return;
+            var tr = el.closest('tr.bl-ligne');
+            if (!tr) return;
+            if (!value) { updateTotals(); applyFiltre(); return; }
             var opt = this.options[value];
             if (!opt) return;
-            var tr = el.closest('tr.bl-ligne') || el.closest('tr');
-            if (!tr) return;
 
             var prixAchatInput = tr.querySelector('.prix-achat-input');
-            if (prixAchatInput && opt.purchasePrice > 0) {
-              prixAchatInput.value = opt.purchasePrice;
-            }
+            if (prixAchatInput && opt.purchasePrice > 0) prixAchatInput.value = opt.purchasePrice;
 
             var prixVenteInput = tr.querySelector('.prix-vente-input');
-            if (prixVenteInput && opt.salePrice > 0) {
-              prixVenteInput.value = opt.salePrice;
+            if (prixVenteInput && opt.salePrice > 0) prixVenteInput.value = opt.salePrice;
+
+            var tvaInput = tr.querySelector('.bl-tva-input');
+            if (tvaInput) {
+              var t = opt.tauxTVA != null ? opt.tauxTVA : (opt.assujettiTVA ? 18 : 0);
+              tvaInput.value = t;
             }
+            updateTotals();
+            applyFiltre();
           }
         });
       }
 
-      function addLigne() {
+      function addLigne(preset) {
         var index = ligneCount++;
+        var qty = preset && preset.quantite > 0 ? preset.quantite : 1;
+        var pa = preset && preset.prixAchat != null ? preset.prixAchat : '';
+        var pv = preset && preset.prixVente != null ? preset.prixVente : '';
+        var lot = preset && preset.numeroLot ? String(preset.numeroLot).replace(/"/g, '&quot;') : '';
+        var exp = preset && preset.datePeremption ? preset.datePeremption : '';
+        var tva = preset && preset.tauxTVA != null ? preset.tauxTVA : 0;
+        var ugChecked = preset && preset.estUG ? ' checked' : '';
+
         var html =
           '<tr class="bl-ligne">' +
           '<td><select name="Lignes[' + index + '].ProductId" class="form-select form-select-sm" data-tomselect-product data-url="/Products/Search" required><option value="">Chercher...</option></select></td>' +
-          '<td><input type="number" name="Lignes[' + index + '].QuantiteLivree" class="form-control form-control-sm" min="1" value="1" required></td>' +
-          '<td><input type="text" name="Lignes[' + index + '].NumeroLot" class="form-control form-control-sm" placeholder="LOT-..."></td>' +
-          '<td><input type="date" name="Lignes[' + index + '].DatePeremption" class="form-control form-control-sm" data-flatpickr-ignore="true"></td>' +
-          '<td><input type="number" name="Lignes[' + index + '].PrixAchat" class="form-control form-control-sm prix-achat-input" min="0" step="1" placeholder="Prix achat"></td>' +
-          '<td><input type="number" name="Lignes[' + index + '].PrixVente" class="form-control form-control-sm prix-vente-input" min="0" step="1" placeholder="Prix vente"></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].QuantiteLivree" class="form-control form-control-sm bl-qty-input" min="1" value="' + qty + '" required></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].PrixAchat" class="form-control form-control-sm prix-achat-input" min="0" step="1" placeholder="Achat" value="' + pa + '"></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].PrixVente" class="form-control form-control-sm prix-vente-input" min="0" step="1" placeholder="Public" value="' + pv + '"></td>' +
+          '<td class="text-end fw-semibold text-nowrap"><span class="bl-ligne-montant">0</span> <span class="text-muted small">F</span></td>' +
+          '<td><input type="text" name="Lignes[' + index + '].NumeroLot" class="form-control form-control-sm" placeholder="LOT-..." value="' + lot + '"></td>' +
+          '<td><input type="date" name="Lignes[' + index + '].DatePeremption" class="form-control form-control-sm" data-flatpickr-ignore="true" value="' + exp + '"></td>' +
+          '<td class="text-center"><input class="form-check-input bl-ug-check" type="checkbox" name="Lignes[' + index + '].EstUG" value="true" title="Unité gratuite"' + ugChecked + '></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].TauxTVA" class="form-control form-control-sm bl-tva-input" min="0" max="100" step="1" value="' + tva + '"></td>' +
           '<td class="small">' +
           '<div class="form-check mb-1"><input class="form-check-input bl-vd-check" type="checkbox" name="Lignes[' + index + '].CreerVenteDetail" value="true" id="vd' + index + '"><label class="form-check-label" for="vd' + index + '">Créer unité</label></div>' +
           '<input type="number" name="Lignes[' + index + '].NbUnitesParBoite" class="form-control form-control-sm mb-1" min="1" placeholder="Nb/boîte">' +
           '<input type="number" name="Lignes[' + index + '].PrixUnite" class="form-control form-control-sm mb-1" min="1" step="1" placeholder="Prix unité">' +
-          '<div class="mt-2">' +
-          '<label class="form-label small fw-bold mb-0" for="boites-ouvrir-' + index + '">Nb boîtes à ouvrir maintenant</label>' +
-          '<input type="number" name="Lignes[' + index + '].NbBoitesAOuvrir" id="boites-ouvrir-' + index + '" class="form-control form-control-sm" min="0" value="0" placeholder="0 = aucune">' +
-          '<div class="form-text text-warning">Ces boîtes seront converties en tablettes immédiatement.</div>' +
-          '</div>' +
+          '<label class="form-label small fw-bold mb-0" for="boites-ouvrir-' + index + '">Boîtes à ouvrir</label>' +
+          '<input type="number" name="Lignes[' + index + '].NbBoitesAOuvrir" id="boites-ouvrir-' + index + '" class="form-control form-control-sm" min="0" value="0">' +
           '</td>' +
-          '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove(); document.getElementById(\'bl-resume\').textContent=document.querySelectorAll(\'#bl-tbody tr.bl-ligne\').length+\' ligne(s)\';">✕</button></td>' +
+          '<td><button type="button" class="btn btn-sm btn-outline-danger btn-remove-ligne" title="Supprimer">✕</button></td>' +
           '</tr>';
         tbody.insertAdjacentHTML('beforeend', html);
         var select = tbody.querySelector('select[name="Lignes[' + index + '].ProductId"]');
         initTomSelect(select);
-        updateResume();
+
+        if (preset && preset.productId && select && select.tomselect) {
+          var text = preset.productText || ('#' + preset.productId);
+          select.tomselect.addOption({
+            value: String(preset.productId),
+            text: text,
+            salePrice: preset.salePrice || preset.prixVente || 0,
+            purchasePrice: preset.purchasePrice || preset.prixAchat || 0,
+            tauxTVA: preset.tauxTVA || 0
+          });
+          select.tomselect.setValue(String(preset.productId), true);
+        }
+
+        updateTotals();
         var newRow = tbody.querySelector('tr.bl-ligne:last-child');
-        if (newRow) {
+        if (newRow && !preset) {
           newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
           setTimeout(function () {
             if (select && select.tomselect) select.tomselect.focus();
           }, 150);
         }
+        return newRow;
       }
 
-      document.getElementById('btn-add-ligne').addEventListener('click', addLigne);
-      document.addEventListener('DOMContentLoaded', function () {
-        addLigne();
+      function showImportFlash(message, isError) {
+        var existing = document.getElementById('bl-import-flash');
+        if (existing) existing.remove();
+        var div = document.createElement('div');
+        div.id = 'bl-import-flash';
+        div.className = 'alert alert-' + (isError ? 'danger' : 'success') + ' alert-dismissible fade show';
+        div.innerHTML = message +
+          '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>';
+        var header = document.querySelector('.page-header');
+        if (header && header.parentNode)
+          header.parentNode.insertBefore(div, header.nextSibling);
+      }
+
+      function applyImportLines(lines) {
+        tbody.querySelectorAll('tr.bl-ligne').forEach(function (tr) { tr.remove(); });
+        lines.forEach(function (line) {
+          addLigne({
+            productId: line.productId,
+            productText: line.productText,
+            quantite: line.quantite,
+            prixAchat: line.prixAchat,
+            prixVente: line.prixVente,
+            purchasePrice: line.purchasePrice,
+            salePrice: line.salePrice,
+            numeroLot: line.numeroLot,
+            datePeremption: line.datePeremption,
+            estUG: line.estUG,
+            tauxTVA: line.tauxTVA
+          });
+        });
+        updateTotals();
+        var firstErr = tbody.querySelector('tr.bl-ligne.table-danger');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      var importUrl = '@Url.Action("ImportBlPreview", "GoodsReceipts")';
+      var fileInput = document.getElementById('bl-import-file');
+      document.getElementById('btn-import-bl').addEventListener('click', function () {
+        fileInput.value = '';
+        fileInput.click();
       });
+      fileInput.addEventListener('change', function () {
+        if (!fileInput.files || !fileInput.files[0]) return;
+        var fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        var token = document.querySelector('#form-bl-direct input[name="__RequestVerificationToken"]');
+        if (token) fd.append('__RequestVerificationToken', token.value);
+
+        var btn = document.getElementById('btn-import-bl');
+        btn.disabled = true;
+        fetch(importUrl, {
+          method: 'POST',
+          body: fd,
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            btn.disabled = false;
+            if (!data || !data.ok) {
+              showImportFlash((data && data.message) || 'Import impossible.', true);
+              return;
+            }
+            if (!data.lines || !data.lines.length) {
+              showImportFlash('Aucune ligne importée.', true);
+              return;
+            }
+            applyImportLines(data.lines);
+            showImportFlash(data.message || 'Import terminé.', data.unmatchedCount > 0);
+          })
+          .catch(function () {
+            btn.disabled = false;
+            showImportFlash('Erreur réseau lors de l’import.', true);
+          });
+      });
+
+      tbody.addEventListener('input', function (e) {
+        if (e.target.matches('.bl-qty-input, .prix-achat-input, .prix-vente-input, .bl-tva-input'))
+          updateTotals();
+      });
+      tbody.addEventListener('change', function (e) {
+        if (e.target.matches('.bl-qty-input, .prix-achat-input, .prix-vente-input, .bl-tva-input, .bl-ug-check'))
+          updateTotals();
+      });
+      tbody.addEventListener('click', function (e) {
+        var btn = e.target.closest('.btn-remove-ligne');
+        if (!btn) return;
+        var tr = btn.closest('tr.bl-ligne');
+        if (tr) tr.remove();
+        updateTotals();
+        applyFiltre();
+      });
+
+      filtre.addEventListener('input', applyFiltre);
+
+      btnErreurs.addEventListener('click', function () {
+        var first = tbody.querySelector('tr.bl-ligne.table-danger');
+        if (first) {
+          first.style.display = '';
+          first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          var focusable = first.querySelector('input:not([type=checkbox]), select');
+          if (focusable) focusable.focus();
+        }
+      });
+
+      document.getElementById('btn-add-ligne').addEventListener('click', function () { addLigne(); });
+      document.getElementById('btn-add-ligne-bas').addEventListener('click', function () { addLigne(); });
+      document.addEventListener('DOMContentLoaded', function () { addLigne(); });
     })();
     </script>
 }
