@@ -266,6 +266,9 @@
                         <a class="nav-link @(isDashboard && IsAction("Finances") ? "active" : null)" asp-controller="Dashboard" asp-action="Finances" aria-current="@(isDashboard && IsAction("Finances") ? "page" : null)">
                             <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>Finances
                         </a>
+                        <a class="nav-link @(IsCtrl("Documents") ? "active" : null)" asp-controller="Documents" asp-action="Index" aria-current="@(IsCtrl("Documents") ? "page" : null)">
+                            <i class="bi bi-folder2-open" aria-hidden="true"></i>Vos documents
+                        </a>
                         <a class="nav-link @(isReports && IsActionAny("EtatTVA", "EtatTVAPrint", "ExportTVAPdf") ? "active" : null)" asp-controller="Reports" asp-action="EtatTVA" aria-current="@(isReports && IsActionAny("EtatTVA", "EtatTVAPrint", "ExportTVAPdf") ? "page" : null)">
                             <i class="bi bi-percent" aria-hidden="true"></i>TVA / DGID
                         </a>

@@ -1,0 +1,312 @@
+@using Pharmacie.Authorization
+@{
+    ViewData["Title"] = "Vos documents";
+    var dateDebut = (string)(ViewBag.DateDebut ?? DateTime.Today.AddDays(-29).ToString("yyyy-MM-dd"));
+    var dateFin = (string)(ViewBag.DateFin ?? DateTime.Today.ToString("yyyy-MM-dd"));
+    var dateJour = (string)(ViewBag.DateJour ?? DateTime.Today.ToString("yyyy-MM-dd"));
+    var showStock = AppRoles.CanAccessStockReports(User);
+    var showOperational = AppRoles.CanAccessOperationalReports(User);
+    var showPatients = AppRoles.CanAccessPatientsRead(User);
+    var showCatalog = AppRoles.CanManageCatalog(User);
+    var showAdmin = AppRoles.CanManageUsersAccounts(User);
+    var showExtras = AppRoles.IsTitulaire(User);
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header mb-3">
+    <h1 class="page-title">
+        <i class="bi bi-folder2-open me-2" aria-hidden="true"></i>Vos documents
+    </h1>
+    <p class="page-lead mb-0">
+        Téléchargez ici les exports disponibles selon vos droits
+        (accès réservé Titulaire / Comptable).
+    </p>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-0" for="dateDebut">Début période</label>
+                <input type="date" class="form-control form-control-sm" id="dateDebut"
+                       name="dateDebut" value="@dateDebut" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-0" for="dateFin">Fin période</label>
+                <input type="date" class="form-control form-control-sm" id="dateFin"
+                       name="dateFin" value="@dateFin" />
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-calendar3 me-1"></i>Appliquer la période
+                </button>
+            </div>
+            <div class="col-md-3 text-md-end small text-muted">
+                Les exports « période » utilisent ces dates.
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="mb-4">
+    <h2 class="h5 text-uppercase text-muted mb-3">Finances &amp; fiscal</h2>
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="h6"><i class="bi bi-percent me-1 text-success"></i>État TVA / DGID</h3>
+                    <p class="small text-muted mb-3">Déclaration TVA sur la période (PDF).</p>
+                    <a class="btn btn-sm btn-success"
+                       asp-controller="Reports" asp-action="ExportTVAPdf"
+                       asp-route-dateDebut="@dateDebut" asp-route-dateFin="@dateFin">
+                        <i class="bi bi-download me-1"></i>Télécharger PDF
+                    </a>
+                    <a class="btn btn-sm btn-outline-secondary ms-1"
+                       asp-controller="Reports" asp-action="EtatTVA"
+                       asp-route-dateDebut="@dateDebut" asp-route-dateFin="@dateFin">
+                        Voir
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="h6"><i class="bi bi-journal-richtext me-1 text-success"></i>Récapitulatif</h3>
+                    <p class="small text-muted mb-3">Synthèse CA / TVA / ventes (CSV).</p>
+                    <a class="btn btn-sm btn-success"
+                       asp-controller="Reports" asp-action="ExportRecapitulatifCSV"
+                       asp-route-dateDebut="@dateDebut" asp-route-dateFin="@dateFin">
+                        <i class="bi bi-download me-1"></i>Télécharger CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="h6"><i class="bi bi-cash-coin me-1 text-success"></i>Rapport CA</h3>
+                    <p class="small text-muted mb-3">Chiffre d'affaires, marge, panier (CSV).</p>
+                    <a class="btn btn-sm btn-success"
+                       asp-controller="Reports" asp-action="ExportRapportCACSV"
+                       asp-route-dateDebut="@dateDebut" asp-route-dateFin="@dateFin">
+                        <i class="bi bi-download me-1"></i>Télécharger CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="h6"><i class="bi bi-bar-chart-steps me-1 text-success"></i>Performance vendeurs</h3>
+                    <p class="small text-muted mb-3">CA du jour par vendeur (CSV).</p>
+                    <a class="btn btn-sm btn-success"
+                       asp-controller="Reports" asp-action="ExportVendeursCsv"
+                       asp-route-date="@dateJour">
+                        <i class="bi bi-download me-1"></i>Télécharger CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="h6"><i class="bi bi-graph-up-arrow me-1 text-success"></i>Finances (écran)</h3>
+                    <p class="small text-muted mb-3">Tableau journalier + graphiques (impression).</p>
+                    <a class="btn btn-sm btn-outline-success"
+                       asp-controller="Dashboard" asp-action="Finances">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Ouvrir
+                    </a>
+                </div>
+            </div>
+        </div>
+        @if (showExtras)
+        {
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-bag me-1 text-success"></i>Rapport Produits Extras</h3>
+                        <p class="small text-muted mb-3">CA hors système (CSV) — Titulaire.</p>
+                        <a class="btn btn-sm btn-success"
+                           asp-controller="Reports" asp-action="ExportRapportExtrasCSV"
+                           asp-route-dateDebut="@dateDebut" asp-route-dateFin="@dateFin">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showStock)
+{
+    <div class="mb-4">
+        <h2 class="h5 text-uppercase text-muted mb-3">Catalogue &amp; stock</h2>
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-clipboard-data me-1"></i>État du stock</h3>
+                        <p class="small text-muted mb-3">Quantités et seuils (CSV).</p>
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-controller="Reports" asp-action="StockStatusCsv">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-hourglass-split me-1"></i>Proches expiration</h3>
+                        <p class="small text-muted mb-3">Lots bientôt périmés (CSV).</p>
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-controller="Reports" asp-action="NearExpirationCsv">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-calendar-x me-1"></i>Produits expirés</h3>
+                        <p class="small text-muted mb-3">Lots expirés encore en stock (CSV).</p>
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-controller="Reports" asp-action="ExpiredProductsCsv">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @if (showCatalog)
+            {
+                <div class="col-md-6 col-xl-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h3 class="h6"><i class="bi bi-capsule me-1"></i>Catalogue produits</h3>
+                            <p class="small text-muted mb-3">Export catalogue complet (CSV).</p>
+                            <a class="btn btn-sm btn-outline-primary"
+                               asp-controller="Products" asp-action="IndexCsv">
+                                <i class="bi bi-download me-1"></i>Télécharger CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <h3 class="h6"><i class="bi bi-building me-1"></i>Fournisseurs</h3>
+                            <p class="small text-muted mb-3">Liste fournisseurs (CSV).</p>
+                            <a class="btn btn-sm btn-outline-primary"
+                               asp-controller="Suppliers" asp-action="IndexCsv">
+                                <i class="bi bi-download me-1"></i>Télécharger CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@if (showOperational)
+{
+    <div class="mb-4">
+        <h2 class="h5 text-uppercase text-muted mb-3">Ventes &amp; mouvements</h2>
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-receipt me-1"></i>Historique ventes</h3>
+                        <p class="small text-muted mb-3">Dernières ventes (CSV).</p>
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-controller="Reports" asp-action="SalesHistoryCsv">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-arrow-left-right me-1"></i>Historique mouvements</h3>
+                        <p class="small text-muted mb-3">Entrées / sorties stock (CSV).</p>
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-controller="Reports" asp-action="StockMovementsHistoryCsv">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showPatients)
+{
+    <div class="mb-4">
+        <h2 class="h5 text-uppercase text-muted mb-3">Patients</h2>
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-people me-1"></i>Patients</h3>
+                        <p class="small text-muted mb-3">Fiches patients (CSV).</p>
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-controller="Patients" asp-action="IndexCsv">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-file-medical me-1"></i>Ordonnances</h3>
+                        <p class="small text-muted mb-3">Toutes les ordonnances (CSV).</p>
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-controller="Patients" asp-action="PrescriptionsCsv">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-alarm me-1"></i>Rappels</h3>
+                        <p class="small text-muted mb-3">Rappels de traitement (CSV).</p>
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-controller="Patients" asp-action="RemindersCsv">
+                            <i class="bi bi-download me-1"></i>Télécharger CSV
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showAdmin)
+{
+    <div class="mb-4">
+        <h2 class="h5 text-uppercase text-muted mb-3">Administration</h2>
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h3 class="h6"><i class="bi bi-archive me-1"></i>Rapports utilisateurs</h3>
+                        <p class="small text-muted mb-3">Consulter puis exporter un rapport CSV.</p>
+                        <a class="btn btn-sm btn-outline-secondary"
+                           asp-controller="AdminUsers" asp-action="ActivityReports">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>Ouvrir la liste
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

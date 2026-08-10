@@ -126,6 +126,14 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
         await context.PatientTreatmentReminders.ExecuteDeleteAsync();
         await context.PatientPrescriptions.ExecuteDeleteAsync();
         await context.Patients.ExecuteDeleteAsync();
+        await context.VenteCaisses.ExecuteDeleteAsync();
+        await context.DepotCaisses.ExecuteDeleteAsync();
+        await context.SessionCaisses.ExecuteDeleteAsync();
+        await context.ReglementBons.ExecuteDeleteAsync();
+        await context.BonLignes.ExecuteDeleteAsync();
+        await context.Bons.ExecuteDeleteAsync();
+        await context.AvoirLignes.ExecuteDeleteAsync();
+        await context.Avoirs.ExecuteDeleteAsync();
         await context.SaleLines.ExecuteDeleteAsync();
         await context.Sales.ExecuteDeleteAsync();
         await context.GoodsReceiptLines.ExecuteDeleteAsync();
@@ -134,6 +142,7 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
         await context.PurchaseOrders.ExecuteDeleteAsync();
         await context.StockMovements.ExecuteDeleteAsync();
         await context.ProductBatches.ExecuteDeleteAsync();
+        await context.PrixModifications.ExecuteDeleteAsync();
         await context.Products.ExecuteDeleteAsync();
 
         await transaction.CommitAsync();
@@ -151,10 +160,12 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
     var salesLeft = await context.Sales.CountAsync();
     var usersLeft = await context.Users.CountAsync();
     var vendeursLeft = await context.Vendeurs.CountAsync();
+    var bonsLeft = await context.Bons.CountAsync();
+    var caisseLeft = await context.SessionCaisses.CountAsync();
 
     Console.WriteLine("OK: Donnees metier supprimees avec succes.");
     Console.WriteLine($"OK: Utilisateurs conserves ({usersLeft}), vendeurs conserves ({vendeursLeft}).");
-    Console.WriteLine($"Verification: Products={productsLeft}, Sales={salesLeft} (attendu 0).");
+    Console.WriteLine($"Verification: Products={productsLeft}, Sales={salesLeft}, Bons={bonsLeft}, SessionsCaisse={caisseLeft} (attendu 0).");
     logger.LogWarning(
         "RESET DATA CLI effectue. Users={Users}, Vendeurs={Vendeurs}, Products={Products}, Sales={Sales}",
         usersLeft, vendeursLeft, productsLeft, salesLeft);
