@@ -50,45 +50,71 @@
 <div class="row g-2 mb-3">
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="prixvente"
-           class="badge bg-danger fs-6 text-decoration-none @(filtre is "prixvente" or "prix" ? "border border-dark border-2" : null)"
+           class="badge bg-danger fs-6 text-decoration-none"
            title="Filtrer : sans prix de vente">
             @ViewBag.PrixVenteZero sans prix de vente
         </a>
     </div>
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="prixachat"
-           class="badge bg-danger fs-6 text-decoration-none @(filtre == "prixachat" ? "border border-dark border-2" : null)"
+           class="badge bg-danger fs-6 text-decoration-none"
            title="Filtrer : sans prix d'achat">
             @ViewBag.PrixAchatZero sans prix d'achat
         </a>
     </div>
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="type"
-           class="badge bg-warning text-dark fs-6 text-decoration-none @(filtre == "type" ? "border border-dark border-2" : null)"
+           class="badge bg-warning text-dark fs-6 text-decoration-none"
            title="Filtrer : type inconnu">
             @ViewBag.TypeInconnu type inconnu
         </a>
     </div>
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="seuil"
-           class="badge bg-secondary fs-6 text-decoration-none @(filtre == "seuil" ? "border border-dark border-2" : null)"
+           class="badge bg-secondary fs-6 text-decoration-none"
            title="Filtrer : sans seuil d'alerte">
             @ViewBag.SeuilZero sans seuil d'alerte
         </a>
     </div>
     <div class="col-auto">
         <a asp-action="Anomalies" asp-route-filtre="categorie"
-           class="badge bg-info fs-6 text-decoration-none @(filtre == "categorie" ? "border border-dark border-2" : null)"
+           class="badge bg-info fs-6 text-decoration-none"
            title="Filtrer : sans catégorie">
             @ViewBag.SansCategorie sans catégorie
         </a>
     </div>
-    <div class="col-auto">
-        <a asp-action="Anomalies"
-           class="badge bg-dark fs-6 text-decoration-none @(string.IsNullOrEmpty(filtre) ? "border border-light border-2" : null)">
-            Tous @total
-        </a>
-    </div>
+</div>
+
+<div class="d-flex gap-2 mb-3 flex-wrap">
+    <a asp-action="Anomalies"
+       class="btn btn-sm @(string.IsNullOrEmpty(filtre) ? "btn-secondary" : "btn-outline-secondary")">
+        Tous (@total)
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="prixvente"
+       class="btn btn-sm @(filtre is "prixvente" or "prix" ? "btn-danger" : "btn-outline-danger")">
+        Prix vente = 0
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="prixachat"
+       class="btn btn-sm @(filtre == "prixachat" ? "btn-danger" : "btn-outline-danger")">
+        Prix achat = 0
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="type"
+       class="btn btn-sm @(filtre == "type" ? "btn-warning" : "btn-outline-warning")">
+        Type inconnu
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="seuil"
+       class="btn btn-sm @(filtre == "seuil" ? "btn-secondary" : "btn-outline-secondary")">
+        Seuil = 0
+    </a>
+    <a asp-action="Anomalies"
+       asp-route-filtre="categorie"
+       class="btn btn-sm @(filtre == "categorie" ? "btn-info" : "btn-outline-info")">
+        Sans catégorie
+    </a>
 </div>
 
 <form asp-action="CorrigerGroupeAnomalie" method="post" id="form-groupe">
