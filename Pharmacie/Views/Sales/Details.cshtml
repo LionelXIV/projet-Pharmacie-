@@ -20,16 +20,23 @@
 
 @if (TempData["NewSale"] != null)
 {
-    <div class="alert alert-success d-flex align-items-center justify-content-between mb-3">
+    <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
         <span>
             <i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>
             Vente enregistrée avec succès !
         </span>
-        <a asp-action="Ticket" asp-route-id="@Model.Id" asp-route-auto="true" target="_blank"
-           class="btn btn-success btn-sm">
-            <i class="bi bi-printer-fill me-1" aria-hidden="true"></i>
-            Imprimer le ticket
-        </a>
+        <div class="d-flex flex-wrap gap-2">
+            <a asp-action="Ticket" asp-route-id="@Model.Id" asp-route-auto="true" target="_blank"
+               class="btn btn-success btn-sm">
+                <i class="bi bi-printer-fill me-1" aria-hidden="true"></i>
+                Imprimer le ticket
+            </a>
+            <a asp-action="FicheVente" asp-route-id="@Model.Id" asp-route-auto="true" target="_blank"
+               class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-file-text me-1" aria-hidden="true"></i>
+                Fiche A4
+            </a>
+        </div>
     </div>
 }
 
@@ -116,6 +123,7 @@
             <a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Retour à la liste</a>
             <a class="btn btn-outline-primary" asp-action="DetailsCsv" asp-route-id="@Model.Id"><i class="bi bi-download me-1" aria-hidden="true"></i>Exporter CSV (lignes)</a>
             <a class="btn btn-outline-success" asp-action="Ticket" asp-route-id="@Model.Id" target="_blank"><i class="bi bi-printer me-1" aria-hidden="true"></i>Imprimer le ticket</a>
+            <a class="btn btn-outline-dark" asp-action="FicheVente" asp-route-id="@Model.Id" target="_blank"><i class="bi bi-file-text me-1" aria-hidden="true"></i>Fiche A4</a>
         </div>
     </div>
 </div>

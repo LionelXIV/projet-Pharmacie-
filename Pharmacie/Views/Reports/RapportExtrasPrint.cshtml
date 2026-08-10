@@ -1,0 +1,95 @@
+@model RapportExtrasViewModel
+@using Pharmacie.Services
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rapport Extras — @Model.DateDebut.ToString("dd/MM/yyyy") → @Model.DateFin.ToString("dd/MM/yyyy")</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11px; color: #000; padding: 15mm; }
+        .header { text-align: center; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 8px; }
+        .header h1 { font-size: 14px; font-weight: bold; }
+        .header h2 { font-size: 12px; margin-top: 4px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0; }
+        .kpi-box { border: 1px solid #ccc; padding: 6px; text-align: center; }
+        .kpi-value { font-size: 13px; font-weight: bold; }
+        .kpi-label { font-size: 9px; color: #666; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th { background: #333; color: #fff; padding: 4px 6px; text-align: left; font-size: 10px; }
+        td { padding: 3px 6px; border-bottom: 1px solid #eee; font-size: 10px; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .text-end { text-align: right; }
+        .footer { margin-top: 15px; font-size: 9px; color: #666; text-align: center; }
+        .no-print { text-align: center; margin-bottom: 15px; }
+        .note { margin: 8px 0; font-size: 10px; border: 1px solid #ccc; padding: 6px; }
+        @@media print {
+            .no-print { display: none !important; }
+            @@page { size: A4 portrait; margin: 12mm; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button type="button" onclick="window.print()" style="padding:8px 20px;background:#4CAF82;color:white;border:none;border-radius:4px;cursor:pointer;">Imprimer / Enregistrer PDF</button>
+        <button type="button" onclick="window.close()" style="padding:8px 20px;background:#ccc;border:none;margin-left:8px;border-radius:4px;cursor:pointer;">Fermer</button>
+    </div>
+
+    <div class="header">
+        <h1>PHARMACIE SAINT JEAN PAUL II PNR</h1>
+        <h2>RAPPORT PRODUITS EXTRAS — DU @Model.DateDebut.ToString("dd/MM/yyyy") AU @Model.DateFin.ToString("dd/MM/yyyy")</h2>
+        <div>Généré le @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
+    </div>
+
+    <div class="note">Ces ventes sont exclues des rapports officiels (TVA, DGID, CA pharmacie).</div>
+
+    <div class="kpi-grid">
+        <div class="kpi-box"><div class="kpi-value">@Model.NombreVentes</div><div class="kpi-label">Nb ventes</div></div>
+        <div class="kpi-box"><div class="kpi-value">@Model.CATotal.ToString("N0") F</div><div class="kpi-label">CA Extras</div></div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>N° vente</th>
+                <th>Produits Extras</th>
+                <th class="text-end">CA Extras</th>
+                <th>Paiement</th>
+                <th>Vendeur</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var v in Model.Ventes)
+        {
+            var lignesExtras = ProduitsExtrasFilter.LignesExtras(v.Lines).ToList();
+            var produits = string.Join(", ", lignesExtras.Select(l =>
+                $"{l.Product?.CommercialName ?? "#"} ×{l.Quantity}"));
+            var ca = lignesExtras.Sum(l => l.UnitPrice * l.Quantity);
+            <tr>
+                <td>@v.SoldAt.ToString("dd/MM/yyyy HH:mm")</td>
+                <td>#@v.Id</td>
+                <td>@produits</td>
+                <td class="text-end">@ca.ToString("N0") F</td>
+                <td>@PaymentMethodDisplay.Format(v.PaymentMethod, v.PaymentMethodAutre)</td>
+                <td>@(v.Vendeur?.Nom ?? "Non attribué")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <div class="footer">Pharmacie Saint Jean Paul II PNR — Document confidentiel</div>
+
+    <script>
+        if (new URLSearchParams(window.location.search).get('auto') === 'true') {
+            window.addEventListener('load', function () {
+                setTimeout(function () { window.print(); }, 500);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+@model Sale
+@{
+    Layout = null;
+    var hasDiscount = Model.Lines.Any(l => !string.IsNullOrEmpty(l.DiscountType));
+    var recordedBy = ViewBag.RecordedBy as string ?? "—";
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fiche de vente #@Model.Id</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11px; padding: 20mm; color: #000; }
+        .no-print { text-align: center; margin-bottom: 15px; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .pharmacie-info h1 { font-size: 14px; font-weight: bold; }
+        .facture-info { text-align: right; }
+        .facture-info h2 { font-size: 13px; font-weight: bold; color: #333; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .info-box { border: 1px solid #ddd; padding: 8px; }
+        .info-box label {
+            font-weight: bold;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #666;
+            display: block;
+        }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        th { background: #333; color: #fff; padding: 5px 8px; text-align: left; font-size: 10px; }
+        td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 10px; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .totaux { float: right; width: 300px; border: 1px solid #ddd; }
+        .totaux table td { border: none; padding: 4px 8px; }
+        .totaux .grand-total td {
+            font-weight: bold;
+            font-size: 12px;
+            background: #333;
+            color: #fff;
+            border-top: 2px solid #000;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 8px;
+        }
+        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 40px; }
+        .signature-box { border-top: 1px solid #000; padding-top: 5px; text-align: center; font-size: 9px; }
+        @@media print {
+            .no-print { display: none !important; }
+            @@page { size: A4 portrait; margin: 12mm; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print">
+        <button type="button" onclick="window.print()" style="padding:8px 20px;background:#4CAF82;color:white;border:none;border-radius:4px;cursor:pointer;">Imprimer / PDF</button>
+        <button type="button" onclick="window.close()" style="padding:8px 20px;background:#ccc;border:none;margin-left:8px;border-radius:4px;cursor:pointer;">Fermer</button>
+    </div>
+
+    <div class="header">
+        <div class="pharmacie-info">
+            <h1>PHARMACIE SAINT JEAN PAUL II PNR</h1>
+            <div>Dakar, Sénégal</div>
+            <div>Tél : ___________</div>
+        </div>
+        <div class="facture-info">
+            <h2>FICHE DE VENTE</h2>
+            <div>N° <strong>#@Model.Id</strong></div>
+            <div>Date : @Model.SoldAt.ToString("dd/MM/yyyy HH:mm")</div>
+            <div>Paiement : @PaymentMethodDisplay.Format(Model.PaymentMethod, Model.PaymentMethodAutre)</div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-box">
+            <label>Enregistré par</label>
+            @recordedBy
+        </div>
+        <div class="info-box">
+            <label>Vendeur</label>
+            @(Model.Vendeur?.Nom ?? "—")
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.Notes))
+    {
+        <div class="info-box" style="margin-bottom:10px;">
+            <label>Notes</label>
+            @Model.Notes
+        </div>
+    }
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Produit</th>
+                <th>Catégorie</th>
+                <th style="text-align:right">Prix unit.</th>
+                <th style="text-align:right">Qté</th>
+                @if (hasDiscount)
+                {
+                    <th style="text-align:right">Remise</th>
+                }
+                <th style="text-align:right">Sous-total</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                int num = 1;
+                decimal grandTotal = 0;
+            }
+            @foreach (var line in Model.Lines.OrderBy(l => l.Id))
+            {
+                var baseTotal = line.UnitPrice * line.Quantity;
+                decimal remiseAmt = 0;
+                if (line.DiscountType == "percent" && line.DiscountPercent > 0)
+                    remiseAmt = baseTotal * line.DiscountPercent / 100;
+                else if (line.DiscountType == "amount" && line.DiscountAmount > 0)
+                    remiseAmt = line.DiscountAmount;
+
+                var lineTotal = baseTotal - remiseAmt;
+                grandTotal += lineTotal;
+
+                <tr>
+                    <td>@num</td>
+                    <td>@(line.Product?.CommercialName ?? "—")</td>
+                    <td>@(line.Product?.Category?.Name ?? "—")</td>
+                    <td style="text-align:right">@line.UnitPrice.ToString("N0") F</td>
+                    <td style="text-align:right">@line.Quantity</td>
+                    @if (hasDiscount)
+                    {
+                        <td style="text-align:right;color:red">
+                            @(remiseAmt > 0 ? "-" + remiseAmt.ToString("N0") + " F" : "—")
+                        </td>
+                    }
+                    <td style="text-align:right;font-weight:bold">@lineTotal.ToString("N0") F</td>
+                </tr>
+                num++;
+            }
+        </tbody>
+    </table>
+
+    @{
+        var sousTotal = Model.Lines.Sum(l => l.UnitPrice * l.Quantity);
+        var totalRemise = Model.Lines.Sum(l =>
+        {
+            if (l.DiscountType == "percent" && l.DiscountPercent > 0)
+                return l.UnitPrice * l.Quantity * l.DiscountPercent / 100;
+            if (l.DiscountType == "amount" && l.DiscountAmount > 0)
+                return l.DiscountAmount;
+            return 0m;
+        });
+    }
+
+    <div class="totaux">
+        <table>
+            <tr>
+                <td>Sous-total</td>
+                <td style="text-align:right">@sousTotal.ToString("N0") F</td>
+            </tr>
+            @if (totalRemise > 0)
+            {
+                <tr>
+                    <td style="color:red">Remises</td>
+                    <td style="text-align:right;color:red">-@totalRemise.ToString("N0") F</td>
+                </tr>
+            }
+            <tr class="grand-total">
+                <td>TOTAL</td>
+                <td style="text-align:right">@grandTotal.ToString("N0") F</td>
+            </tr>
+        </table>
+    </div>
+
+    <div style="clear:both"></div>
+
+    <div class="signature-grid">
+        <div class="signature-box">Signature du client</div>
+        <div class="signature-box">Signature du vendeur / cachet pharmacie</div>
+    </div>
+
+    <div class="footer">
+        Pharmacie Saint Jean Paul II PNR — Dakar, Sénégal —
+        Document généré le @DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+    </div>
+
+    <script>
+        if (new URLSearchParams(window.location.search).get('auto') === 'true') {
+            window.addEventListener('load', function () {
+                setTimeout(function () { window.print(); }, 500);
+            });
+        }
+    </script>
+</body>
+</html>

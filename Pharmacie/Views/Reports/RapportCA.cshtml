@@ -42,11 +42,13 @@
         </button>
     </div>
     <div class="col-md-2">
-        <a asp-action="ExportRapportCACSV"
+        <a asp-action="ImprimerRapportCA"
            asp-route-dateDebut="@Model.DateDebut.ToString("yyyy-MM-dd")"
            asp-route-dateFin="@Model.DateFin.ToString("yyyy-MM-dd")"
-           class="btn btn-outline-success w-100">
-            <i class="bi bi-download me-1" aria-hidden="true"></i>Export CSV
+           asp-route-auto="true"
+           target="_blank"
+           class="btn btn-success w-100">
+            <i class="bi bi-file-pdf me-1"></i>Imprimer / PDF
         </a>
     </div>
 </form>

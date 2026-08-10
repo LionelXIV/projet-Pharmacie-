@@ -122,6 +122,9 @@
                             <a class="btn btn-sm btn-outline-success" asp-action="Ticket" asp-route-id="@s.Id" target="_blank" title="Imprimer ticket" data-bs-toggle="tooltip">
                                 <i class="bi bi-printer" aria-hidden="true"></i>
                             </a>
+                            <a class="btn btn-sm btn-outline-dark" asp-action="FicheVente" asp-route-id="@s.Id" target="_blank" title="Fiche A4" data-bs-toggle="tooltip">
+                                <i class="bi bi-file-text" aria-hidden="true"></i>
+                            </a>
                             <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@s.Id" title="Voir le détail" data-bs-toggle="tooltip">
                                 <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Détail</span>
                             </a>

@@ -34,34 +34,16 @@ public class ReportsController : Controller
     public async Task<IActionResult> StockStatus()
     {
         var rows = await LoadStockStatusRowsAsync();
-
-        var produitsValorises = _db.Products
-            .AsNoTracking()
-            .Where(p => p.IsActive
-                && p.StockQuantity > 0
-                && (p.Category == null || !p.Category.EstHorsSysteme));
-
-        var valeurStockPA = await produitsValorises
-            .SumAsync(p => (decimal?)(p.PurchasePrice * p.StockQuantity)) ?? 0m;
-
-        var valeurStockPV = await produitsValorises
-            .SumAsync(p => (decimal?)(p.SalePrice * p.StockQuantity)) ?? 0m;
-
-        var nbProduitsEnStock = await _db.Products
-            .AsNoTracking()
-            .CountAsync(p => p.IsActive && p.StockQuantity > 0);
-
-        var nbRupture = await _db.Products
-            .AsNoTracking()
-            .CountAsync(p => p.IsActive && p.StockQuantity <= 0);
-
-        ViewBag.ValeurStockPA = valeurStockPA;
-        ViewBag.ValeurStockPV = valeurStockPV;
-        ViewBag.MargePotentielle = valeurStockPV - valeurStockPA;
-        ViewBag.NbProduitsEnStock = nbProduitsEnStock;
-        ViewBag.NbRupture = nbRupture;
-
+        await PopulateStockStatusKpisAsync();
         return View(rows);
+    }
+
+    [Authorize(Roles = AppRoles.StockReportsAccess)]
+    public async Task<IActionResult> ImprimerStockStatus()
+    {
+        var rows = await LoadStockStatusRowsAsync();
+        await PopulateStockStatusKpisAsync();
+        return View("StockStatusPrint", rows);
     }
 
     [Authorize(Roles = AppRoles.StockReportsAccess)]
@@ -231,6 +213,35 @@ public class ReportsController : Controller
         StockMovementType.Ajustement => "Ajustement",
         _ => t.ToString()
     };
+
+    private async Task PopulateStockStatusKpisAsync()
+    {
+        var produitsValorises = _db.Products
+            .AsNoTracking()
+            .Where(p => p.IsActive
+                && p.StockQuantity > 0
+                && (p.Category == null || !p.Category.EstHorsSysteme));
+
+        var valeurStockPA = await produitsValorises
+            .SumAsync(p => (decimal?)(p.PurchasePrice * p.StockQuantity)) ?? 0m;
+
+        var valeurStockPV = await produitsValorises
+            .SumAsync(p => (decimal?)(p.SalePrice * p.StockQuantity)) ?? 0m;
+
+        var nbProduitsEnStock = await _db.Products
+            .AsNoTracking()
+            .CountAsync(p => p.IsActive && p.StockQuantity > 0);
+
+        var nbRupture = await _db.Products
+            .AsNoTracking()
+            .CountAsync(p => p.IsActive && p.StockQuantity <= 0);
+
+        ViewBag.ValeurStockPA = valeurStockPA;
+        ViewBag.ValeurStockPV = valeurStockPV;
+        ViewBag.MargePotentielle = valeurStockPV - valeurStockPA;
+        ViewBag.NbProduitsEnStock = nbProduitsEnStock;
+        ViewBag.NbRupture = nbRupture;
+    }
 
     private async Task<List<ReportStockStatusRowViewModel>> LoadStockStatusRowsAsync()
     {
@@ -437,6 +448,13 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> ImprimerRapportCA(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRapportCAAsync(dateDebut, dateFin);
+        return View("RapportCAPrint", vm);
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
     public async Task<IActionResult> ExportRapportCACSV(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
         var vm = await BuildRapportCAAsync(dateDebut, dateFin);
@@ -602,6 +620,17 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> ImprimerRapportVendeurs(DateTime? date = null)
+    {
+        var targetDate = (date ?? DateTime.Today).Date;
+        var rapport = await BuildVendeurRapportAsync(targetDate);
+        ViewBag.DateRapport = targetDate;
+        ViewBag.TotalJour = rapport.Sum(r => r.ChiffreAffaires);
+        ViewBag.TotalVentes = rapport.Sum(r => r.NombreVentes);
+        return View("RapportVendeursPrint", rapport);
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
     public async Task<IActionResult> ExportVendeursCsv(DateTime? date = null)
     {
         var targetDate = (date ?? DateTime.Today).Date;
@@ -708,6 +737,13 @@ public class ReportsController : Controller
     {
         var vm = await BuildRecapitulatifAsync(dateDebut, dateFin);
         return View(vm);
+    }
+
+    [Authorize(Roles = AppRoles.FinancesAccess)]
+    public async Task<IActionResult> ImprimerRecapitulatif(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRecapitulatifAsync(dateDebut, dateFin);
+        return View("RecapitulatifPrint", vm);
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
@@ -826,6 +862,13 @@ public class ReportsController : Controller
     {
         var vm = await BuildRapportExtrasAsync(dateDebut, dateFin);
         return View(vm);
+    }
+
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> ImprimerRapportExtras(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var vm = await BuildRapportExtrasAsync(dateDebut, dateFin);
+        return View("RapportExtrasPrint", vm);
     }
 
     [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur}")]

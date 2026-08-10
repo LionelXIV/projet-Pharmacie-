@@ -27,8 +27,12 @@
             <h1 class="page-title">Performance des vendeurs</h1>
             <p class="page-lead mb-0">Chiffre d'affaires par vendeur pour la journée.</p>
         </div>
-        <a class="btn btn-outline-secondary flex-shrink-0" asp-action="ExportVendeursCsv" asp-route-date="@dateRapport.ToString("yyyy-MM-dd")">
-            <i class="bi bi-download me-1" aria-hidden="true"></i>Exporter CSV
+        <a class="btn btn-success flex-shrink-0"
+           asp-action="ImprimerRapportVendeurs"
+           asp-route-date="@dateRapport.ToString("yyyy-MM-dd")"
+           asp-route-auto="true"
+           target="_blank">
+            <i class="bi bi-file-pdf me-1"></i>Imprimer / PDF
         </a>
     </div>
 </div>

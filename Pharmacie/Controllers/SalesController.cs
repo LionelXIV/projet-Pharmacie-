@@ -119,6 +119,28 @@ public class SalesController : Controller
         return View(sale);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> FicheVente(int id)
+    {
+        var sale = await _context.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+                .ThenInclude(l => l.Product!)
+                    .ThenInclude(p => p.Category)
+            .Include(s => s.Vendeur)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (sale == null) return NotFound();
+
+        ViewBag.RecordedBy = string.IsNullOrEmpty(sale.UserId)
+            ? "—"
+            : UserDisplayResolver.Resolve(
+                await UserDisplayResolver.LoadLabelsByIdAsync(_context, new[] { sale.UserId }),
+                sale.UserId);
+
+        return View(sale);
+    }
+
     public async Task<IActionResult> DetailsCsv(int? id)
     {
         if (id == null)
