@@ -218,7 +218,7 @@ public class GoodsReceiptsController : Controller
 
         model.Lignes ??= new List<GoodsReceiptDirectLigne>();
         var lignes = model.Lignes
-            .Where(l => l.ProductId > 0 && l.QuantiteLivree > 0)
+            .Where(l => l.ProductId > 0 && (l.QuantiteLivree > 0 || (l.EstUG && l.NbUG > 0)))
             .ToList();
 
         if (lignes.Count == 0)
@@ -275,7 +275,7 @@ public class GoodsReceiptsController : Controller
                     enfantsCrees++;
                 }
 
-                if (ligne.PrixAchat > 0 && !ligne.EstUG && ligne.PrixAchat != product.PurchasePrice)
+                if (ligne.PrixAchat > 0 && ligne.QuantiteLivree > 0 && ligne.PrixAchat != product.PurchasePrice)
                     product.PurchasePrice = ligne.PrixAchat;
 
                 if (ligne.PrixVente > 0 && ligne.PrixVente != product.SalePrice)
@@ -302,11 +302,21 @@ public class GoodsReceiptsController : Controller
                 var reason = $"BL Direct #{receipt.Id}"
                     + (string.IsNullOrWhiteSpace(receipt.Reference) ? "" : $" — {receipt.Reference}");
 
+                var nbUg = ligne.EstUG && ligne.NbUG > 0 ? ligne.NbUG : 0;
+                var qtyStock = ligne.QuantiteLivree + nbUg;
+                if (qtyStock < 1)
+                {
+                    await tx.RollbackAsync();
+                    ModelState.AddModelError(string.Empty,
+                        $"« {product.CommercialName} » : quantité payante + UG doit être ≥ 1.");
+                    return View(model);
+                }
+
                 var (ok, err, batch) = await _inventory.StageEntreeAsync(
                     product.Id,
                     lotNumber,
                     expiration,
-                    ligne.QuantiteLivree,
+                    qtyStock,
                     reason,
                     userId);
                 if (!ok || batch == null)
@@ -336,7 +346,7 @@ public class GoodsReceiptsController : Controller
                     GoodsReceiptId = receipt.Id,
                     PurchaseOrderLineId = null,
                     ProductId = product.Id,
-                    QuantityReceived = ligne.QuantiteLivree,
+                    QuantityReceived = qtyStock,
                     LotNumber = lotNumber,
                     ExpirationDate = expiration
                 });

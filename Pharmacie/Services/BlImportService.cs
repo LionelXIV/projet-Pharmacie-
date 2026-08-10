@@ -117,7 +117,8 @@ public class BlImportService
                 PrixVente = row.PrixVente ?? 0,
                 NumeroLot = row.NumeroLot,
                 DatePeremption = row.DatePeremption?.ToString("yyyy-MM-dd"),
-                EstUG = row.EstUG,
+                EstUG = row.EstUG || (row.NbUG ?? 0) > 0,
+                NbUG = row.NbUG ?? (row.EstUG ? 1 : 0),
                 TauxTVA = row.TauxTVA
             };
 
@@ -303,6 +304,7 @@ public class BlImportService
             if (joined.Contains("TOTAL") || joined.Contains("PAGE ") || joined.Contains("SOUS-TOTAL"))
                 continue;
 
+            var (estUg, nbUg) = ParseUgField(cells.GetValueOrDefault("UG"));
             rows.Add(new BlImportRawRow
             {
                 RowNumber = i + 1,
@@ -313,7 +315,8 @@ public class BlImportService
                 PrixVente = ParseDecimal(cells.GetValueOrDefault("PRIX_VENTE")),
                 NumeroLot = EmptyToNull(cells.GetValueOrDefault("LOT")),
                 DatePeremption = ParseDate(cells.GetValueOrDefault("PEREMPTION")),
-                EstUG = ParseBool(cells.GetValueOrDefault("UG")),
+                EstUG = estUg,
+                NbUG = nbUg,
                 TauxTVA = ParseDecimal(cells.GetValueOrDefault("TVA"))
             });
         }
@@ -445,6 +448,19 @@ public class BlImportService
             if (string.IsNullOrWhiteSpace(cip) && string.IsNullOrWhiteSpace(libelle))
                 continue;
 
+            var ugText = GetCellText(row, map, "UG");
+            var (estUg, nbUg) = ParseUgField(ugText);
+            if (!estUg && GetCellBool(row, map, "UG"))
+            {
+                estUg = true;
+                nbUg = GetCellInt(row, map, "UG") is > 0 and var n ? n : 1;
+            }
+            else if (GetCellInt(row, map, "UG") is > 0 and var nUg)
+            {
+                estUg = true;
+                nbUg = nUg;
+            }
+
             rows.Add(new BlImportRawRow
             {
                 RowNumber = r,
@@ -455,7 +471,8 @@ public class BlImportService
                 PrixVente = GetCellDecimal(row, map, "PRIX_VENTE"),
                 NumeroLot = GetCellText(row, map, "LOT"),
                 DatePeremption = GetCellDate(row, map, "PEREMPTION"),
-                EstUG = GetCellBool(row, map, "UG"),
+                EstUG = estUg,
+                NbUG = nbUg,
                 TauxTVA = GetCellDecimal(row, map, "TVA")
             });
         }
@@ -497,6 +514,7 @@ public class BlImportService
             if (string.IsNullOrWhiteSpace(cip) && string.IsNullOrWhiteSpace(libelle))
                 continue;
 
+            var (estUg, nbUg) = ParseUgField(Cell("UG"));
             rows.Add(new BlImportRawRow
             {
                 RowNumber = i + 1,
@@ -507,12 +525,29 @@ public class BlImportService
                 PrixVente = ParseDecimal(Cell("PRIX_VENTE")),
                 NumeroLot = EmptyToNull(Cell("LOT")),
                 DatePeremption = ParseDate(Cell("PEREMPTION")),
-                EstUG = ParseBool(Cell("UG")),
+                EstUG = estUg,
+                NbUG = nbUg,
                 TauxTVA = ParseDecimal(Cell("TVA"))
             });
         }
 
         return rows;
+    }
+
+    /// <summary>UG peut être un booléen (oui) ou un nombre d'unités gratuites.</summary>
+    private static (bool EstUG, int? NbUG) ParseUgField(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return (false, null);
+
+        var n = ParseInt(text);
+        if (n is > 0)
+            return (true, n);
+
+        if (ParseBool(text))
+            return (true, 1);
+
+        return (false, null);
     }
 
     private static Dictionary<string, int> FindHeaderMap(IXLWorksheet worksheet, out int headerRow)

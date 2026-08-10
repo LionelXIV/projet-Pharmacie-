@@ -12,6 +12,7 @@ public class BlImportRawRow
     public string? NumeroLot { get; set; }
     public DateTime? DatePeremption { get; set; }
     public bool EstUG { get; set; }
+    public int? NbUG { get; set; }
     public decimal? TauxTVA { get; set; }
 }
 
@@ -30,6 +31,7 @@ public class BlImportPreviewLine
     public string? NumeroLot { get; set; }
     public string? DatePeremption { get; set; }
     public bool EstUG { get; set; }
+    public int NbUG { get; set; }
     public bool Matched { get; set; }
     public string? Warning { get; set; }
 }

@@ -63,23 +63,25 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Total prix achat</span>
-                        <span class="fw-bold"><span id="bl-total-achat">0</span> FCFA</span>
+                        <span class="fw-bold text-nowrap"><span id="bl-total-achat">0</span>&nbsp;FCFA</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Total prix public</span>
-                        <span class="fw-bold"><span id="bl-total-vente">0</span> FCFA</span>
+                        <span class="fw-bold text-nowrap"><span id="bl-total-vente">0</span>&nbsp;FCFA</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total TVA</span>
-                        <span class="fw-bold"><span id="bl-total-tva">0</span> FCFA</span>
+                        <span class="text-muted" title="TVA contenue dans le prix public (TTC)">Total TVA</span>
+                        <span class="fw-bold text-nowrap"><span id="bl-total-tva">0</span>&nbsp;FCFA</span>
                     </div>
                     <hr class="my-2" />
                     <div class="d-flex justify-content-between">
                         <span class="text-muted">Lignes</span>
                         <span class="fw-bold" id="bl-nb-lignes">0</span>
                     </div>
-                    <div class="small text-muted mt-2 mb-0">
-                        Les lignes <strong>UG</strong> entrent en stock mais n’entrent pas dans le total achat / TVA.
+                    <div class="small text-muted mt-3 mb-0">
+                        <div><strong>Qté</strong> = unités payantes. Cochez <strong>UG</strong> puis saisissez le <em>nombre</em> d’unités gratuites.</div>
+                        <div class="mt-1">Stock reçu = qté + UG. Les UG sont <em>hors</em> total achat et <em>hors</em> TVA.</div>
+                        <div class="mt-1"><strong>TVA %</strong> = taux catalogue (souvent 0 ou 18). Total TVA = part TVA du prix public sur la qté payante.</div>
                     </div>
                 </div>
             </div>
@@ -124,8 +126,9 @@
                             <th style="width:100px" class="text-end">Montant</th>
                             <th style="width:120px">N° lot</th>
                             <th style="width:120px">Péremption</th>
-                            <th style="width:56px" class="text-center" title="Unité gratuite">UG</th>
-                            <th style="width:70px">TVA %</th>
+                            <th style="width:72px" class="text-center" title="Cochez puis indiquez le nombre d’UG">UG</th>
+                            <th style="width:88px" title="Taux TVA du produit (0 = exonéré)">TVA %</th>
+                            <th style="width:90px" class="text-end" title="Montant TVA (dans le prix public)">TVA</th>
                             <th style="min-width:150px">Détail</th>
                             <th style="width:40px"></th>
                         </tr>
@@ -161,12 +164,21 @@
       var filtre = document.getElementById('bl-filtre-lignes');
 
       function formatFcfa(n) {
-        return Math.round(n || 0).toLocaleString('fr-FR');
+        var v = Math.round(n || 0);
+        return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
       }
 
       function num(el) {
         if (!el || el.value === '' || el.value == null) return 0;
-        return parseFloat(el.value) || 0;
+        var raw = String(el.value).replace(',', '.').replace(/\s/g, '');
+        return parseFloat(raw) || 0;
+      }
+
+      /** TVA contenue dans le TTC (prix public), comme TVACalculator côté ventes. */
+      function tvaFromTtc(montantTtc, tauxPct) {
+        if (montantTtc <= 0 || tauxPct <= 0) return 0;
+        var ht = Math.round(montantTtc / (1 + tauxPct / 100));
+        return montantTtc - ht;
       }
 
       function productLabel(tr) {
@@ -182,12 +194,28 @@
         var sel = tr.querySelector('select[data-tomselect-product]');
         var productId = sel && sel.tomselect ? sel.tomselect.getValue() : (sel && sel.value);
         var qty = num(tr.querySelector('.bl-qty-input'));
-        var ug = tr.querySelector('.bl-ug-check')?.checked;
+        var ugOn = !!(tr.querySelector('.bl-ug-check') && tr.querySelector('.bl-ug-check').checked);
+        var nbUg = ugOn ? Math.max(0, Math.round(num(tr.querySelector('.bl-ug-qty')))) : 0;
         var pa = num(tr.querySelector('.prix-achat-input'));
         if (!productId) return true;
-        if (qty < 1) return true;
-        if (!ug && pa <= 0) return true;
+        if (qty + nbUg < 1) return true;
+        if (ugOn && nbUg < 1) return true;
+        if (qty > 0 && pa <= 0) return true;
         return false;
+      }
+
+      function syncUgInputs(tr) {
+        var check = tr.querySelector('.bl-ug-check');
+        var qtyUg = tr.querySelector('.bl-ug-qty');
+        if (!check || !qtyUg) return;
+        var on = check.checked;
+        qtyUg.disabled = !on;
+        if (on) {
+          if (!qtyUg.value || Number(qtyUg.value) < 1) qtyUg.value = '1';
+          qtyUg.classList.remove('d-none');
+        } else {
+          qtyUg.value = '0';
+        }
       }
 
       function updateTotals() {
@@ -195,15 +223,18 @@
         var totalAchat = 0, totalVente = 0, totalTva = 0, erreurs = 0;
 
         rows.forEach(function (tr) {
+          syncUgInputs(tr);
           var qty = num(tr.querySelector('.bl-qty-input'));
           var pa = num(tr.querySelector('.prix-achat-input'));
           var pv = num(tr.querySelector('.prix-vente-input'));
           var taux = num(tr.querySelector('.bl-tva-input'));
-          var ug = !!(tr.querySelector('.bl-ug-check') && tr.querySelector('.bl-ug-check').checked);
+          var ugOn = !!(tr.querySelector('.bl-ug-check') && tr.querySelector('.bl-ug-check').checked);
+          var nbUg = ugOn ? Math.max(0, Math.round(num(tr.querySelector('.bl-ug-qty')))) : 0;
 
-          var montantAchat = ug ? 0 : qty * pa;
-          var montantVente = qty * pv;
-          var montantTva = ug ? 0 : Math.round(montantAchat * (taux / 100));
+          // Achat / TVA : uniquement la qté payante. Stock valeur public : qté + UG.
+          var montantAchat = qty * pa;
+          var montantVente = (qty + nbUg) * pv;
+          var montantTva = tvaFromTtc(qty * pv, taux);
 
           totalAchat += montantAchat;
           totalVente += montantVente;
@@ -211,6 +242,9 @@
 
           var cell = tr.querySelector('.bl-ligne-montant');
           if (cell) cell.textContent = formatFcfa(montantAchat);
+
+          var tvaCell = tr.querySelector('.bl-ligne-tva');
+          if (tvaCell) tvaCell.textContent = formatFcfa(montantTva);
 
           var bad = lineHasError(tr);
           tr.classList.toggle('table-danger', bad);
@@ -268,7 +302,10 @@
 
             var tvaInput = tr.querySelector('.bl-tva-input');
             if (tvaInput) {
-              var t = opt.tauxTVA != null ? opt.tauxTVA : (opt.assujettiTVA ? 18 : 0);
+              // Préférer le taux catalogue ; sinon 18 si assujetti, sinon 0
+              var t = 0;
+              if (opt.tauxTVA != null && opt.tauxTVA !== '') t = Number(opt.tauxTVA);
+              else if (opt.assujettiTVA) t = 18;
               tvaInput.value = t;
             }
             updateTotals();
@@ -285,19 +322,25 @@
         var lot = preset && preset.numeroLot ? String(preset.numeroLot).replace(/"/g, '&quot;') : '';
         var exp = preset && preset.datePeremption ? preset.datePeremption : '';
         var tva = preset && preset.tauxTVA != null ? preset.tauxTVA : 0;
-        var ugChecked = preset && preset.estUG ? ' checked' : '';
+        var ugChecked = preset && (preset.estUG || (preset.nbUG > 0)) ? ' checked' : '';
+        var nbUg = preset && preset.nbUG > 0 ? preset.nbUG : (ugChecked ? 1 : 0);
+        var ugDisabled = ugChecked ? '' : ' disabled';
 
         var html =
           '<tr class="bl-ligne">' +
           '<td><select name="Lignes[' + index + '].ProductId" class="form-select form-select-sm" data-tomselect-product data-url="/Products/Search" required><option value="">Chercher...</option></select></td>' +
-          '<td><input type="number" name="Lignes[' + index + '].QuantiteLivree" class="form-control form-control-sm bl-qty-input" min="1" value="' + qty + '" required></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].QuantiteLivree" class="form-control form-control-sm bl-qty-input" min="0" value="' + qty + '" required title="Quantité payante"></td>' +
           '<td><input type="number" name="Lignes[' + index + '].PrixAchat" class="form-control form-control-sm prix-achat-input" min="0" step="1" placeholder="Achat" value="' + pa + '"></td>' +
           '<td><input type="number" name="Lignes[' + index + '].PrixVente" class="form-control form-control-sm prix-vente-input" min="0" step="1" placeholder="Public" value="' + pv + '"></td>' +
           '<td class="text-end fw-semibold text-nowrap"><span class="bl-ligne-montant">0</span> <span class="text-muted small">F</span></td>' +
           '<td><input type="text" name="Lignes[' + index + '].NumeroLot" class="form-control form-control-sm" placeholder="LOT-..." value="' + lot + '"></td>' +
           '<td><input type="date" name="Lignes[' + index + '].DatePeremption" class="form-control form-control-sm" data-flatpickr-ignore="true" value="' + exp + '"></td>' +
-          '<td class="text-center"><input class="form-check-input bl-ug-check" type="checkbox" name="Lignes[' + index + '].EstUG" value="true" title="Unité gratuite"' + ugChecked + '></td>' +
-          '<td><input type="number" name="Lignes[' + index + '].TauxTVA" class="form-control form-control-sm bl-tva-input" min="0" max="100" step="1" value="' + tva + '"></td>' +
+          '<td class="text-center">' +
+          '<input class="form-check-input bl-ug-check" type="checkbox" name="Lignes[' + index + '].EstUG" value="true" title="Activer les unités gratuites"' + ugChecked + '>' +
+          '<input type="number" name="Lignes[' + index + '].NbUG" class="form-control form-control-sm bl-ug-qty mt-1 mx-auto" min="0" step="1" value="' + nbUg + '" style="width:3.5rem"' + ugDisabled + ' title="Nombre d’UG">' +
+          '</td>' +
+          '<td><input type="number" name="Lignes[' + index + '].TauxTVA" class="form-control form-control-sm bl-tva-input" min="0" max="100" step="1" value="' + tva + '" title="Taux % (0 = exonéré)"></td>' +
+          '<td class="text-end text-nowrap"><span class="bl-ligne-tva">0</span> <span class="text-muted small">F</span></td>' +
           '<td class="small">' +
           '<div class="form-check mb-1"><input class="form-check-input bl-vd-check" type="checkbox" name="Lignes[' + index + '].CreerVenteDetail" value="true" id="vd' + index + '"><label class="form-check-label" for="vd' + index + '">Créer unité</label></div>' +
           '<input type="number" name="Lignes[' + index + '].NbUnitesParBoite" class="form-control form-control-sm mb-1" min="1" placeholder="Nb/boîte">' +
@@ -360,7 +403,8 @@
             salePrice: line.salePrice,
             numeroLot: line.numeroLot,
             datePeremption: line.datePeremption,
-            estUG: line.estUG,
+            estUG: line.estUG || (line.nbUG > 0),
+            nbUG: line.nbUG,
             tauxTVA: line.tauxTVA
           });
         });
@@ -411,11 +455,11 @@
       });
 
       tbody.addEventListener('input', function (e) {
-        if (e.target.matches('.bl-qty-input, .prix-achat-input, .prix-vente-input, .bl-tva-input'))
+        if (e.target.matches('.bl-qty-input, .prix-achat-input, .prix-vente-input, .bl-tva-input, .bl-ug-qty'))
           updateTotals();
       });
       tbody.addEventListener('change', function (e) {
-        if (e.target.matches('.bl-qty-input, .prix-achat-input, .prix-vente-input, .bl-tva-input, .bl-ug-check'))
+        if (e.target.matches('.bl-qty-input, .prix-achat-input, .prix-vente-input, .bl-tva-input, .bl-ug-check, .bl-ug-qty'))
           updateTotals();
       });
       tbody.addEventListener('click', function (e) {

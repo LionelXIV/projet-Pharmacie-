@@ -26,7 +26,7 @@ public class GoodsReceiptDirectLigne
 {
     public int ProductId { get; set; }
 
-    [Range(1, int.MaxValue)]
+    [Range(0, int.MaxValue)]
     public int QuantiteLivree { get; set; }
 
     [StringLength(80)]
@@ -50,8 +50,12 @@ public class GoodsReceiptDirectLigne
     [Range(0, 999_999_999.99)]
     public decimal? PrixUnite { get; set; }
 
-    /// <summary>Unité gratuite : entre en stock mais n'entre pas dans le total facture achat.</summary>
+    /// <summary>Active la saisie d'unités gratuites (promo fournisseur).</summary>
     public bool EstUG { get; set; }
+
+    /// <summary>Nombre d'unités gratuites (en plus de la qté payante). Entre en stock, hors achat/TVA.</summary>
+    [Range(0, int.MaxValue)]
+    public int NbUG { get; set; }
 
     /// <summary>Taux TVA (%) de la ligne (affiché / résumé ; prérempli depuis le produit).</summary>
     [Range(0, 100)]
