@@ -172,6 +172,22 @@ public class PurchaseOrdersController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> ImprimerCommande(int id)
+    {
+        var commande = await _context.PurchaseOrders
+            .AsNoTracking()
+            .Include(o => o.Lines)
+            .ThenInclude(l => l.Product)
+            .Include(o => o.Supplier)
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+        if (commande == null)
+            return NotFound();
+
+        return View(commande);
+    }
+
     private async Task PopulateSuppliersAsync(int? selectedId = null)
     {
         var suppliers = await _context.Suppliers.OrderBy(s => s.Name).ToListAsync();

@@ -1,0 +1,154 @@
+@model GoodsReceiptDirectViewModel
+@{
+    ViewData["Title"] = "Saisir un BL";
+    var fournisseurs = ViewBag.Fournisseurs as IEnumerable<Supplier> ?? Enumerable.Empty<Supplier>();
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header">
+    <h1 class="page-title">Saisir un BL (sans commande)</h1>
+    <p class="page-lead mb-0">Réception fournisseur directe — met à jour le stock et trace les mouvements.</p>
+</div>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        <div asp-validation-summary="All" class="mb-0"></div>
+    </div>
+}
+
+<form asp-action="CreateDirect" method="post" id="form-bl-direct">
+    @Html.AntiForgeryToken()
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-3 border-bottom fw-semibold">
+            <i class="bi bi-truck text-primary me-1"></i>En-tête
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="Reference" class="form-label fw-bold"></label>
+                    <input asp-for="Reference" class="form-control" placeholder="N° BL fournisseur" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="SupplierId" class="form-label fw-bold"></label>
+                    <select asp-for="SupplierId" class="form-select">
+                        <option value="">— Fournisseur —</option>
+                        @foreach (var s in fournisseurs)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="DateReception" class="form-label fw-bold"></label>
+                    <input asp-for="DateReception" class="form-control" type="date" />
+                </div>
+                <div class="col-12">
+                    <label asp-for="Notes" class="form-label"></label>
+                    <input asp-for="Notes" class="form-control" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-list-ul text-primary me-1"></i>Lignes</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-ligne">
+                <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width:220px">Produit</th>
+                            <th style="width:90px">Qté</th>
+                            <th style="width:140px">N° lot</th>
+                            <th style="width:140px">Péremption</th>
+                            <th style="width:110px">Prix achat</th>
+                            <th style="width:160px">Vente détail</th>
+                            <th style="width:40px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="bl-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <span class="text-muted small" id="bl-resume">0 ligne(s)</span>
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-lg me-1"></i>Enregistrer le BL
+            </button>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+    (function () {
+      var ligneCount = 0;
+      var tbody = document.getElementById('bl-tbody');
+      var resume = document.getElementById('bl-resume');
+
+      function updateResume() {
+        var n = tbody.querySelectorAll('tr.bl-ligne').length;
+        resume.textContent = n + ' ligne(s)';
+      }
+
+      function initTomSelect(el) {
+        if (!window.TomSelect || !el || el.tomselect) return;
+        new TomSelect(el, {
+          valueField: 'value',
+          labelField: 'text',
+          searchField: ['text'],
+          placeholder: 'Tapez au moins 2 caractères...',
+          maxOptions: 25,
+          preload: false,
+          create: false,
+          loadThrottle: 300,
+          load: function (query, callback) {
+            if (!query || query.length < 2) {
+              callback();
+              return;
+            }
+            var url = (el.dataset.url || '/Products/Search') + '?term=' + encodeURIComponent(query);
+            fetch(url)
+              .then(function (r) { return r.json(); })
+              .then(function (data) { callback(data); })
+              .catch(function () { callback(); });
+          }
+        });
+      }
+
+      function addLigne() {
+        var index = ligneCount++;
+        var html =
+          '<tr class="bl-ligne">' +
+          '<td><select name="Lignes[' + index + '].ProductId" class="form-select form-select-sm" data-tomselect-product data-url="/Products/Search" required><option value="">Chercher...</option></select></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].QuantiteLivree" class="form-control form-control-sm" min="1" value="1" required></td>' +
+          '<td><input type="text" name="Lignes[' + index + '].NumeroLot" class="form-control form-control-sm" placeholder="LOT-..."></td>' +
+          '<td><input type="date" name="Lignes[' + index + '].DatePeremption" class="form-control form-control-sm" data-flatpickr-ignore="true"></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].PrixAchat" class="form-control form-control-sm" min="0" step="1" placeholder="PA"></td>' +
+          '<td class="small">' +
+          '<div class="form-check mb-1"><input class="form-check-input bl-vd-check" type="checkbox" name="Lignes[' + index + '].CreerVenteDetail" value="true" id="vd' + index + '"><label class="form-check-label" for="vd' + index + '">Créer unité</label></div>' +
+          '<input type="number" name="Lignes[' + index + '].NbUnitesParBoite" class="form-control form-control-sm mb-1" min="1" placeholder="Nb/boîte">' +
+          '<input type="number" name="Lignes[' + index + '].PrixUnite" class="form-control form-control-sm" min="1" step="1" placeholder="Prix unité">' +
+          '</td>' +
+          '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove(); document.getElementById(\'bl-resume\').textContent=document.querySelectorAll(\'#bl-tbody tr.bl-ligne\').length+\' ligne(s)\';">✕</button></td>' +
+          '</tr>';
+        tbody.insertAdjacentHTML('beforeend', html);
+        var select = tbody.querySelector('select[name="Lignes[' + index + '].ProductId"]');
+        initTomSelect(select);
+        updateResume();
+      }
+
+      document.getElementById('btn-add-ligne').addEventListener('click', addLigne);
+      document.addEventListener('DOMContentLoaded', function () {
+        addLigne();
+      });
+    })();
+    </script>
+}

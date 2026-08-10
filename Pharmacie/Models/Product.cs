@@ -99,6 +99,25 @@ public class Product
     [Display(Name = "Taux TVA (%)")]
     public decimal TauxTVA { get; set; } = 0;
 
+    /// <summary>Produit boîte parent si ce produit est une unité (vente au détail).</summary>
+    [Display(Name = "Produit parent (boîte)")]
+    public int? ParentProductId { get; set; }
+
+    [Display(Name = "Produit parent")]
+    public Product? ParentProduct { get; set; }
+
+    /// <summary>Produits unités liés à cette boîte.</summary>
+    public ICollection<Product> ChildProducts { get; set; } = new List<Product>();
+
+    /// <summary>Nombre d'unités dans une boîte (renseigné sur le produit enfant).</summary>
+    [Display(Name = "Unités par boîte")]
+    [Range(1, 100_000)]
+    public int? NbUnitesParBoite { get; set; }
+
+    /// <summary>True si ce produit (boîte) a un produit unité associé.</summary>
+    [Display(Name = "Vente en détail")]
+    public bool EstVenteDetail { get; set; }
+
     public ICollection<ProductBatch> Batches { get; set; } = new List<ProductBatch>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
 }

@@ -163,6 +163,7 @@ public class PurchaseService
                 {
                     GoodsReceipt = receipt,
                     PurchaseOrderLineId = poLine.Id,
+                    ProductId = poLine.ProductId,
                     QuantityReceived = row.QuantityReceived,
                     LotNumber = row.LotNumber!.Trim(),
                     ExpirationDate = row.ExpirationDate.Value.Date

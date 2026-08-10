@@ -5,6 +5,15 @@
 
 @await Html.PartialAsync("_BackButton")
 
+@if (TempData["Error"] is string errEdit)
+{
+    <div class="alert alert-danger py-2">@errEdit</div>
+}
+@if (TempData["Success"] is string okEdit)
+{
+    <div class="alert alert-success py-2">@okEdit</div>
+}
+
 <div class="page-header">
     <h1 class="page-title">Modifier le produit</h1>
     <p class="page-lead mb-0">Mettez à jour la fiche ; le stock est aussi piloté par les lots et mouvements.</p>
@@ -64,6 +73,61 @@
                         <a class="btn btn-outline-secondary" asp-action="Index">Annuler</a>
                     </div>
                 </form>
+
+                @if ((AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien))
+                     && !Model.ParentProductId.HasValue)
+                {
+                    var enfant = ViewBag.Enfant as Product;
+                    <div class="card border-info mt-3">
+                        <div class="card-header bg-info text-white fw-bold">
+                            <i class="bi bi-grid-3x3-gap me-1" aria-hidden="true"></i>
+                            Vente en détail (unités)
+                        </div>
+                        <div class="card-body">
+                            @if (Model.EstVenteDetail && enfant != null)
+                            {
+                                <div class="alert alert-success py-2 mb-0">
+                                    <i class="bi bi-check-circle me-1" aria-hidden="true"></i>
+                                    Produit unité existant :
+                                    <strong>@enfant.CommercialName</strong>
+                                    — @(enfant.NbUnitesParBoite ?? 0) unités/boîte —
+                                    @enfant.SalePrice.ToString("N0") FCFA/unité
+                                    <a asp-action="Edit" asp-route-id="@enfant.Id" class="btn btn-sm btn-outline-success ms-2">
+                                        Voir la fiche
+                                    </a>
+                                </div>
+                            }
+                            else if (!Model.EstVenteDetail)
+                            {
+                                <form asp-action="CreateEnfant" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="parentId" value="@Model.Id" />
+                                    <div class="row g-2">
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold" for="nbUnitesParBoite">Nb unités par boîte</label>
+                                            <input type="number" name="nbUnitesParBoite" id="nbUnitesParBoite"
+                                                   class="form-control" min="1" placeholder="Ex: 10" required />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold" for="prixUnite">Prix par unité (FCFA)</label>
+                                            <input type="number" name="prixUnite" id="prixUnite"
+                                                   class="form-control" min="1" step="1" placeholder="Ex: 100" required />
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <button type="submit" class="btn btn-info text-white w-100">
+                                                <i class="bi bi-plus me-1" aria-hidden="true"></i>
+                                                Créer produit unité
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="form-text mt-1">
+                                        Un produit « Unité » sera créé automatiquement et lié à cette boîte.
+                                    </div>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
             </div>
         </div>
     </div>

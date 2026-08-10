@@ -177,8 +177,11 @@
                         }
                         @if (AppRoles.CanAccessGoodsReceipts(User!))
                         {
-                            <a class="nav-link @(IsCtrl("GoodsReceipts") ? "active" : null)" asp-controller="GoodsReceipts" asp-action="Index" aria-current="@(IsCtrl("GoodsReceipts") ? "page" : null)">
+                            <a class="nav-link @(IsCtrl("GoodsReceipts") && IsAction("Index") ? "active" : null)" asp-controller="GoodsReceipts" asp-action="Index" aria-current="@(IsCtrl("GoodsReceipts") && IsAction("Index") ? "page" : null)">
                                 <i class="bi bi-box-seam" aria-hidden="true"></i>Bons de livraison
+                            </a>
+                            <a class="nav-link @(IsCtrl("GoodsReceipts") && IsActionAny("CreateDirect") ? "active" : null)" asp-controller="GoodsReceipts" asp-action="CreateDirect" aria-current="@(IsCtrl("GoodsReceipts") && IsActionAny("CreateDirect") ? "page" : null)">
+                                <i class="bi bi-truck" aria-hidden="true"></i>Saisir un BL
                             </a>
                         }
                     </div>

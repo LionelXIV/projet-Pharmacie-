@@ -178,7 +178,7 @@ public class UserActivityReportService
             {
                 Id = r.Id,
                 ReceivedAt = r.ReceivedAt,
-                OrderId = r.PurchaseOrderId
+                OrderId = r.PurchaseOrderId ?? 0
             }).ToList(),
             Imports = importDtos
         };

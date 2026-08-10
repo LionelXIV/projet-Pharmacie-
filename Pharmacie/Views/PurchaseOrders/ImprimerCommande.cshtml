@@ -1,0 +1,93 @@
+@model PurchaseOrder
+@{
+    Layout = null;
+    var autoprint = Context.Request.Query["auto"] == "true";
+    var totalLignes = Model.Lines.Count;
+    var totalArticles = Model.Lines.Sum(l => l.QuantityOrdered);
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Commande #@Model.Id</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #000;
+            background: #fff;
+            padding: 12mm;
+            max-width: 210mm;
+            margin: 0 auto;
+        }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .sep { border-top: 1px dashed #000; margin: 8px 0; }
+        .sep-solid { border-top: 2px solid #000; margin: 8px 0; }
+        .header .name { font-size: 16px; font-weight: bold; text-transform: uppercase; }
+        .header .sub { font-size: 11px; margin-top: 2px; }
+        .info { margin: 6px 0; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        th, td { text-align: left; padding: 4px 2px; vertical-align: top; }
+        th { border-bottom: 1px solid #000; font-size: 11px; }
+        td.qty { text-align: right; white-space: nowrap; width: 60px; }
+        .footer { margin-top: 10px; font-size: 12px; }
+        .no-print { margin-top: 16px; text-align: center; }
+        @@media print {
+            .no-print { display: none !important; }
+            body { padding: 5mm; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header center">
+        <div class="name">Pharmacie Saint Jean Paul II PNR</div>
+        <div class="sub">Commande fournisseur</div>
+    </div>
+    <div class="sep-solid"></div>
+    <div class="info">
+        <div><span class="bold">COMMANDE N° :</span> CMD-@Model.Id.ToString("D4")</div>
+        <div><span class="bold">Date :</span> @Model.OrderDate.ToString("dd/MM/yyyy")</div>
+        <div><span class="bold">Fournisseur :</span> @(Model.Supplier?.Name ?? "—")</div>
+        <div><span class="bold">Statut :</span> @Model.Status</div>
+        @if (!string.IsNullOrWhiteSpace(Model.Notes))
+        {
+            <div><span class="bold">Notes :</span> @Model.Notes</div>
+        }
+    </div>
+    <div class="sep"></div>
+    <table>
+        <thead>
+            <tr>
+                <th>Produit</th>
+                <th class="qty">Qté</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var line in Model.Lines.OrderBy(l => l.Id))
+        {
+            <tr>
+                <td>@(line.Product?.CommercialName ?? $"Produit #{line.ProductId}")</td>
+                <td class="qty">@line.QuantityOrdered</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    <div class="sep"></div>
+    <div class="footer">
+        <div>Total lignes : <span class="bold">@totalLignes</span></div>
+        <div>Total articles : <span class="bold">@totalArticles</span></div>
+    </div>
+    <div class="sep-solid"></div>
+    <div class="no-print">
+        <button type="button" onclick="window.print()">Imprimer</button>
+        <a href="/PurchaseOrders/Details/@Model.Id">Retour</a>
+    </div>
+    @if (autoprint)
+    {
+        <script>window.addEventListener('load', function () { window.print(); });</script>
+    }
+</body>
+</html>

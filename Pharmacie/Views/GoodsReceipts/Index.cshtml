@@ -12,9 +12,14 @@
 }
 
 <div class="page-header">
-    <div>
-        <h1 class="page-title">Bons de livraison</h1>
-        <p class="page-lead mb-0">Historique des réceptions enregistrées. Filtrez par numéro, fournisseur ou période.</p>
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Bons de livraison</h1>
+            <p class="page-lead mb-0">Historique des réceptions enregistrées. Filtrez par numéro, fournisseur ou période.</p>
+        </div>
+        <a class="btn btn-primary flex-shrink-0" asp-action="CreateDirect">
+            <i class="bi bi-truck me-1" aria-hidden="true"></i>Saisir un BL
+        </a>
     </div>
 </div>
 
@@ -100,17 +105,33 @@
                     <tr>
                         <td><span class="badge text-bg-light border font-monospace">#@item.Id</span></td>
                         <td class="text-nowrap">@item.ReceivedAt.ToString("dd/MM/yyyy HH:mm")</td>
-                        <td class="fw-medium">@(item.PurchaseOrder?.Supplier?.Name ?? "—")</td>
-                        <td><span class="font-monospace">#@item.PurchaseOrderId</span></td>
+                        <td class="fw-medium">
+                            @(item.Supplier?.Name
+                              ?? item.PurchaseOrder?.Supplier?.Name
+                              ?? "—")
+                        </td>
+                        <td>
+                            @if (item.PurchaseOrderId.HasValue)
+                            {
+                                <span class="font-monospace">#@item.PurchaseOrderId</span>
+                            }
+                            else
+                            {
+                                <span class="badge text-bg-info">BL direct@(string.IsNullOrWhiteSpace(item.Reference) ? "" : $" · {item.Reference}")</span>
+                            }
+                        </td>
                         <td>@item.Lines.Count</td>
                         <td class="text-end">
-                            <a class="btn btn-sm btn-outline-primary"
-                               asp-controller="PurchaseOrders"
-                               asp-action="Details"
-                               asp-route-id="@item.PurchaseOrderId"
-                               title="Voir la commande">
-                                <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Commande</span>
-                            </a>
+                            @if (item.PurchaseOrderId.HasValue)
+                            {
+                                <a class="btn btn-sm btn-outline-primary"
+                                   asp-controller="PurchaseOrders"
+                                   asp-action="Details"
+                                   asp-route-id="@item.PurchaseOrderId"
+                                   title="Voir la commande">
+                                    <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Commande</span>
+                                </a>
+                            }
                         </td>
                     </tr>
                 }

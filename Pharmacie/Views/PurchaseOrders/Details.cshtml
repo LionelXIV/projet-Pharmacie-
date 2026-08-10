@@ -38,6 +38,13 @@
         {
             <a class="btn btn-primary flex-shrink-0" asp-controller="GoodsReceipts" asp-action="Create" asp-route-purchaseOrderId="@Model.Id"><i class="bi bi-box-arrow-in-down me-1" aria-hidden="true"></i>Réception</a>
         }
+        <a class="btn btn-outline-secondary flex-shrink-0"
+           asp-action="ImprimerCommande"
+           asp-route-id="@Model.Id"
+           asp-route-auto="true"
+           target="_blank">
+            <i class="bi bi-printer me-1" aria-hidden="true"></i>Imprimer la commande
+        </a>
     </div>
 </div>
 

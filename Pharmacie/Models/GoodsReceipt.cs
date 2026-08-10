@@ -6,8 +6,17 @@ public class GoodsReceipt
 {
     public int Id { get; set; }
 
-    public int PurchaseOrderId { get; set; }
+    /// <summary>Null pour un BL saisi directement (sans commande préalable).</summary>
+    public int? PurchaseOrderId { get; set; }
     public PurchaseOrder? PurchaseOrder { get; set; }
+
+    /// <summary>Fournisseur du BL direct (si pas de commande).</summary>
+    public int? SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+
+    [StringLength(80)]
+    [Display(Name = "Référence BL")]
+    public string? Reference { get; set; }
 
     [Display(Name = "Date de réception")]
     public DateTime ReceivedAt { get; set; }

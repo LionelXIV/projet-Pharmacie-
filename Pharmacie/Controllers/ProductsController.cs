@@ -252,12 +252,71 @@ public class ProductsController : Controller
         if (id == null)
             return NotFound();
 
-        var product = await _context.Products.FindAsync(id);
+        var product = await _context.Products
+            .Include(p => p.ChildProducts)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (product == null)
             return NotFound();
 
+        ViewBag.Enfant = product.ChildProducts.OrderBy(c => c.Id).FirstOrDefault();
         await PopulateLookupsAsync(product.CategoryId, product.SupplierId);
         return View(product);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Pharmacien},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> CreateEnfant(int parentId, int nbUnitesParBoite, decimal prixUnite)
+    {
+        if (nbUnitesParBoite < 1 || prixUnite <= 0)
+        {
+            TempData["Error"] = "Indiquez un nombre d'unités (≥ 1) et un prix unitaire > 0.";
+            return RedirectToAction(nameof(Edit), new { id = parentId });
+        }
+
+        var parent = await _context.Products
+            .Include(p => p.ChildProducts)
+            .FirstOrDefaultAsync(p => p.Id == parentId);
+        if (parent == null)
+            return NotFound();
+
+        if (parent.ParentProductId.HasValue)
+        {
+            TempData["Error"] = "Impossible de créer une unité sur un produit qui est déjà une unité.";
+            return RedirectToAction(nameof(Edit), new { id = parentId });
+        }
+
+        if (parent.ChildProducts.Count > 0 || parent.EstVenteDetail)
+        {
+            TempData["Error"] = "Ce produit a déjà un produit unité associé.";
+            return RedirectToAction(nameof(Edit), new { id = parentId });
+        }
+
+        var enfant = new Product
+        {
+            CommercialName = parent.CommercialName + " — Unité",
+            GenericName = parent.GenericName,
+            SalePrice = prixUnite,
+            PurchasePrice = Math.Round(parent.PurchasePrice / nbUnitesParBoite, 2),
+            StockQuantity = 0,
+            AlertThreshold = 0,
+            CategoryId = parent.CategoryId,
+            SupplierId = parent.SupplierId,
+            IsActive = true,
+            ParentProductId = parentId,
+            NbUnitesParBoite = nbUnitesParBoite,
+            TarifType = parent.TarifType,
+            ProductType = parent.ProductType,
+            Form = parent.Form,
+            Dosage = parent.Dosage
+        };
+        TVACalculator.AppliquerTarif(enfant);
+        parent.EstVenteDetail = true;
+        _context.Products.Add(enfant);
+        await _context.SaveChangesAsync();
+
+        TempData["Success"] = $"Produit unité créé : {enfant.CommercialName} ({nbUnitesParBoite} u./boîte).";
+        return RedirectToAction(nameof(Edit), new { id = parentId });
     }
 
     [HttpPost]
@@ -300,6 +359,12 @@ public class ProductsController : Controller
         product.Refha = existing.Refha;
         product.ReferencePurchasePrice = existing.ReferencePurchasePrice;
         product.RegulatedSalePrice = existing.RegulatedSalePrice;
+        product.ParentProductId = existing.ParentProductId;
+        product.NbUnitesParBoite = existing.NbUnitesParBoite;
+        product.EstVenteDetail = existing.EstVenteDetail;
+        product.Coefficient = existing.Coefficient;
+        product.AssujettiTVA = existing.AssujettiTVA;
+        product.TauxTVA = existing.TauxTVA;
 
         if (!canEditCipAndType)
         {

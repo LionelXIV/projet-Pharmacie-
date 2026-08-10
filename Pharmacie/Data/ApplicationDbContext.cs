@@ -63,6 +63,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(p => p.Cip)
                 .IsUnique()
                 .HasFilter("[Cip] IS NOT NULL AND [Cip] <> ''");
+
+            entity.HasOne(p => p.ParentProduct)
+                .WithMany(p => p.ChildProducts)
+                .HasForeignKey(p => p.ParentProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(p => p.ParentProductId);
         });
 
         builder.Entity<ProductBatch>(entity =>
@@ -228,7 +235,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(r => r.PurchaseOrder)
                 .WithMany(o => o.Receipts)
                 .HasForeignKey(r => r.PurchaseOrderId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            entity.HasOne(r => r.Supplier)
+                .WithMany()
+                .HasForeignKey(r => r.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            entity.Property(r => r.Reference).HasMaxLength(80);
         });
 
         builder.Entity<GoodsReceiptLine>(entity =>
@@ -242,7 +258,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(l => l.PurchaseOrderLine)
                 .WithMany()
                 .HasForeignKey(l => l.PurchaseOrderLineId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            entity.HasOne(l => l.Product)
+                .WithMany()
+                .HasForeignKey(l => l.ProductId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
         });
 
         builder.Entity<Patient>(entity =>
