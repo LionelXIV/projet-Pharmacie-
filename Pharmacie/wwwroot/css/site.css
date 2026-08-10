@@ -1062,20 +1062,24 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
    LAYOUT SIDEBAR
 ═══════════════════════════════════════ */
 .ph-app {
-  display: flex;
+  display: block;
   min-height: 100vh;
-  align-items: stretch; /* sidebar + contenu : même hauteur */
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
 }
 
-.ph-sidebar {
+/* Sidebar fixe + scroll interne indépendant */
+.ph-sidebar,
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: var(--ph-sidebar-width);
   min-width: var(--ph-sidebar-width);
+  height: 100vh;
+  height: 100dvh;
   flex-shrink: 0;
-  align-self: stretch; /* s'étend sur toute la hauteur du contenu */
-  min-height: 100%;
   background-color: var(--ph-sidebar-bg);
   color: var(--ph-sidebar-text);
   display: flex;
@@ -1084,6 +1088,29 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   overflow-x: hidden;
   z-index: 1000;
   transition: transform 0.3s ease;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.ph-sidebar::-webkit-scrollbar,
+#sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ph-sidebar::-webkit-scrollbar-track,
+#sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ph-sidebar::-webkit-scrollbar-thumb,
+#sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.ph-sidebar::-webkit-scrollbar-thumb:hover,
+#sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .ph-sidebar-brand {
@@ -1096,6 +1123,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   font-size: 1.1rem;
   color: #FFFFFF;
   border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
 }
 
 .ph-sidebar-brand i {
@@ -1104,7 +1132,7 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 }
 
 .ph-sidebar-nav {
-  flex: 1;
+  flex: 1 1 auto;
   padding: 0.75rem 0;
 }
 
@@ -1164,14 +1192,17 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
   font-size: 0.8rem;
   color: var(--ph-sidebar-text);
   min-width: 0;
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
-/* Contenu principal : prend l'espace restant, peut rétrécir (min-width:0) */
+/* Contenu principal : décalé de la sidebar fixe (évite le scroll horizontal) */
 .ph-main,
 .main-content {
-  flex: 1 1 auto;
+  margin-left: var(--ph-sidebar-width);
+  width: calc(100% - var(--ph-sidebar-width));
+  max-width: calc(100% - var(--ph-sidebar-width));
   min-width: 0;
-  max-width: 100%;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
@@ -1279,22 +1310,24 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 }
 
 @media (max-width: 991.98px) {
-  .ph-sidebar {
+  .ph-sidebar,
+  #sidebar {
     position: fixed;
     left: 0;
     top: 0;
     height: 100vh;
     height: 100dvh;
-    align-self: auto;
     transform: translateX(-100%);
     transition: transform 0.28s ease;
     z-index: 1000;
   }
-  .ph-sidebar.sidebar-open {
+  .ph-sidebar.sidebar-open,
+  #sidebar.sidebar-open {
     transform: translateX(0);
   }
   .ph-main,
   .main-content {
+    margin-left: 0;
     width: 100%;
     max-width: 100%;
   }
