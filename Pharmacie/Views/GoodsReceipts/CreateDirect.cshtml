@@ -69,7 +69,8 @@
                             <th style="width:140px">N° lot</th>
                             <th style="width:140px">Péremption</th>
                             <th style="width:110px">Prix achat</th>
-                            <th style="width:160px">Vente détail</th>
+                            <th style="width:110px">Prix vente</th>
+                            <th style="width:160px">Détail</th>
                             <th style="width:40px"></th>
                         </tr>
                     </thead>
@@ -109,6 +110,7 @@
           preload: false,
           create: false,
           loadThrottle: 300,
+          dropdownParent: 'body',
           load: function (query, callback) {
             if (!query || query.length < 2) {
               callback();
@@ -119,6 +121,23 @@
               .then(function (r) { return r.json(); })
               .then(function (data) { callback(data); })
               .catch(function () { callback(); });
+          },
+          onChange: function (value) {
+            if (!value) return;
+            var opt = this.options[value];
+            if (!opt) return;
+            var tr = el.closest('tr.bl-ligne') || el.closest('tr');
+            if (!tr) return;
+
+            var prixAchatInput = tr.querySelector('.prix-achat-input');
+            if (prixAchatInput && opt.purchasePrice > 0) {
+              prixAchatInput.value = opt.purchasePrice;
+            }
+
+            var prixVenteInput = tr.querySelector('.prix-vente-input');
+            if (prixVenteInput && opt.salePrice > 0) {
+              prixVenteInput.value = opt.salePrice;
+            }
           }
         });
       }
@@ -131,7 +150,8 @@
           '<td><input type="number" name="Lignes[' + index + '].QuantiteLivree" class="form-control form-control-sm" min="1" value="1" required></td>' +
           '<td><input type="text" name="Lignes[' + index + '].NumeroLot" class="form-control form-control-sm" placeholder="LOT-..."></td>' +
           '<td><input type="date" name="Lignes[' + index + '].DatePeremption" class="form-control form-control-sm" data-flatpickr-ignore="true"></td>' +
-          '<td><input type="number" name="Lignes[' + index + '].PrixAchat" class="form-control form-control-sm" min="0" step="1" placeholder="PA"></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].PrixAchat" class="form-control form-control-sm prix-achat-input" min="0" step="1" placeholder="Prix achat"></td>' +
+          '<td><input type="number" name="Lignes[' + index + '].PrixVente" class="form-control form-control-sm prix-vente-input" min="0" step="1" placeholder="Prix vente"></td>' +
           '<td class="small">' +
           '<div class="form-check mb-1"><input class="form-check-input bl-vd-check" type="checkbox" name="Lignes[' + index + '].CreerVenteDetail" value="true" id="vd' + index + '"><label class="form-check-label" for="vd' + index + '">Créer unité</label></div>' +
           '<input type="number" name="Lignes[' + index + '].NbUnitesParBoite" class="form-control form-control-sm mb-1" min="1" placeholder="Nb/boîte">' +

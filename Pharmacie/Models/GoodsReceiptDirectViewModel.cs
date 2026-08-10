@@ -38,6 +38,9 @@ public class GoodsReceiptDirectLigne
     [Range(0, 999_999_999.99)]
     public decimal PrixAchat { get; set; }
 
+    [Range(0, 999_999_999.99)]
+    public decimal PrixVente { get; set; }
+
     /// <summary>Si true et produit sans enfant, crée le produit unité.</summary>
     public bool CreerVenteDetail { get; set; }
 

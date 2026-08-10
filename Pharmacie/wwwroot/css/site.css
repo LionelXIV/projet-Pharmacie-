@@ -1556,3 +1556,10 @@ main a:not(.btn):not(.nav-link):not(.dropdown-item):not(.page-link):hover {
 .text-success.fw-bold {
   color: #4CAF82 !important;
 }
+
+/* TomSelect : dropdown au-dessus des cartes / overflow */
+.ts-dropdown {
+  z-index: 9999 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+

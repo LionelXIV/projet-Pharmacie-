@@ -67,7 +67,12 @@ public class SaleService
                         return await RollbackAsync(tx, openError);
 
                     if (opened)
+                    {
+                        // Persister les lots ouverts dans la transaction pour que
+                        // les requêtes suivantes (stock / FIFO) voient les tablettes.
+                        await _db.SaveChangesAsync();
                         availableNonExpired = await SumAvailableAsync(productId, refDate);
+                    }
                 }
 
                 if (quantity > availableNonExpired)
@@ -170,10 +175,13 @@ public class SaleService
         var parentStock = await SumAvailableAsync(parentId, refDate);
         if (parentStock < boitesAOuvrir)
         {
+            var stockDispoEnfant = await SumAvailableAsync(unitProduct.Id, refDate);
             return (false,
-                $"Stock insuffisant pour « {unitProduct.CommercialName} » : " +
-                $"{unitsNeeded} unité(s) requise(s) → {boitesAOuvrir} boîte(s) à ouvrir, " +
-                $"mais seulement {parentStock} boîte(s) disponible(s) pour « {parent.CommercialName} ».");
+                $"Stock insuffisant pour « {unitProduct.CommercialName} ». " +
+                $"Tablettes disponibles : {stockDispoEnfant}. " +
+                $"Boîtes disponibles : {parentStock}. " +
+                $"Impossible de satisfaire la demande de {stockDispoEnfant + unitsNeeded} tablettes " +
+                $"({unitsNeeded} manquante(s) → {boitesAOuvrir} boîte(s) requise(s)).");
         }
 
         var remainingToOpen = boitesAOuvrir;

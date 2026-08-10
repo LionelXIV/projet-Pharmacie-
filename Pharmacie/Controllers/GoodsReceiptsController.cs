@@ -211,6 +211,9 @@ public class GoodsReceiptsController : Controller
         }
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var displayName = User.Identity?.Name
+            ?? User.FindFirstValue(ClaimTypes.Name)
+            ?? "";
         await using var tx = await _context.Database.BeginTransactionAsync();
         try
         {
@@ -255,8 +258,25 @@ public class GoodsReceiptsController : Controller
                     enfantsCrees++;
                 }
 
-                if (ligne.PrixAchat > 0)
+                if (ligne.PrixAchat > 0 && ligne.PrixAchat != product.PurchasePrice)
                     product.PurchasePrice = ligne.PrixAchat;
+
+                if (ligne.PrixVente > 0 && ligne.PrixVente != product.SalePrice)
+                {
+                    _context.PrixModifications.Add(new PrixModification
+                    {
+                        ProductId = product.Id,
+                        AncienPrix = product.SalePrice,
+                        NouveauPrix = ligne.PrixVente,
+                        ModifiedAt = DateTime.Now,
+                        ModifiedByUserId = userId ?? "",
+                        ModifiedByDisplayName = displayName,
+                        Raison = string.IsNullOrWhiteSpace(model.Reference)
+                            ? $"Mise à jour via BL Direct #{receipt.Id}"
+                            : $"Mise à jour via BL {model.Reference.Trim()}"
+                    });
+                    product.SalePrice = ligne.PrixVente;
+                }
 
                 var lotNumber = string.IsNullOrWhiteSpace(ligne.NumeroLot)
                     ? $"BL-{receipt.Id}-{ligne.ProductId}-{DateTime.Now:HHmmss}"
