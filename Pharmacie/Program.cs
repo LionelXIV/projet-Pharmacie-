@@ -74,6 +74,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddControllersWithViews();
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.ValueCountLimit = 16_384;
+    options.ValueLengthLimit = 4 * 1024 * 1024;
+});
 builder.Services.Configure<FeatureFlags>(
     builder.Configuration.GetSection("Features"));
 builder.Services.AddDistributedMemoryCache();

@@ -124,14 +124,20 @@
                         </td>
                         <td>@item.Lines.Count</td>
                         <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary"
+                               asp-action="Details"
+                               asp-route-id="@item.Id"
+                               title="Voir le BL">
+                                <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Détail</span>
+                            </a>
                             @if (item.PurchaseOrderId.HasValue)
                             {
-                                <a class="btn btn-sm btn-outline-primary"
+                                <a class="btn btn-sm btn-outline-secondary"
                                    asp-controller="PurchaseOrders"
                                    asp-action="Details"
                                    asp-route-id="@item.PurchaseOrderId"
                                    title="Voir la commande">
-                                    <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Commande</span>
+                                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Commande</span>
                                 </a>
                             }
                         </td>

@@ -118,6 +118,21 @@ public class GoodsReceiptsController : Controller
         return View(receipts);
     }
 
+    public async Task<IActionResult> Details(int id)
+    {
+        var receipt = await _context.GoodsReceipts
+            .AsNoTracking()
+            .Include(r => r.Supplier)
+            .Include(r => r.PurchaseOrder!)
+            .ThenInclude(o => o.Supplier)
+            .Include(r => r.Lines)
+            .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (receipt == null)
+            return NotFound();
+        return View(receipt);
+    }
+
     public async Task<IActionResult> Create(int purchaseOrderId)
     {
         var order = await _context.PurchaseOrders
@@ -253,13 +268,19 @@ public class GoodsReceiptsController : Controller
             await _context.SaveChangesAsync();
 
             var enfantsCrees = 0;
+            var lignesEnregistrees = 0;
             foreach (var ligne in lignes)
             {
                 var product = await _context.Products
                     .Include(p => p.ChildProducts)
                     .FirstOrDefaultAsync(p => p.Id == ligne.ProductId);
                 if (product == null)
-                    continue;
+                {
+                    await tx.RollbackAsync();
+                    ModelState.AddModelError(string.Empty,
+                        $"Produit introuvable (n° {ligne.ProductId}). Enregistrement annulé.");
+                    return View(model);
+                }
 
                 if (product.ParentProductId.HasValue)
                 {
@@ -357,6 +378,15 @@ public class GoodsReceiptsController : Controller
                     LotNumber = lotNumber,
                     ExpirationDate = expiration
                 });
+                lignesEnregistrees++;
+            }
+
+            if (lignesEnregistrees == 0)
+            {
+                await tx.RollbackAsync();
+                ModelState.AddModelError(string.Empty,
+                    "Aucune ligne valide à enregistrer. Vérifiez les produits et les quantités.");
+                return View(model);
             }
 
             await _context.SaveChangesAsync();

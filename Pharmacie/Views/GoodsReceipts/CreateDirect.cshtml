@@ -49,7 +49,7 @@
                         </div>
                         <div class="col-md-4">
                             <label asp-for="DateReception" class="form-label fw-bold"></label>
-                            <input asp-for="DateReception" class="form-control" type="date" />
+                            <input asp-for="DateReception" class="form-control" type="date" data-flatpickr-ignore="true" />
                         </div>
                         <div class="col-12">
                             <label asp-for="Notes" class="form-label"></label>
@@ -347,6 +347,44 @@
         });
       }
 
+      function reindexLignes() {
+        var rows = tbody.querySelectorAll('tr.bl-ligne');
+        ligneCount = 0;
+        rows.forEach(function (tr) {
+          var i = ligneCount++;
+          tr.querySelectorAll('[name^="Lignes["]').forEach(function (el) {
+            el.name = el.name.replace(/^Lignes\[\d+]/, 'Lignes[' + i + ']');
+          });
+          var sel = tr.querySelector('select[data-tomselect-product]');
+          if (sel) {
+            sel.name = 'Lignes[' + i + '].ProductId';
+            if (sel.tomselect) {
+              var v = sel.tomselect.getValue();
+              if (v) {
+                sel.disabled = false;
+                sel.value = v;
+                if (!sel.querySelector('option[value="' + v.replace(/"/g, '') + '"]')) {
+                  var opt = document.createElement('option');
+                  opt.value = v;
+                  opt.selected = true;
+                  opt.textContent = v;
+                  sel.appendChild(opt);
+                }
+                sel.value = v;
+              }
+            }
+          }
+          var month = tr.querySelector('.bl-exp-month');
+          var hidden = tr.querySelector('.bl-exp-hidden');
+          if (month && hidden) {
+            hidden.name = 'Lignes[' + i + '].DatePeremption';
+            hidden.value = month.value && month.value.length >= 7 ? month.value.substring(0, 7) + '-01' : '';
+          }
+          var ugQty = tr.querySelector('.bl-ug-qty');
+          if (ugQty) ugQty.disabled = false;
+        });
+      }
+
       function addLigne(preset) {
         var index = ligneCount++;
         var qty = preset && preset.quantite > 0 ? preset.quantite : 1;
@@ -375,7 +413,8 @@
           '<td><input type="number" name="Lignes[' + index + '].PrixVente" class="form-control form-control-sm prix-vente-input" min="0" step="1" placeholder="Public" value="' + pv + '"></td>' +
           '<td class="text-end fw-semibold text-nowrap"><span class="bl-ligne-montant">0</span> <span class="text-muted small">F</span></td>' +
           '<td><input type="text" name="Lignes[' + index + '].NumeroLot" class="form-control form-control-sm" placeholder="LOT-..." value="' + lot + '"></td>' +
-          '<td><input type="month" name="Lignes[' + index + '].DatePeremption" class="form-control form-control-sm" data-flatpickr-ignore="true" value="' + exp + '" title="Mois et année"></td>' +
+          '<td><input type="month" class="form-control form-control-sm bl-exp-month" data-flatpickr-ignore="true" value="' + exp + '" title="Mois et année">' +
+          '<input type="hidden" name="Lignes[' + index + '].DatePeremption" class="bl-exp-hidden" value="' + (exp.length === 7 ? exp + '-01' : '') + '"></td>' +
           '<td class="text-center">' +
           '<input class="form-check-input bl-ug-check" type="checkbox" name="Lignes[' + index + '].EstUG" value="true" title="Activer les unités gratuites"' + ugChecked + '>' +
           '<input type="number" name="Lignes[' + index + '].NbUG" class="form-control form-control-sm bl-ug-qty mt-1 mx-auto" min="0" step="1" value="' + nbUg + '" style="width:3.5rem"' + ugDisabled + ' title="Nombre d’UG">' +
@@ -433,6 +472,7 @@
 
       function applyImportLines(lines) {
         tbody.querySelectorAll('tr.bl-ligne').forEach(function (tr) { tr.remove(); });
+        ligneCount = 0;
         lines.forEach(function (line) {
           addLigne({
             productId: line.productId,
@@ -532,6 +572,12 @@
       tbody.addEventListener('input', function (e) {
         if (e.target.matches('.bl-qty-input, .prix-achat-input, .prix-vente-input, .bl-tva-input, .bl-ug-qty'))
           updateTotals();
+        if (e.target.matches('.bl-exp-month')) {
+          var tr = e.target.closest('tr.bl-ligne');
+          var hidden = tr && tr.querySelector('.bl-exp-hidden');
+          if (hidden)
+            hidden.value = e.target.value && e.target.value.length >= 7 ? e.target.value.substring(0, 7) + '-01' : '';
+        }
       });
       tbody.addEventListener('change', function (e) {
         if (e.target.matches('.bl-qty-input, .prix-achat-input, .prix-vente-input, .bl-tva-input, .bl-ug-check, .bl-ug-qty'))
@@ -569,6 +615,9 @@
         }
       });
 
+      document.getElementById('form-bl-direct').addEventListener('submit', function () {
+        reindexLignes();
+      });
       document.getElementById('btn-add-ligne').addEventListener('click', function () { addLigne(); });
       document.getElementById('btn-add-ligne-bas').addEventListener('click', function () { addLigne(); });
       document.addEventListener('DOMContentLoaded', function () { addLigne(); });
