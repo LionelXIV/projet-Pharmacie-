@@ -76,7 +76,7 @@ public static class AppRoles
     public const string Purchasing = CanManageStock;
     public const string GoodsReceipt = CanReceiveBL;
     public const string DashboardAccess =
-        $"{PharmacienTitulaire},{Pharmacien},{Caissier},{AssistantPharmacien},{Comptable}";
+        $"{PharmacienTitulaire},{Administrateur},{Pharmacien},{Caissier},{AssistantPharmacien}";
     public const string ReportsAccess =
         $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Comptable}";
     /// <summary>État du stock et péremption (inclut Comptable).</summary>
@@ -114,9 +114,7 @@ public static class AppRoles
         || user.IsInRole(Pharmacien)
         || user.IsInRole(Caissier)
         || user.IsInRole(AssistantPharmacien)
-        || user.IsInRole(Assistant)
-        || user.IsInRole(GestionnaireStock)
-        || user.IsInRole(Comptable);
+        || user.IsInRole(Assistant);
 
     public static bool CanAccessReports(ClaimsPrincipal user) =>
         IsTitulaire(user)

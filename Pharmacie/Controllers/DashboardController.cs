@@ -10,7 +10,7 @@ using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = AppRoles.DashboardAccess)]
+[Authorize]
 public class DashboardController : Controller
 {
     private readonly ApplicationDbContext _db;
@@ -22,6 +22,7 @@ public class DashboardController : Controller
         _configuration = configuration;
     }
 
+    [Authorize(Roles = AppRoles.DashboardAccess)]
     public async Task<IActionResult> Index()
     {
         var today = DateTime.Today;
