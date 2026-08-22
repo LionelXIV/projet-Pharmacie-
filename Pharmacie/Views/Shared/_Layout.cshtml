@@ -203,12 +203,7 @@
                                 <i class="bi bi-box-seam" aria-hidden="true"></i>Bons de livraison
                             </a>
                             <a class="nav-link @(IsCtrl("GoodsReceipts") && IsActionAny("CreateDirect") ? "active" : null)" asp-controller="GoodsReceipts" asp-action="CreateDirect" aria-current="@(IsCtrl("GoodsReceipts") && IsActionAny("CreateDirect") ? "page" : null)">
-                                <i class="bi bi-truck" aria-hidden="true"></i>Saisir un BL
-                            </a>
-                            <a class="nav-link @(IsCtrl("GoodsReceipts") && IsActionAny("CreateDirect") && Context.Request.Query["pdf"] == "1" ? "active" : null)"
-                               asp-controller="GoodsReceipts" asp-action="CreateDirect" asp-route-pdf="1"
-                               aria-current="@(IsCtrl("GoodsReceipts") && Context.Request.Query["pdf"] == "1" ? "page" : null)">
-                                <i class="bi bi-file-pdf me-1"></i>Importer BL PDF
+                                <i class="bi bi-truck" aria-hidden="true"></i>Nouveau BL
                             </a>
                         }
                     </div>

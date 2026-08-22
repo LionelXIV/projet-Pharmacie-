@@ -26,14 +26,14 @@ public class BlImportService
 
     private static readonly Dictionary<string, string[]> HeaderAliases = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["CIP"] = ["CIP", "CODE", "EAN", "CODEBARRE", "CODE_BARRE", "CODEBARRES"],
-        ["LIBELLE"] = ["LIBELLE", "PRODUIT", "DESIGNATION", "NOM", "MEDICAMENT", "LIBELLE_PRODUIT"],
+        ["CIP"] = ["CIP", "CODE", "EAN", "EAN13", "CIPEAN13", "CIP_EAN13", "CODEBARRE", "CODE_BARRE", "CODEBARRES"],
+        ["LIBELLE"] = ["LIBELLE", "PRODUIT", "DESIGNATION", "NOM", "MEDICAMENT", "LIBELLE_PRODUIT", "LIBELLE_DU_PRODUIT"],
         ["QTE"] = ["QTEFACT", "QTE", "QUANTITE", "QTY", "QTE_LIVREE", "QTELIVREE", "NB"],
-        ["PRIX_ACHAT"] = ["PX_FAB", "PRIX_ACHAT", "PA", "PRIX_CESSION", "CESSION", "PRIXACHAT", "PRIX_FAB"],
+        ["PRIX_ACHAT"] = ["PX_FAB", "PRIX_ACHAT", "PA", "PRIX_CESSION", "CESSION", "PRIXACHAT", "PRIX_FAB", "PRIX_DE_CESSION"],
         ["PRIX_VENTE"] = ["PPH", "PRIX_VENTE", "PV", "PRIX_PUBLIC", "PRIXPUBLIC", "PUBLIC", "PRIXVENTE"],
         ["LOT"] = ["LOT", "N_LOT", "NUMERO_LOT", "NUMLOT", "NLOT", "N°LOT", "N° LOT"],
         ["PEREMPTION"] = ["PEREMPTION", "EXPIRATION", "DATE_PEREMPTION", "DLU", "EXP", "DATE_EXP", "DATEPEREMPTION"],
-        ["UG"] = ["UG", "GRATUIT", "UNITE_GRATUITE", "UNITES_GRATUITES"],
+        ["UG"] = ["UG", "GRATUIT", "UNITE_GRATUITE", "UNITES_GRATUITES", "QTE_UG", "QTEUG"],
         ["TVA"] = ["TVA", "TAUX_TVA", "TVA%", "TAUXTVA"]
     };
 
@@ -73,36 +73,55 @@ public class BlImportService
             else if (ext is ".csv" or ".txt")
             {
                 raw = ReadCsv(buffer);
+                if (LooksLikeUbiPharmExport(fileName))
+                {
+                    supplierName = "UbiPharm";
+                    numeroBl = ExtrairNumeroBL(fileName + "\nBEL/" + Path.GetFileNameWithoutExtension(fileName), "UbiPharm");
+                    if (string.IsNullOrEmpty(numeroBl) && Regex.IsMatch(fileName ?? "", @"(\d{5,8})"))
+                        numeroBl = "BEL/" + Regex.Match(fileName!, @"(\d{5,8})").Groups[1].Value;
+                }
             }
             else if (ext == ".pdf")
             {
                 var pdfBytes = buffer.ToArray();
                 buffer.Position = 0;
-                try
+                var texteNatif = ExtraireTextePdf(buffer);
+                var depuisTexte = EssayerParsersDepuisTexte(texteNatif);
+                if (depuisTexte != null && depuisTexte.Value.Rows.Count > 0)
                 {
-                    raw = ReadPdf(buffer);
+                    raw = depuisTexte.Value.Rows;
+                    supplierName = depuisTexte.Value.SupplierName;
+                    numeroBl = depuisTexte.Value.NumeroBL;
+                    dateBl = depuisTexte.Value.DateBL;
                 }
-                catch (Exception)
+                else
                 {
-                    var endpoint = configuration?["VisionAI:Endpoint"];
-                    var apiKey = configuration?["VisionAI:ApiKey"];
-                    if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey))
-                        throw new InvalidOperationException(
-                            "PDF scanné : OCR Azure Vision non configuré (VisionAI:Endpoint / VisionAI:ApiKey).");
+                    buffer.Position = 0;
+                    try
+                    {
+                        raw = ReadPdf(buffer);
+                    }
+                    catch (Exception)
+                    {
+                        var endpoint = configuration?["VisionAI:Endpoint"];
+                        var apiKey = configuration?["VisionAI:ApiKey"];
+                        if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey))
+                            throw new InvalidOperationException(
+                                "PDF scanné : OCR Azure Vision non configuré (VisionAI:Endpoint / VisionAI:ApiKey).");
 
-                    texteOcr = await ExtraireTexteOCR(pdfBytes, endpoint, apiKey);
-                    if (string.IsNullOrWhiteSpace(texteOcr))
-                        throw new InvalidOperationException("OCR : aucun texte extrait du PDF.");
+                        texteOcr = await ExtraireTexteOCR(pdfBytes, endpoint, apiKey);
+                        if (string.IsNullOrWhiteSpace(texteOcr))
+                            throw new InvalidOperationException("OCR : aucun texte extrait du PDF.");
 
-                    supplierName = DetecterFournisseur(texteOcr);
-                    numeroBl = ExtrairNumeroBL(texteOcr, supplierName);
-                    dateBl = ExtraireDate(texteOcr);
+                        var depuisOcr = EssayerParsersDepuisTexte(texteOcr);
+                        if (depuisOcr == null || depuisOcr.Value.Rows.Count == 0)
+                            throw new InvalidOperationException("OCR : aucune ligne produit détectée.");
 
-                    var extraits = supplierName == "Sodipharm"
-                        ? ParserSodipharm(texteOcr)
-                        : ParserUbiPharm(texteOcr);
-
-                    raw = ConvertirLignesExtraite(extraits);
+                        raw = depuisOcr.Value.Rows;
+                        supplierName = depuisOcr.Value.SupplierName;
+                        numeroBl = depuisOcr.Value.NumeroBL;
+                        dateBl = depuisOcr.Value.DateBL;
+                    }
                 }
             }
             else
@@ -161,6 +180,35 @@ public class BlImportService
         }
 
         return raw;
+    }
+
+    private static (List<BlImportRawRow> Rows, string SupplierName, string NumeroBL, DateTime? DateBL)? EssayerParsersDepuisTexte(string? texte)
+    {
+        if (string.IsNullOrWhiteSpace(texte) || texte.Trim().Length < 20)
+            return null;
+
+        var supplierName = DetecterFournisseur(texte);
+        var extraits = supplierName == "Sodipharm"
+            ? ParserSodipharm(texte)
+            : ParserUbiPharm(texte);
+        if (extraits.Count == 0 && supplierName != "Sodipharm")
+            extraits = ParserSodipharm(texte);
+        if (extraits.Count == 0)
+            return null;
+
+        return (
+            ConvertirLignesExtraite(extraits),
+            supplierName,
+            ExtrairNumeroBL(texte, supplierName),
+            ExtraireDate(texte));
+    }
+
+    private static bool LooksLikeUbiPharmExport(string? fileName)
+    {
+        var fn = fileName ?? "";
+        return fn.Contains("BEL", StringComparison.OrdinalIgnoreCase)
+            || fn.Contains("UBI", StringComparison.OrdinalIgnoreCase)
+            || fn.Contains("UBIPHARM", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<int?> ResoudreSupplierIdAsync(string? supplierName, CancellationToken ct)
@@ -584,7 +632,25 @@ public class BlImportService
 
     private static List<BlImportRawRow> ReadCsv(Stream stream)
     {
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        if (stream.CanSeek)
+            stream.Position = 0;
+
+        try
+        {
+            return ReadCsvWithEncoding(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true));
+        }
+        catch (Exception)
+        {
+            if (!stream.CanSeek)
+                throw;
+            stream.Position = 0;
+            return ReadCsvWithEncoding(stream, Encoding.Latin1);
+        }
+    }
+
+    private static List<BlImportRawRow> ReadCsvWithEncoding(Stream stream, Encoding encoding)
+    {
+        using var reader = new StreamReader(stream, encoding, detectEncodingFromByteOrderMarks: true, bufferSize: 1024, leaveOpen: true);
         var lines = new List<string>();
         while (!reader.EndOfStream)
         {
@@ -704,9 +770,13 @@ public class BlImportService
     {
         if (string.IsNullOrWhiteSpace(value))
             return "";
+        var folded = value.Trim().Normalize(NormalizationForm.FormD);
         var sb = new StringBuilder();
-        foreach (var ch in value.Trim().ToUpperInvariant())
+        foreach (var ch in folded.ToUpperInvariant())
         {
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch)
+                == System.Globalization.UnicodeCategory.NonSpacingMark)
+                continue;
             if (ch is '%' or '°')
             {
                 sb.Append(ch);
@@ -1142,8 +1212,218 @@ public class BlImportService
         return sb.ToString();
     }
 
+    /// <summary>PDF Sodipharm généré : ligne GEO + qté, puis désignation, puis code article 7 chiffres.</summary>
+    public static List<BLLigneExtraite> ParserSodipharmBordereau(string texte)
+    {
+        var result = new List<BLLigneExtraite>();
+        if (string.IsNullOrWhiteSpace(texte))
+            return result;
+
+        var lines = texte.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var geoRx = new Regex(@"^\s*\d{1,2}\.\s*[A-Z]\s*\.\s*\S+\s+(\d{1,4})\s+(\d{1,4})\s*$");
+        var cipRx = new Regex(@"^\s*(\d{7})\s*$");
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var geo = geoRx.Match(lines[i]);
+            if (!geo.Success)
+                continue;
+
+            int.TryParse(geo.Groups[1].Value, out var qtCde);
+            int.TryParse(geo.Groups[2].Value, out var qtLiv);
+
+            string? nom = null;
+            string? cip = null;
+            var montants = new List<int>();
+            for (var j = i + 1; j < lines.Length && j <= i + 12; j++)
+            {
+                if (geoRx.IsMatch(lines[j]))
+                    break;
+                var t = lines[j].Trim();
+                if (t.Length == 0)
+                    continue;
+                if (nom == null && Regex.IsMatch(t, @"^[A-ZÀ-Üa-z].{4,}"))
+                {
+                    nom = Regex.Replace(t, @"\s+", " ");
+                    continue;
+                }
+
+                var cipM = cipRx.Match(t);
+                if (cipM.Success)
+                {
+                    cip = cipM.Groups[1].Value;
+                    continue;
+                }
+
+                var digits = t.Replace(" ", "").Replace(".", "");
+                if (int.TryParse(digits, out var n) && n is >= 50 and <= 1_000_000)
+                    montants.Add(n);
+            }
+
+            if (string.IsNullOrWhiteSpace(cip) && string.IsNullOrWhiteSpace(nom))
+                continue;
+
+            var prixAchat = montants.Count > 0 ? montants.Min() : 0m;
+            var prixPub = montants.Count > 0 ? montants.Max() : 0m;
+            var rupture = qtLiv == 0
+                || (nom?.Contains("PAS DE SUIVI", StringComparison.OrdinalIgnoreCase) ?? false);
+
+            result.Add(new BLLigneExtraite
+            {
+                CIP = cip ?? "",
+                NomProduit = nom ?? "",
+                PrixAchat = prixAchat,
+                PrixVente = prixPub == prixAchat ? 0 : prixPub,
+                QuantiteLivree = rupture ? 0 : qtLiv,
+                Confiance = rupture ? "rupture" : "bonne"
+            });
+        }
+
+        return result;
+    }
+
+    /// <summary>PDF UbiPharm généré (FACTURE BEL/…) : n° ligne + code + libellé + prix au format 2.499 (= 2499).</summary>
+    public static List<BLLigneExtraite> ParserUbiPharmFactureGeneree(string texte)
+    {
+        var result = new List<BLLigneExtraite>();
+        if (string.IsNullOrWhiteSpace(texte))
+            return result;
+
+        var lines = texte.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var productIdx = new List<int>();
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (EstLigneProduitUbiFacture(lines[i]))
+                productIdx.Add(i);
+        }
+
+        var lotRx = new Regex(@"LOT\s+(\S+)\s+PER\.?\s*(\d{2}/\d{2}/\d{2,4})", RegexOptions.IgnoreCase);
+        foreach (var (start, a) in productIdx.Select((idx, n) => (idx, n)))
+        {
+            if (!TryParseUbiFactureLigne(lines[start], out var parsed))
+                continue;
+
+            var next = a + 1 < productIdx.Count ? productIdx[a + 1] : lines.Length;
+            var look = new List<string>();
+            for (var j = start + 1; j < next; j++)
+            {
+                var t = lines[j].Trim();
+                if (t.Length > 0)
+                    look.Add(t);
+            }
+
+            var lookText = string.Join(' ', look);
+            var ean13 = Regex.Match(lookText, @"\b(\d{13})\b");
+            var cip = ean13.Success
+                ? ean13.Groups[1].Value
+                : (Regex.IsMatch(parsed.Code, @"^\d{7,13}$") ? parsed.Code : parsed.Code);
+
+            var lots = lotRx.Matches(lookText);
+            if (lots.Count == 0)
+            {
+                result.Add(CreerLigneUbiPharm(
+                    cip, parsed.Nom, parsed.PrixAchat, parsed.QteLiv, null, null, "bonne"));
+                result[^1].PrixVente = parsed.PrixPublic ?? 0;
+                continue;
+            }
+
+            foreach (Match lot in lots)
+            {
+                DateTime? peremp = null;
+                if (DateTime.TryParseExact(
+                        lot.Groups[2].Value,
+                        ["dd/MM/yy", "dd/MM/yyyy"],
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out var d)
+                    && d != default)
+                    peremp = d.Date;
+
+                result.Add(CreerLigneUbiPharm(
+                    cip,
+                    parsed.Nom,
+                    parsed.PrixAchat,
+                    parsed.QteLiv,
+                    lot.Groups[1].Value.Trim(),
+                    peremp,
+                    "bonne"));
+                result[^1].PrixVente = parsed.PrixPublic ?? 0;
+            }
+        }
+
+        return result;
+    }
+
+    private static bool EstLigneProduitUbiFacture(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return false;
+        var t = line.Trim();
+        if (t.StartsWith("LOT ", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (t.Contains("F A C T U R E", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return Regex.IsMatch(t, @"^\d{1,3}\s+\S{3,}\s+.+\d{1,3}[.,]\d{3}\s*$");
+    }
+
+    private readonly record struct UbiFactureParse(
+        string Code, string Nom, int QteLiv, decimal PrixAchat, decimal? PrixPublic);
+
+    private static bool TryParseUbiFactureLigne(string line, out UbiFactureParse parsed)
+    {
+        parsed = default;
+        var parts = Regex.Split(line.Trim(), @"\s+")
+            .Where(p => p.Length > 0 && p != "A")
+            .ToList();
+        if (parts.Count < 6)
+            return false;
+        if (!int.TryParse(parts[0], out var num) || num is < 1 or > 999)
+            return false;
+        if (!TryParseMontantMilliersUbi(parts[^1], out _))
+            return false;
+        if (!TryParseMontantMilliersUbi(parts[^2], out var pu))
+            return false;
+        if (!int.TryParse(parts[^3], out var qteLiv) || qteLiv is < 0 or > 999)
+            return false;
+
+        var nameParts = parts.Skip(2).Take(parts.Count - 6).ToList();
+        decimal? pub = null;
+        if (nameParts.Count > 0 && TryParseMontantMilliersUbi(nameParts[^1], out var pPub))
+        {
+            pub = pPub;
+            nameParts.RemoveAt(nameParts.Count - 1);
+        }
+
+        if (nameParts.Count > 0
+            && int.TryParse(nameParts[^1], out var maybeTva)
+            && maybeTva is 5 or 10 or 18)
+            nameParts.RemoveAt(nameParts.Count - 1);
+
+        var nom = string.Join(' ', nameParts).Trim();
+        if (nom.Length < 3)
+            return false;
+
+        parsed = new UbiFactureParse(parts[1], nom, qteLiv, pu, pub);
+        return true;
+    }
+
+    /// <summary>2.499 ou 2,499 = 2499 FCFA (milliers), pas 2,499.</summary>
+    private static bool TryParseMontantMilliersUbi(string token, out decimal value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(token))
+            return false;
+        if (!Regex.IsMatch(token, @"^\d{1,3}(?:[.,]\d{3})+$"))
+            return false;
+        var digits = token.Replace(".", "").Replace(",", "");
+        return decimal.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+    }
+
     public static List<BLLigneExtraite> ParserSodipharm(string texte)
     {
+        var bordereau = ParserSodipharmBordereau(texte);
+        if (bordereau.Count > 0)
+            return bordereau;
         var result = new List<BLLigneExtraite>();
         if (string.IsNullOrWhiteSpace(texte))
             return result;
@@ -1215,6 +1495,9 @@ public class BlImportService
 
     public static List<BLLigneExtraite> ParserUbiPharm(string texte)
     {
+        var facture = ParserUbiPharmFactureGeneree(texte);
+        if (facture.Count >= 3)
+            return facture;
         var result = new List<BLLigneExtraite>();
         if (string.IsNullOrWhiteSpace(texte))
             return result;

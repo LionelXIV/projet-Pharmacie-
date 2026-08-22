@@ -1,14 +1,14 @@
 @model GoodsReceiptDirectViewModel
 @{
-    ViewData["Title"] = "Saisir un BL";
+    ViewData["Title"] = "Nouveau BL";
     var fournisseurs = ViewBag.Fournisseurs as IEnumerable<Supplier> ?? Enumerable.Empty<Supplier>();
 }
 
 @await Html.PartialAsync("_BackButton")
 
 <div class="page-header mb-3">
-    <h1 class="page-title">Nouvelle saisie BL</h1>
-    <p class="page-lead mb-0">Réception fournisseur directe — met à jour le stock et trace les mouvements.</p>
+    <h1 class="page-title">Nouveau bon de livraison</h1>
+    <p class="page-lead mb-0">Saisie manuelle ou import fichier (Excel, CSV, PDF).</p>
 </div>
 <details id="bl-ocr-debug" class="mb-3" style="display:none">
     <summary class="small text-muted">Texte OCR brut (admin)</summary>
@@ -101,7 +101,7 @@
                         Lignes avec erreur (<span id="bl-nb-erreurs">0</span>)
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-import-bl"
-                            title="Préremplir depuis Excel, CSV ou PDF texte (CIP, QTE, prix…)">
+                            title="Excel (.xlsx), CSV, ou PDF (texte généré ou scan)">
                         <i class="bi bi-upload me-1"></i>Importer un BL
                     </button>
                     <input type="file" id="bl-import-file" accept=".xlsx,.xlsm,.csv,.txt,.pdf" class="d-none" />
@@ -153,6 +153,35 @@
         </div>
     </div>
 </form>
+
+<div id="bl-import-overlay" class="bl-import-overlay" hidden aria-live="assertive" aria-busy="false">
+    <div class="bl-import-overlay-card">
+        <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+        <p class="fw-semibold mb-1">Lecture du BL en cours…</p>
+        <p class="text-muted small mb-0">Ne fermez pas la page. Excel, CSV et PDF texte sont lus localement ; un PDF scanné peut prendre plus longtemps (OCR).</p>
+    </div>
+</div>
+<style>
+  .bl-import-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    background: rgba(255, 255, 255, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .bl-import-overlay[hidden] { display: none !important; }
+  .bl-import-overlay-card {
+    background: #fff;
+    border-radius: 0.75rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,.12);
+    padding: 1.75rem 2rem;
+    text-align: center;
+    max-width: 22rem;
+  }
+</style>
 
 @section Scripts {
     <script>
@@ -427,6 +456,18 @@
         if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
 
+      function setImportLoading(on) {
+        var overlay = document.getElementById('bl-import-overlay');
+        var btn = document.getElementById('btn-import-bl');
+        if (overlay) {
+          overlay.hidden = !on;
+          overlay.setAttribute('aria-busy', on ? 'true' : 'false');
+        }
+        if (btn) btn.disabled = on;
+        if (fileInput) fileInput.disabled = on;
+        document.body.style.overflow = on ? 'hidden' : '';
+      }
+
       var importUrl = '@Url.Action("ImportBlPreview", "GoodsReceipts")';
       var fileInput = document.getElementById('bl-import-file');
       document.getElementById('btn-import-bl').addEventListener('click', function () {
@@ -440,8 +481,7 @@
         var token = document.querySelector('#form-bl-direct input[name="__RequestVerificationToken"]');
         if (token) fd.append('__RequestVerificationToken', token.value);
 
-        var btn = document.getElementById('btn-import-bl');
-        btn.disabled = true;
+        setImportLoading(true);
         fetch(importUrl, {
           method: 'POST',
           body: fd,
@@ -450,7 +490,6 @@
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            btn.disabled = false;
             if (!data || !data.ok) {
               showImportFlash((data && data.message) || 'Import impossible.', true);
               return;
@@ -481,8 +520,11 @@
             showImportFlash(data.message || 'Import terminé.', data.unmatchedCount > 0);
           })
           .catch(function () {
-            btn.disabled = false;
             showImportFlash('Erreur réseau lors de l’import.', true);
+          })
+          .finally(function () {
+            setImportLoading(false);
+            fileInput.value = '';
           });
       });
 
