@@ -182,3 +182,13 @@ else
         </div>
     </form>
 }
+
+@if (User.IsInRole("Administrateur") && ViewBag.TexteOcrBrut is string texteOcrBrut && !string.IsNullOrEmpty(texteOcrBrut))
+{
+    <details class="mt-4">
+        <summary class="text-muted small" style="cursor:pointer">
+            <i class="bi bi-bug me-1"></i>Texte OCR brut (debug admin)
+        </summary>
+        <pre class="small bg-light border rounded p-3 mt-2" style="max-height:320px;overflow:auto;white-space:pre-wrap">@texteOcrBrut</pre>
+    </details>
+}

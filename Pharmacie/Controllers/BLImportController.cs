@@ -128,6 +128,7 @@ public class BLImportController : Controller
             };
 
             ViewBag.OcrUtilise = ocrUtilise;
+            ViewBag.TexteOcrBrut = ocrUtilise ? texteComplet : null;
             return View("Verifier", vm);
         }
         catch (Exception ex)

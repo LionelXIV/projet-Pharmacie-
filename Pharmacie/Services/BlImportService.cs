@@ -1089,71 +1089,145 @@ public class BlImportService
 
     public static List<BLLigneExtraite> ParserUbiPharm(string texte)
     {
-        var lignes = new List<BLLigneExtraite>();
-        if (string.IsNullOrEmpty(texte))
-            return lignes;
+        var result = new List<BLLigneExtraite>();
+        if (string.IsNullOrWhiteSpace(texte))
+            return result;
 
-        var matches = Regex.Matches(
-            texte,
-            @"(\d{7})\s*\n?" +
-            @"(?:\d{13})?\s*\n?" +
-            @"([A-Z][A-Z0-9\s+\-./%]+?)\s+" +
-            @"(?:LOT\s+\S+\s+PER\.\s+(\d{2}/\d{2}/\d{2,4}))?\s*" +
-            @"[\d,.]+\s+" +
-            @"(?:\d+\s+)?" +
-            @"(\d+)\s+" +
-            @"(\d+)?\s+" +
-            @"([\d,.]+)",
-            RegexOptions.IgnoreCase);
+        var lines = texte.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var cipSeul = new Regex(@"^\s*(\d{7})\s*$");
+        var cipDebut = new Regex(@"^\s*(\d{7})\s+(.+)$");
+        var nomRx = new Regex(@"^[A-Z][A-Z0-9\s+\-./%]{4,}$", RegexOptions.IgnoreCase);
+        var lotRx = new Regex(@"LOT\s+(\S+)\s+PER\.?\s*(\d{2}/\d{2}/\d{2,4})", RegexOptions.IgnoreCase);
+        var prixRx = new Regex(@"[\d]+[,.][\d]{2,3}");
 
-        foreach (Match m in matches)
+        var anchors = new List<(int Index, string Cip, string? Remainder)>();
+        for (var i = 0; i < lines.Length; i++)
         {
-            var cip = m.Groups[1].Value.Trim();
-            var nom = Regex.Replace(m.Groups[2].Value.Trim(), @"\s+", " ");
-
-            DateTime? peremp = null;
-            if (m.Groups[3].Success && m.Groups[3].Length > 0)
+            var seul = cipSeul.Match(lines[i]);
+            if (seul.Success)
             {
+                anchors.Add((i, seul.Groups[1].Value, null));
+                continue;
+            }
+
+            var debut = cipDebut.Match(lines[i]);
+            if (debut.Success)
+                anchors.Add((i, debut.Groups[1].Value, debut.Groups[2].Value.Trim()));
+        }
+
+        for (var a = 0; a < anchors.Count; a++)
+        {
+            var start = anchors[a].Index;
+            var next = a + 1 < anchors.Count ? anchors[a + 1].Index : lines.Length;
+            var blockLen = Math.Min(8, Math.Max(0, next - start));
+            var blockLines = lines.Skip(start).Take(blockLen).ToArray();
+            var blockText = string.Join('\n', blockLines);
+
+            var nom = ExtraireNomUbiPharm(blockLines, anchors[a].Remainder, nomRx);
+            var prix = ExtrairePrixUnitaireUbiPharm(blockText, prixRx);
+            var qteLivree = ExtraireQuantiteConfianteUbiPharm(blockLines, anchors[a].Cip);
+
+            var lots = lotRx.Matches(blockText);
+            if (lots.Count == 0)
+            {
+                result.Add(CreerLigneUbiPharm(anchors[a].Cip, nom, prix, qteLivree, null, null));
+                continue;
+            }
+
+            foreach (Match lot in lots)
+            {
+                DateTime? peremp = null;
                 if (DateTime.TryParseExact(
-                        m.Groups[3].Value,
+                        lot.Groups[2].Value,
                         ["dd/MM/yy", "dd/MM/yyyy"],
                         CultureInfo.InvariantCulture,
                         DateTimeStyles.None,
                         out var d)
                     && d != default)
                     peremp = d.Date;
-            }
 
-            int? qteLivree = null;
-            if (m.Groups[5].Success
-                && m.Groups[5].Length > 0
-                && int.TryParse(m.Groups[5].Value, out var q))
-                qteLivree = q;
-
-            var prixStr = m.Groups[6].Value.Replace(",", ".");
-            decimal.TryParse(
-                prixStr,
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out var prix);
-
-            if (cip.Length >= 7 && prix > 0)
-            {
-                lignes.Add(new BLLigneExtraite
-                {
-                    CIP = cip,
-                    NomProduit = nom,
-                    PrixAchat = prix,
-                    QuantiteLivree = qteLivree,
-                    DatePeremption = peremp,
-                    NumeroLot = null,
-                    Confiance = qteLivree.HasValue ? "bonne" : "partielle"
-                });
+                result.Add(CreerLigneUbiPharm(
+                    anchors[a].Cip,
+                    nom,
+                    prix,
+                    qteLivree,
+                    lot.Groups[1].Value.Trim(),
+                    peremp));
             }
         }
 
-        return lignes.DistinctBy(l => l.CIP).ToList();
+        return result;
     }
+
+    private static string ExtraireNomUbiPharm(string[] blockLines, string? rest, Regex nomRx)
+    {
+        if (!string.IsNullOrWhiteSpace(rest) && nomRx.IsMatch(rest.Trim()))
+            return Regex.Replace(rest.Trim(), @"\s+", " ");
+
+        for (var j = 1; j < blockLines.Length; j++)
+        {
+            var candidate = blockLines[j].Trim();
+            if (nomRx.IsMatch(candidate))
+                return Regex.Replace(candidate, @"\s+", " ");
+        }
+
+        return rest is { Length: > 0 } ? Regex.Replace(rest, @"\s+", " ") : "";
+    }
+
+    private static decimal ExtrairePrixUnitaireUbiPharm(string blockText, Regex prixRx)
+    {
+        var candidats = new List<decimal>();
+        foreach (Match m in prixRx.Matches(blockText))
+        {
+            var raw = m.Value.Replace(",", ".");
+            if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var p)
+                && p is >= 0.5m and <= 50_000m)
+                candidats.Add(p);
+        }
+
+        if (candidats.Count == 0)
+            return 0;
+
+        var horsTva = candidats.Where(p => p is not (5.5m or 10m or 18m)).ToList();
+        var pool = horsTva.Count > 0 ? horsTva : candidats;
+        return pool.Min();
+    }
+
+    private static int? ExtraireQuantiteConfianteUbiPharm(string[] blockLines, string cip)
+    {
+        var isolés = new List<int>();
+        foreach (var line in blockLines)
+        {
+            var t = line.Trim();
+            if (!Regex.IsMatch(t, @"^\d{1,4}$"))
+                continue;
+            if (t == cip)
+                continue;
+            if (!int.TryParse(t, out var n) || n is < 1 or > 500)
+                continue;
+            isolés.Add(n);
+        }
+
+        return isolés.Count == 1 ? isolés[0] : null;
+    }
+
+    private static BLLigneExtraite CreerLigneUbiPharm(
+        string cip,
+        string nom,
+        decimal prix,
+        int? qteLivree,
+        string? numeroLot,
+        DateTime? peremp) =>
+        new()
+        {
+            CIP = cip,
+            NomProduit = nom,
+            PrixAchat = prix,
+            QuantiteLivree = qteLivree,
+            NumeroLot = numeroLot,
+            DatePeremption = peremp,
+            Confiance = qteLivree.HasValue ? "bonne" : "partielle"
+        };
 
     private sealed record ProductHit(
         int Id,
