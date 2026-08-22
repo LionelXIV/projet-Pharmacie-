@@ -509,12 +509,25 @@
           return;
         }
 
+        function keepOriginalDateSubmittable(selectedDates, dateStr, instance) {
+          if (!instance || !instance.input) return;
+          instance.input.removeAttribute('disabled');
+          instance.input.removeAttribute('readonly');
+          if (instance.altInput) {
+            instance.input.classList.add('visually-hidden');
+            instance.input.setAttribute('tabindex', '-1');
+            instance.input.setAttribute('aria-hidden', 'true');
+          }
+        }
+
         flatpickr("input[type='date']:not([data-flatpickr-disabled]):not([data-flatpickr-ignore])", {
           locale: "fr",
           dateFormat: "Y-m-d",
           altInput: true,
           altFormat: "d/m/Y",
-          allowInput: true
+          allowInput: true,
+          onReady: keepOriginalDateSubmittable,
+          onChange: keepOriginalDateSubmittable
         });
 
         flatpickr("input[type='datetime-local']:not([data-flatpickr-disabled]):not([data-flatpickr-ignore])", {
@@ -524,7 +537,9 @@
           altFormat: "d/m/Y à H:i",
           enableTime: true,
           time_24hr: true,
-          allowInput: true
+          allowInput: true,
+          onReady: keepOriginalDateSubmittable,
+          onChange: keepOriginalDateSubmittable
         });
       });
     </script>

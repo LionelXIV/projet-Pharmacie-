@@ -82,6 +82,7 @@
                                     </td>
                                     <td style="width:10rem">
                                         <input asp-for="Lines[i].ExpirationDate" class="form-control form-control-sm" type="month"
+                                               data-flatpickr-ignore="true"
                                                value="@ExpirationMonth.ToInputValue(Model.Lines[i].ExpirationDate)" />
                                     </td>
                                 </tr>
