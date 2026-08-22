@@ -353,7 +353,8 @@
         var pa = preset && preset.prixAchat != null ? preset.prixAchat : '';
         var pv = preset && preset.prixVente != null ? preset.prixVente : '';
         var lot = preset && preset.numeroLot ? String(preset.numeroLot).replace(/"/g, '&quot;') : '';
-        var exp = preset && preset.datePeremption ? preset.datePeremption : '';
+        var expRaw = preset && preset.datePeremption ? String(preset.datePeremption) : '';
+        var exp = expRaw.length >= 7 ? expRaw.substring(0, 7) : '';
         var tva = preset && preset.tauxTVA != null ? preset.tauxTVA : 0;
         var ugChecked = preset && (preset.estUG || (preset.nbUG > 0)) ? ' checked' : '';
         var nbUg = preset && preset.nbUG > 0 ? preset.nbUG : (ugChecked ? 1 : 0);
@@ -374,7 +375,7 @@
           '<td><input type="number" name="Lignes[' + index + '].PrixVente" class="form-control form-control-sm prix-vente-input" min="0" step="1" placeholder="Public" value="' + pv + '"></td>' +
           '<td class="text-end fw-semibold text-nowrap"><span class="bl-ligne-montant">0</span> <span class="text-muted small">F</span></td>' +
           '<td><input type="text" name="Lignes[' + index + '].NumeroLot" class="form-control form-control-sm" placeholder="LOT-..." value="' + lot + '"></td>' +
-          '<td><input type="date" name="Lignes[' + index + '].DatePeremption" class="form-control form-control-sm" data-flatpickr-ignore="true" value="' + exp + '"></td>' +
+          '<td><input type="month" name="Lignes[' + index + '].DatePeremption" class="form-control form-control-sm" data-flatpickr-ignore="true" value="' + exp + '" title="Mois et année"></td>' +
           '<td class="text-center">' +
           '<input class="form-check-input bl-ug-check" type="checkbox" name="Lignes[' + index + '].EstUG" value="true" title="Activer les unités gratuites"' + ugChecked + '>' +
           '<input type="number" name="Lignes[' + index + '].NbUG" class="form-control form-control-sm bl-ug-qty mt-1 mx-auto" min="0" step="1" value="' + nbUg + '" style="width:3.5rem"' + ugDisabled + ' title="Nombre d’UG">' +

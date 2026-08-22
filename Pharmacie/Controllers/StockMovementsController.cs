@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
+using Pharmacie.Helpers;
 using Pharmacie.Models;
 using Pharmacie.Services;
 
@@ -168,7 +169,7 @@ public class StockMovementsController : Controller
         var items = list.Select(b => new
         {
             b.Id,
-            Label = $"{b.Product!.CommercialName} — Lot {b.LotNumber} — Dispo: {b.Quantity} — Exp. {b.ExpirationDate:yyyy-MM-dd}"
+            Label = $"{b.Product!.CommercialName} — Lot {b.LotNumber} — Dispo: {b.Quantity} — Exp. {ExpirationMonth.Format(b.ExpirationDate)}"
         }).ToList();
 
         ViewData["BatchId"] = new SelectList(items, "Id", "Label", selectedBatchId);

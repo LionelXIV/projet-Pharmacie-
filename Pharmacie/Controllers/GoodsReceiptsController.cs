@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
+using Pharmacie.Helpers;
 using Pharmacie.Models;
 using Pharmacie.Services;
 
@@ -304,7 +305,7 @@ public class GoodsReceiptsController : Controller
                 var lotNumber = string.IsNullOrWhiteSpace(ligne.NumeroLot)
                     ? $"BL-{receipt.Id}-{ligne.ProductId}-{DateTime.Now:HHmmss}"
                     : ligne.NumeroLot.Trim();
-                var expiration = (ligne.DatePeremption ?? DateTime.Today.AddYears(2)).Date;
+                var expiration = ExpirationMonth.EndOfMonth(ligne.DatePeremption ?? DateTime.Today.AddYears(2));
                 var reason = $"BL Direct #{receipt.Id}"
                     + (string.IsNullOrWhiteSpace(receipt.Reference) ? "" : $" — {receipt.Reference}");
 

@@ -121,7 +121,7 @@
                 <tr>
                     <th>Produit</th>
                     <th>N° de lot</th>
-                    <th>Date d'expiration</th>
+                    <th>Péremption</th>
                     <th>Quantité restante</th>
                     <th class="text-end"></th>
                 </tr>
@@ -133,7 +133,7 @@
                         <td>@item.Product?.CommercialName</td>
                         <td>@Html.DisplayFor(m => item.LotNumber)</td>
                         <td>
-                            @item.ExpirationDate.ToString("yyyy-MM-dd")
+                            @ExpirationMonth.Format(item.ExpirationDate)
                             @if (item.SourceImportLineId != null)
                             {
                                 <span class="badge bg-warning-subtle text-warning ms-1"

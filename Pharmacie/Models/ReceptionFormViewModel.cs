@@ -37,6 +37,6 @@ public class ReceptionLineRowViewModel
     public string? LotNumber { get; set; }
 
     [DataType(DataType.Date)]
-    [Display(Name = "Expiration")]
+    [Display(Name = "Péremption")]
     public DateTime? ExpirationDate { get; set; }
 }

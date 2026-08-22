@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Data;
+using Pharmacie.Helpers;
 using Pharmacie.Models;
 
 namespace Pharmacie.Services;
@@ -35,7 +36,7 @@ public class InventoryService
         {
             ProductId = productId,
             LotNumber = lotNumber.Trim(),
-            ExpirationDate = expirationDate.Date,
+            ExpirationDate = ExpirationMonth.EndOfMonth(expirationDate),
             Quantity = quantity
         };
         _db.ProductBatches.Add(batch);

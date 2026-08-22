@@ -57,7 +57,7 @@
                                 <th>Reste</th>
                                 <th>Qté cette réception</th>
                                 <th>N° lot</th>
-                                <th>Expiration</th>
+                                <th>Péremption</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -81,7 +81,8 @@
                                         <input asp-for="Lines[i].LotNumber" class="form-control form-control-sm" />
                                     </td>
                                     <td style="width:10rem">
-                                        <input asp-for="Lines[i].ExpirationDate" class="form-control form-control-sm" type="date" />
+                                        <input asp-for="Lines[i].ExpirationDate" class="form-control form-control-sm" type="month"
+                                               value="@ExpirationMonth.ToInputValue(Model.Lines[i].ExpirationDate)" />
                                     </td>
                                 </tr>
                             }

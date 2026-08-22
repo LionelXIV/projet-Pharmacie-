@@ -17,7 +17,7 @@ public class ProductBatch
     [Display(Name = "N° de lot")]
     public string LotNumber { get; set; } = string.Empty;
 
-    [Display(Name = "Date d'expiration")]
+    [Display(Name = "Péremption (mois/année)")]
     [DataType(DataType.Date)]
     public DateTime ExpirationDate { get; set; }
 

@@ -32,7 +32,7 @@
                     <dt class="col-sm-3">@Html.DisplayNameFor(m => m.LotNumber)</dt>
                     <dd class="col-sm-9">@Html.DisplayFor(m => m.LotNumber)</dd>
                     <dt class="col-sm-3">@Html.DisplayNameFor(m => m.ExpirationDate)</dt>
-                    <dd class="col-sm-9">@Model.ExpirationDate.ToString("yyyy-MM-dd")</dd>
+                    <dd class="col-sm-9">@ExpirationMonth.Format(Model.ExpirationDate)</dd>
                     <dt class="col-sm-3">@Html.DisplayNameFor(m => m.Quantity)</dt>
                     <dd class="col-sm-9">@Html.DisplayFor(m => m.Quantity)</dd>
                 </dl>

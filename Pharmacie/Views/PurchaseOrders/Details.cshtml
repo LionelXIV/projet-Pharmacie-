@@ -115,7 +115,7 @@
                                 <ul class="mt-2 mb-0">
                                     @foreach (var rl in r.Lines)
                                     {
-                                        <li>Qté @rl.QuantityReceived, lot @rl.LotNumber, exp. @rl.ExpirationDate.ToString("yyyy-MM-dd")</li>
+                                        <li>Qté @rl.QuantityReceived, lot @rl.LotNumber, exp. @ExpirationMonth.Format(rl.ExpirationDate)</li>
                                     }
                                 </ul>
                             </li>

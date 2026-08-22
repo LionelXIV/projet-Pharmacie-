@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
+using Pharmacie.Helpers;
 using Pharmacie.Models;
 using Pharmacie.Reporting;
 using Pharmacie.Services;
@@ -90,7 +91,7 @@ public class ReportsController : Controller
             ReportCsvFormatter.Escape("Produit"),
             ReportCsvFormatter.Escape("Lot"),
             ReportCsvFormatter.Escape("Quantité restante"),
-            ReportCsvFormatter.Escape("Date expiration"),
+            ReportCsvFormatter.Escape("Péremption (MM/AAAA)"),
             ReportCsvFormatter.Escape("Jours restants")));
 
         foreach (var r in rows)
@@ -99,7 +100,7 @@ public class ReportsController : Controller
                 ReportCsvFormatter.Escape(r.ProductName),
                 ReportCsvFormatter.Escape(r.LotNumber),
                 ReportCsvFormatter.IntInvariant(r.QuantityRemaining),
-                ReportCsvFormatter.Escape(r.ExpirationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                ReportCsvFormatter.Escape(ExpirationMonth.Format(r.ExpirationDate)),
                 ReportCsvFormatter.IntInvariant(r.DaysRemaining)));
         }
 
@@ -122,7 +123,7 @@ public class ReportsController : Controller
             ReportCsvFormatter.Escape("Produit"),
             ReportCsvFormatter.Escape("Lot"),
             ReportCsvFormatter.Escape("Quantité restante"),
-            ReportCsvFormatter.Escape("Date expiration")));
+            ReportCsvFormatter.Escape("Péremption (MM/AAAA)")));
 
         foreach (var r in rows)
         {
@@ -130,7 +131,7 @@ public class ReportsController : Controller
                 ReportCsvFormatter.Escape(r.ProductName),
                 ReportCsvFormatter.Escape(r.LotNumber),
                 ReportCsvFormatter.IntInvariant(r.QuantityRemaining),
-                ReportCsvFormatter.Escape(r.ExpirationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))));
+                ReportCsvFormatter.Escape(ExpirationMonth.Format(r.ExpirationDate))));
         }
 
         return ReportCsvFormatter.FileResult(this, sb.ToString(), "rapport-produits-expires");

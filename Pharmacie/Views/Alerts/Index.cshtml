@@ -141,7 +141,7 @@
                                 <th>Statut</th>
                                 <th>Produit</th>
                                 <th>Lot</th>
-                                <th>Expiration</th>
+                                <th>Péremption</th>
                                 <th class="text-end">Qté</th>
                                 <th class="text-end"></th>
                             </tr>
@@ -175,7 +175,7 @@
                                     <td><span class="badge @badgeClass">@label</span></td>
                                     <td class="fw-medium">@b.Product?.CommercialName</td>
                                     <td><span class="font-monospace small">@b.LotNumber</span></td>
-                                    <td class="text-nowrap">@exp.ToString("dd/MM/yyyy")</td>
+                                    <td class="text-nowrap">@ExpirationMonth.Format(exp)</td>
                                     <td class="text-end"><span class="badge text-bg-light border">@b.Quantity</span></td>
                                     <td class="text-end">
                                         <a class="btn btn-sm btn-outline-secondary" asp-controller="Batches" asp-action="Details" asp-route-id="@b.Id" title="Voir le lot" data-bs-toggle="tooltip">

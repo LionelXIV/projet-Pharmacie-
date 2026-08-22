@@ -7,6 +7,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
+using Pharmacie.Helpers;
 using Pharmacie.Models;
 using Pharmacie.Models.Dto;
 using Pharmacie.Reporting;
@@ -468,7 +469,7 @@ public class ProductsController : Controller
                     {
                         ProductId = product.Id,
                         LotNumber = $"AJUST-{product.Id}-{DateTime.Now:yyyyMMddHHmmss}",
-                        ExpirationDate = DateTime.Today.AddYears(2),
+                        ExpirationDate = ExpirationMonth.EndOfMonth(DateTime.Today.AddYears(2)),
                         Quantity = delta
                     };
                     _context.ProductBatches.Add(lot);

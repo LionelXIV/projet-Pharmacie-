@@ -36,7 +36,9 @@
                     </div>
                     <div class="mb-3">
                         <label asp-for="ExpirationDate" class="form-label"></label>
-                        <input asp-for="ExpirationDate" class="form-control" type="date" />
+                        <input asp-for="ExpirationDate" class="form-control" type="month"
+                               value="@ExpirationMonth.ToInputValue(Model.ExpirationDate)" />
+                        <div class="form-text">Mois et année uniquement (ex. 11/2027).</div>
                         <span asp-validation-for="ExpirationDate" class="text-danger"></span>
                     </div>
                     <div class="mb-3">

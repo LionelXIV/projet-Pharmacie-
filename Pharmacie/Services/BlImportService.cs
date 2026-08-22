@@ -7,6 +7,7 @@ using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Pharmacie.Data;
+using Pharmacie.Helpers;
 using Pharmacie.Models;
 using Pharmacie.Models.Dto;
 using UglyToad.PdfPig;
@@ -269,7 +270,7 @@ public class BlImportService
                 PrixAchat = row.PrixAchat ?? 0,
                 PrixVente = row.PrixVente ?? 0,
                 NumeroLot = row.NumeroLot,
-                DatePeremption = row.DatePeremption?.ToString("yyyy-MM-dd"),
+                DatePeremption = row.DatePeremption?.ToString(ExpirationMonth.InputFormat),
                 EstUG = row.EstUG || (row.NbUG ?? 0) > 0,
                 NbUG = row.NbUG ?? (row.EstUG ? 1 : 0),
                 TauxTVA = row.TauxTVA,
@@ -928,11 +929,15 @@ public class BlImportService
         if (string.IsNullOrWhiteSpace(text))
             return null;
         text = text.Trim();
-        string[] formats = ["yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy", "d/M/yyyy", "yyyy/MM/dd"];
+        string[] formats =
+        [
+            "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy", "d/M/yyyy", "yyyy/MM/dd",
+            "yyyy-MM", "MM/yyyy", "MM-yyyy", "MM/yy", "MM-yy"
+        ];
         if (DateTime.TryParseExact(text, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
-            return dt.Date;
+            return ExpirationMonth.EndOfMonth(dt);
         if (DateTime.TryParse(text, CultureInfo.GetCultureInfo("fr-FR"), DateTimeStyles.None, out dt))
-            return dt.Date;
+            return ExpirationMonth.EndOfMonth(dt);
         return null;
     }
 

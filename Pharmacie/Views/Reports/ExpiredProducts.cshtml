@@ -29,7 +29,7 @@
                 <th>Produit</th>
                 <th>Lot</th>
                 <th class="text-end">Qté restante</th>
-                <th>Date d’expiration</th>
+                <th>Péremption</th>
             </tr>
         </thead>
         <tbody>
@@ -39,7 +39,7 @@
                     <td>@r.ProductName</td>
                     <td>@r.LotNumber</td>
                     <td class="text-end">@r.QuantityRemaining</td>
-                    <td>@r.ExpirationDate.ToString("yyyy-MM-dd")</td>
+                    <td>@ExpirationMonth.Format(r.ExpirationDate)</td>
                 </tr>
             }
         </tbody>
