@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
 using Pharmacie.Models;
@@ -23,17 +24,20 @@ public class SalesController : Controller
     private readonly SaleService _sales;
     private readonly CaisseService _caisseService;
     private readonly ILogger<SalesController> _logger;
+    private readonly IOptions<FeatureFlags> _features;
 
     public SalesController(
         ApplicationDbContext context,
         SaleService sales,
         CaisseService caisseService,
-        ILogger<SalesController> logger)
+        ILogger<SalesController> logger,
+        IOptions<FeatureFlags> features)
     {
         _context = context;
         _sales = sales;
         _caisseService = caisseService;
         _logger = logger;
+        _features = features;
     }
 
     public async Task<IActionResult> Index([FromQuery] SaleListFilters? filter, int page = 1)
@@ -75,6 +79,7 @@ public class SalesController : Controller
             .Take(IndexPageSize)
             .ToListAsync();
 
+        ViewBag.SaisieVentePasseeActive = _features.Value.SaisieVentePassee;
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.TotalCount = totalCount;
@@ -323,6 +328,116 @@ public class SalesController : Controller
             ViewBag.SessionCaisseId = reopenSession.Id;
             ViewBag.SessionCaisseNom = reopenSession.NomCaisse;
         }
+
+        await PopulateVendeursForPosAsync(model.VendeurId);
+        return View(model);
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "PharmacienTitulaire,Pharmacien")]
+    public async Task<IActionResult> CreatePassee()
+    {
+        if (!_features.Value.SaisieVentePassee)
+            return NotFound();
+
+        await PopulateVendeursForPosAsync();
+        return View(new SaleCreateViewModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "PharmacienTitulaire,Pharmacien")]
+    public async Task<IActionResult> CreatePassee(SaleCreateViewModel model)
+    {
+        if (!_features.Value.SaisieVentePassee)
+            return NotFound();
+
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+
+            if (model.SoldAt == default)
+                ModelState.AddModelError(nameof(model.SoldAt), "Sélectionnez la date de la vente.");
+            else if (model.SoldAt.Date > DateTime.Today)
+                ModelState.AddModelError(nameof(model.SoldAt), "La date de la vente ne peut pas être dans le futur.");
+
+            var slots = model.Lines ?? new List<SaleLineSlotViewModel>();
+            var lines = slots
+                .Where(l => l.ProductId > 0 && l.Quantity > 0)
+                .Select(l => (l.ProductId, l.Quantity))
+                .ToList();
+
+            if (lines.Count == 0)
+                ModelState.AddModelError(string.Empty, "Ajoutez au moins une ligne avec un produit et une quantité.");
+
+            if (!model.VendeurId.HasValue || model.VendeurId.Value <= 0)
+                ModelState.AddModelError(nameof(model.VendeurId), "Veuillez sélectionner le vendeur.");
+            else
+            {
+                var vendeurOk = await _context.Vendeurs.AnyAsync(v => v.Id == model.VendeurId && v.IsActif);
+                if (!vendeurOk)
+                    ModelState.AddModelError(nameof(model.VendeurId), "Vendeur invalide ou inactif.");
+            }
+
+            if (ModelState.IsValid)
+            {
+                var (ok, error, saleId) = await _sales.RecordSaleAsync(
+                    model.SoldAt,
+                    model.Notes,
+                    lines,
+                    userId,
+                    model.PaymentMethod);
+
+                if (ok && saleId.HasValue)
+                {
+                    var sale = await _context.Sales
+                        .Include(s => s.Lines)
+                        .FirstOrDefaultAsync(s => s.Id == saleId.Value);
+
+                    if (sale != null)
+                    {
+                        sale.IsRegularisation = true;
+                        sale.VendeurId = model.VendeurId;
+                        sale.PaymentMethodAutre = model.PaymentMethod == PaymentMethod.Autre
+                            ? model.PaymentMethodAutre?.Trim()
+                            : null;
+
+                        var orderedSaleLines = sale.Lines.OrderBy(l => l.Id).ToList();
+                        for (var i = 0; i < slots.Count && i < orderedSaleLines.Count; i++)
+                        {
+                            var slot = slots[i];
+                            if (slot.ProductId <= 0 || slot.Quantity <= 0)
+                                continue;
+
+                            var discountType = slot.DiscountType?.Trim() ?? "";
+                            if (discountType is "percent" or "amount")
+                            {
+                                var saleLine = orderedSaleLines[i];
+                                saleLine.DiscountType = discountType;
+                                saleLine.DiscountPercent = discountType == "percent" ? slot.DiscountPercent : 0;
+                                saleLine.DiscountAmount = discountType == "amount" ? slot.DiscountAmount : 0;
+                            }
+                        }
+
+                        await _context.SaveChangesAsync();
+                    }
+
+                    TempData["NewSale"] = true;
+                    return RedirectToAction(nameof(Details), new { id = saleId.Value });
+                }
+
+                ModelState.AddModelError(string.Empty, error ?? "Vente impossible.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erreur lors de la saisie d'une vente passée (PaymentMethod={PM}, VendeurId={VId}, Lines={Lines})",
+                model.PaymentMethod, model.VendeurId, model.Lines?.Count ?? 0);
+            ModelState.AddModelError(string.Empty, $"Une erreur inattendue s'est produite : {ex.Message}");
+        }
+
+        if (model.Lines == null || model.Lines.Count == 0)
+            model.Lines = new List<SaleLineSlotViewModel> { new() };
 
         await PopulateVendeursForPosAsync(model.VendeurId);
         return View(model);

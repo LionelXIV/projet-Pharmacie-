@@ -29,5 +29,8 @@ public class Sale
     [StringLength(100)]
     public string? PaymentMethodAutre { get; set; }
 
+    /// <summary>True = vente passée saisie manuellement (régularisation).</summary>
+    public bool IsRegularisation { get; set; } = false;
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

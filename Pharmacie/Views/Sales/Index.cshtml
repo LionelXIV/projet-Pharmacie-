@@ -15,6 +15,15 @@
         </div>
         <div class="flex-shrink-0">
             <a class="btn btn-primary" asp-action="Create"><i class="bi bi-cash-register me-1" aria-hidden="true"></i>Nouvelle vente</a>
+            @if (ViewBag.SaisieVentePasseeActive == true
+                 && (User.IsInRole("PharmacienTitulaire")
+                     || User.IsInRole("Pharmacien")))
+            {
+                <a asp-action="CreatePassee" class="btn btn-warning ms-2">
+                    <i class="bi bi-clock-history me-1"></i>
+                    Saisie vente passée
+                </a>
+            }
         </div>
     </div>
 </div>
@@ -99,6 +108,13 @@
                             {
                                 <span class="badge bg-warning text-dark ms-1" title="Contient des Produits Extras">
                                     <i class="bi bi-bag-fill" aria-hidden="true"></i> Extras
+                                </span>
+                            }
+                            @if (s.IsRegularisation)
+                            {
+                                <span class="badge bg-warning text-dark ms-1">
+                                    <i class="bi bi-clock-history me-1"></i>
+                                    Régularisation
                                 </span>
                             }
                         </td>

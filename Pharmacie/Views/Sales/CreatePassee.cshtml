@@ -1,0 +1,1051 @@
+@model SaleCreateViewModel
+@{
+    ViewData["Title"] = "Saisie vente passée — Régularisation";
+    var selectedVendeurId = ViewBag.SelectedVendeurId as int? ?? Model.VendeurId;
+    var paymentModes = new[]
+    {
+        new { Value = 0, Label = "Espèces", Icon = "bi-cash-coin", Color = "success" },
+        new { Value = 1, Label = "Wave", Icon = "bi-phone", Color = "primary" },
+        new { Value = 2, Label = "Orange Money", Icon = "bi-phone-fill", Color = "warning" },
+        new { Value = 6, Label = "Yas Money", Icon = "bi-phone-vibrate", Color = "info" },
+        new { Value = 8, Label = "Freemoney", Icon = "bi-phone-fill", Color = "success" },
+        new { Value = 3, Label = "Chèque", Icon = "bi-bank", Color = "secondary" },
+        new { Value = 5, Label = "TPE/Carte", Icon = "bi-credit-card-2-front", Color = "dark" },
+        new { Value = 4, Label = "Virement", Icon = "bi-arrow-left-right", Color = "secondary" },
+        new { Value = 9, Label = "Transfert Intl", Icon = "bi-globe", Color = "secondary" },
+        new { Value = 7, Label = "Autre", Icon = "bi-three-dots", Color = "secondary" },
+    };
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header py-2 mb-0">
+    <h1 class="page-title h4 mb-0"><i class="bi bi-clock-history me-2" aria-hidden="true"></i>Saisie vente passée — Régularisation</h1>
+</div>
+
+<div class="alert alert-warning mx-2 mx-lg-0">
+    <i class="bi bi-clock-history me-1"></i>
+    <strong>Mode régularisation</strong> —
+    Vous saisissez une vente passée.
+    Le stock sera mis à jour en conséquence.
+</div>
+
+@if (TempData["Error"] is string tempErr)
+{
+    <div class="alert alert-danger alert-dismissible fade show mx-2 mx-lg-0" role="alert">
+        <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>@tempErr
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+    </div>
+}
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger alert-dismissible fade show mx-2 mx-lg-0" role="alert">
+        <div asp-validation-summary="All"></div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+    </div>
+}
+
+<div class="row g-0 pos-layout" style="min-height: calc(100vh - 120px);">
+    <div class="col-lg-8 p-3" id="pos-left">
+        <div class="d-flex gap-2 mb-3">
+            <button type="button"
+                    id="btn-mode-panier"
+                    class="btn btn-sm btn-success active"
+                    onclick="setMode('panier')">
+                <i class="bi bi-cart me-1" aria-hidden="true"></i>
+                Mode panier
+            </button>
+            <button type="button"
+                    id="btn-mode-rapide"
+                    class="btn btn-sm btn-outline-success"
+                    onclick="setMode('rapide')">
+                <i class="bi bi-lightning me-1" aria-hidden="true"></i>
+                Saisie rapide
+            </button>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold text-danger" for="date-vente-passee">
+                <i class="bi bi-calendar-event me-1"></i>
+                Date de la vente *
+            </label>
+            <input type="date"
+                   id="date-vente-passee"
+                   class="form-control form-control-lg border-danger"
+                   max="@DateTime.Today.ToString("yyyy-MM-dd")"
+                   required>
+            <div class="form-text text-danger">
+                Sélectionnez la date réelle de la vente.
+            </div>
+        </div>
+        <input type="hidden" name="SoldAt" id="field-sold-at-passee">
+        <input type="hidden" name="IsRegularisation" value="true">
+
+        <div class="mb-3 position-relative" id="pos-search-wrap">
+            <div class="input-group input-group-lg">
+                <span class="input-group-text bg-success text-white">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                </span>
+                <input type="text"
+                       id="product-search-input"
+                       class="form-control form-control-lg"
+                       placeholder="Rechercher un produit (nom ou CIP)..."
+                       autocomplete="off"
+                       aria-autocomplete="list"
+                       aria-controls="search-results"
+                       aria-expanded="false">
+            </div>
+            <div id="search-results"
+                 class="dropdown-menu w-100 shadow"
+                 style="display:none; max-height:300px; overflow-y:auto; position:absolute; z-index:1050;">
+            </div>
+        </div>
+
+        <div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
+            <label class="form-label fw-bold mb-0 text-nowrap" for="vendeur-select">
+                <i class="bi bi-person-badge" aria-hidden="true"></i> Vendeur :
+            </label>
+            <select name="VendeurId"
+                    class="form-select flex-grow-1"
+                    id="vendeur-select"
+                    required
+                    form="pos-dummy-form">
+                <option value="">-- Sélectionner --</option>
+                @if (ViewBag.Vendeurs != null)
+                {
+                    foreach (var v in ViewBag.Vendeurs)
+                    {
+                        var sel = selectedVendeurId.HasValue && selectedVendeurId.Value == (int)v.Id;
+                        if (sel)
+                        {
+                            <option value="@v.Id" selected>@v.Nom</option>
+                        }
+                        else
+                        {
+                            <option value="@v.Id">@v.Nom</option>
+                        }
+                    }
+                }
+            </select>
+        </div>
+
+        <div id="mode-rapide-section" style="display:none" class="mb-3">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-2">
+                    <thead class="table-success">
+                        <tr>
+                            <th>Produit</th>
+                            <th style="width:90px">Qté</th>
+                            <th style="width:110px">Prix unit.</th>
+                            <th style="width:110px">Total</th>
+                            <th style="width:40px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lignes-rapides"></tbody>
+                </table>
+            </div>
+            <button type="button"
+                    class="btn btn-sm btn-outline-success"
+                    onclick="ajouterLigneRapide()">
+                <i class="bi bi-plus me-1" aria-hidden="true"></i>
+                Ajouter une ligne
+            </button>
+        </div>
+
+        <div class="table-responsive" id="cart-table-wrap">
+            <table class="table table-hover align-middle mb-0" id="cart-table">
+                <thead class="table-success">
+                    <tr>
+                        <th>Produit</th>
+                        <th style="width:120px">Prix unit.</th>
+                        <th style="width:140px">Quantité</th>
+                        <th style="width:160px">Remise</th>
+                        <th style="width:120px">Total</th>
+                        <th style="width:40px"></th>
+                    </tr>
+                </thead>
+                <tbody id="cart-body"></tbody>
+                <tfoot>
+                    <tr id="cart-empty-row">
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="bi bi-cart3 fs-2 d-block mb-2" aria-hidden="true"></i>
+                            Aucun produit — recherchez ci-dessus
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div id="hidden-fields" class="d-none" aria-hidden="true"></div>
+        <input type="hidden" name="SoldAt" id="field-sold-at" value="@Model.SoldAt.ToString("yyyy-MM-ddTHH:mm")">
+        <input type="hidden" name="PaymentMethod" id="field-payment-method" value="@((int)Model.PaymentMethod)">
+        <input type="hidden" name="Notes" id="field-notes" value="@Model.Notes">
+        @Html.AntiForgeryToken()
+    </div>
+
+    <div class="col-lg-4 bg-light border-start p-3 position-sticky align-self-start"
+         style="top:0; max-height:100vh; overflow-y:auto;"
+         id="pos-right">
+        @if (ViewBag.SessionCaisseId != null)
+        {
+            <div class="mb-2">
+                <a asp-controller="Caisse"
+                   asp-action="Fermer"
+                   asp-route-id="@ViewBag.SessionCaisseId"
+                   class="btn btn-warning btn-sm w-100">
+                    <i class="bi bi-lock me-1" aria-hidden="true"></i>
+                    Fermer @ViewBag.SessionCaisseNom
+                </a>
+            </div>
+        }
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-success text-white fw-bold">
+                <i class="bi bi-receipt" aria-hidden="true"></i> Résumé de la vente
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Articles</span>
+                    <span id="summary-count" class="fw-bold">0</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Sous-total</span>
+                    <span id="summary-subtotal">0 FCFA</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted">Remise globale</span>
+                    <div class="input-group input-group-sm" style="width:120px">
+                        <input type="number"
+                               id="remise-globale"
+                               class="form-control text-end"
+                               min="0" max="100" value="0" step="0.5"
+                               aria-label="Remise globale en pourcentage">
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <p class="small text-muted mb-2">La remise est indicative (non enregistrée sur le ticket).</p>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span class="fw-bold fs-5">TOTAL</span>
+                    <span id="summary-total" class="fw-bold fs-5 text-success">0 FCFA</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">
+                <i class="bi bi-credit-card" aria-hidden="true"></i> Mode de paiement
+            </label>
+            <div class="row g-2" id="payment-buttons">
+                @foreach (var pm in paymentModes)
+                {
+                    <div class="col-6">
+                        <button type="button"
+                                class="btn btn-outline-@pm.Color w-100 py-2 payment-btn"
+                                data-value="@pm.Value"
+                                data-color="@pm.Color"
+                                data-bs-toggle="tooltip"
+                                title="@pm.Label">
+                            <i class="bi @pm.Icon me-1" aria-hidden="true"></i>
+                            <span class="small">@pm.Label</span>
+                        </button>
+                    </div>
+                }
+                <div class="col-12 mt-1">
+                    <button type="button"
+                            class="btn btn-outline-danger w-100 py-2"
+                            id="btn-credit"
+                            onclick="activerModeCredit()">
+                        <i class="bi bi-receipt-cutoff me-1" aria-hidden="true"></i>
+                        <span>Crédit / Bon</span>
+                    </button>
+                </div>
+                <div class="col-12 mt-1">
+                    <a asp-controller="Avoirs" asp-action="Create"
+                       class="btn btn-outline-info w-100 py-2">
+                        <i class="bi bi-arrow-return-left me-1" aria-hidden="true"></i>
+                        <span>Avoir (produit en commande)</span>
+                    </a>
+                </div>
+                <div id="autre-libelle-section" class="col-12 d-none mt-2">
+                    <input type="text"
+                           id="autre-libelle-input"
+                           class="form-control form-control-sm"
+                           maxlength="100"
+                           placeholder="Précisez le mode de paiement..."
+                           aria-label="Libellé mode de paiement Autre">
+                </div>
+            </div>
+        </div>
+
+        <div id="credit-form" class="d-none mt-3 mb-3">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark fw-bold">
+                    <i class="bi bi-person-fill me-1" aria-hidden="true"></i>
+                    Informations client — Crédit / Bon
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" for="credit-client-nom">Nom du client *</label>
+                        <input type="text"
+                               id="credit-client-nom"
+                               class="form-control"
+                               placeholder="Ex: Mamadou Diallo"
+                               autocomplete="name">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" for="credit-client-tel">Téléphone (optionnel)</label>
+                        <input type="tel"
+                               id="credit-client-tel"
+                               class="form-control"
+                               placeholder="Ex: 77 123 45 67"
+                               autocomplete="tel">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label" for="credit-client-identite">N° pièce d'identité (optionnel)</label>
+                        <input type="text"
+                               id="credit-client-identite"
+                               class="form-control"
+                               placeholder="Ex: 1 234 567 89"
+                               maxlength="50">
+                    </div>
+                    <div class="alert alert-warning py-2 mb-0">
+                        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
+                        <small>Le stock sera mis à jour immédiatement. Le client paiera plus tard.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <textarea id="notes-input"
+                      class="form-control form-control-sm"
+                      rows="2"
+                      placeholder="Notes (optionnel)...">@Model.Notes</textarea>
+        </div>
+
+        <div class="d-grid gap-2">
+            <button type="button"
+                    id="btn-valider"
+                    class="btn btn-warning btn-lg py-3 text-dark"
+                    disabled>
+                <i class="bi bi-clock-history me-2"></i>
+                Enregistrer la vente passée
+            </button>
+            <a asp-action="Create" asp-controller="Bons" class="btn btn-outline-primary">
+                <i class="bi bi-receipt-cutoff me-1" aria-hidden="true"></i>
+                Créer un bon
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle me-1" aria-hidden="true"></i>
+                Annuler
+            </a>
+        </div>
+    </div>
+</div>
+
+<form id="pos-dummy-form" class="d-none" aria-hidden="true"></form>
+
+@section Scripts {
+<script>
+(function () {
+  var searchUrl = '@Url.Action("Search", "Products")';
+  var postUrl = '@Url.Action("CreatePassee", "Sales")';
+  var cart = [];
+  var searchTimer = null;
+  var selectedPayment = @((int)Model.PaymentMethod);
+  var modeCredit = false;
+  var posMode = 'panier';
+  var ligneRapideCount = 0;
+  window.tomSelectRapides = window.tomSelectRapides || {};
+
+  function notifyError(msg) {
+    if (window.toastr) toastr.error(msg);
+    else alert(msg);
+  }
+
+  function resetModeCredit() {
+    modeCredit = false;
+    document.getElementById('credit-form').classList.add('d-none');
+    var btnCredit = document.getElementById('btn-credit');
+    btnCredit.classList.remove('active', 'btn-danger');
+    btnCredit.classList.add('btn-outline-danger');
+    var btnValider = document.getElementById('btn-valider');
+    btnValider.innerHTML =
+      '<i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>Valider la vente';
+    btnValider.classList.add('btn-success');
+    btnValider.classList.remove('btn-warning', 'text-dark');
+  }
+
+  window.activerModeCredit = function () {
+    modeCredit = true;
+    document.querySelectorAll('.payment-btn').forEach(function (b) {
+      b.classList.remove('active');
+      var color = b.dataset.color || 'secondary';
+      b.classList.remove('btn-' + color);
+      if (!b.classList.contains('btn-outline-' + color)) {
+        b.classList.add('btn-outline-' + color);
+      }
+    });
+    var btnCredit = document.getElementById('btn-credit');
+    btnCredit.classList.add('active', 'btn-danger');
+    btnCredit.classList.remove('btn-outline-danger');
+    document.getElementById('credit-form').classList.remove('d-none');
+    var btnValider = document.getElementById('btn-valider');
+    btnValider.innerHTML =
+      '<i class="bi bi-receipt-cutoff me-2" aria-hidden="true"></i>Créer le bon / crédit';
+    btnValider.classList.remove('btn-success');
+    btnValider.classList.add('btn-warning', 'text-dark');
+    document.getElementById('credit-client-nom').focus();
+  };
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+
+  function formatFcfa(amount) {
+    return Math.round(amount).toLocaleString('fr-FR') + ' FCFA';
+  }
+
+  function addToCart(product) {
+    var id = parseInt(product.value, 10);
+    if (!id) return;
+    var existing = cart.find(function (p) { return p.productId === id; });
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      cart.push({
+        productId: id,
+        productName: product.text,
+        unitPrice: parseFloat(product.salePrice) || 0,
+        quantity: 1,
+        discountValue: 0,
+        discountType: 'percent'
+      });
+    }
+    renderCart();
+    updateSummary();
+    document.getElementById('product-search-input').value = '';
+    hideSearchResults();
+  }
+
+  window.removeFromCart = function (index) {
+    cart.splice(index, 1);
+    renderCart();
+    updateSummary();
+  };
+
+  window.updateQty = function (index, delta) {
+    cart[index].quantity += delta;
+    if (cart[index].quantity <= 0) {
+      removeFromCart(index);
+      return;
+    }
+    renderCart();
+    updateSummary();
+  };
+
+  function getLineTotal(item) {
+    var base = item.unitPrice * item.quantity;
+    if (!item.discountValue || item.discountValue <= 0) return base;
+    if (item.discountType === 'percent') return base - (base * item.discountValue / 100);
+    return Math.max(0, base - item.discountValue);
+  }
+
+  window.updateDiscount = function (index, input) {
+    cart[index].discountValue = parseFloat(input.value) || 0;
+    renderCart();
+    updateSummary();
+  };
+
+  window.toggleDiscountType = function (index, btn) {
+    var row = btn.closest('tr');
+    row.querySelectorAll('.discount-type-btn').forEach(function (b) {
+      b.classList.remove('active', 'btn-secondary');
+      b.classList.add('btn-outline-secondary');
+    });
+    btn.classList.remove('btn-outline-secondary');
+    btn.classList.add('active', 'btn-secondary');
+    cart[index].discountType = btn.dataset.type;
+    renderCart();
+    updateSummary();
+  };
+
+  function renderCart() {
+    var tbody = document.getElementById('cart-body');
+    var emptyRow = document.getElementById('cart-empty-row');
+    var hiddenFields = document.getElementById('hidden-fields');
+    var btnValider = document.getElementById('btn-valider');
+
+    tbody.innerHTML = '';
+    hiddenFields.innerHTML = '';
+
+    if (cart.length === 0) {
+      emptyRow.style.display = '';
+      btnValider.disabled = true;
+      return;
+    }
+
+    emptyRow.style.display = 'none';
+    btnValider.disabled = false;
+
+    cart.forEach(function (item, i) {
+      var baseTotal = item.unitPrice * item.quantity;
+      var lineTotal = getLineTotal(item);
+      var tr = document.createElement('tr');
+
+      var tdName = document.createElement('td');
+      tdName.textContent = item.productName;
+
+      var tdPrice = document.createElement('td');
+      tdPrice.textContent = formatFcfa(item.unitPrice);
+
+      // Quantité
+      var tdQty = document.createElement('td');
+      var group = document.createElement('div');
+      group.className = 'input-group input-group-sm';
+      var btnMinus = document.createElement('button');
+      btnMinus.type = 'button';
+      btnMinus.className = 'btn btn-outline-secondary';
+      btnMinus.textContent = '\u2212';
+      btnMinus.addEventListener('click', function () { updateQty(i, -1); });
+      var spanQty = document.createElement('span');
+      spanQty.className = 'input-group-text px-3';
+      spanQty.textContent = String(item.quantity);
+      var btnPlus = document.createElement('button');
+      btnPlus.type = 'button';
+      btnPlus.className = 'btn btn-outline-secondary';
+      btnPlus.textContent = '+';
+      btnPlus.addEventListener('click', function () { updateQty(i, 1); });
+      group.appendChild(btnMinus);
+      group.appendChild(spanQty);
+      group.appendChild(btnPlus);
+      tdQty.appendChild(group);
+
+      // Remise
+      var tdDiscount = document.createElement('td');
+      var dGroup = document.createElement('div');
+      dGroup.className = 'input-group input-group-sm';
+      var dInput = document.createElement('input');
+      dInput.type = 'number';
+      dInput.className = 'form-control text-end';
+      dInput.min = '0';
+      dInput.max = item.discountType === 'percent' ? '100' : '';
+      dInput.step = '0.5';
+      dInput.value = String(item.discountValue || 0);
+      dInput.style.width = '65px';
+      dInput.setAttribute('onchange', 'updateDiscount(' + i + ', this)');
+      dInput.setAttribute('oninput', 'updateDiscount(' + i + ', this)');
+      var btnPct = document.createElement('button');
+      btnPct.type = 'button';
+      btnPct.className = 'btn btn-sm ' + (item.discountType === 'percent' ? 'btn-secondary active' : 'btn-outline-secondary') + ' discount-type-btn';
+      btnPct.dataset.type = 'percent';
+      btnPct.textContent = '%';
+      btnPct.setAttribute('onclick', 'toggleDiscountType(' + i + ', this)');
+      var btnAmt = document.createElement('button');
+      btnAmt.type = 'button';
+      btnAmt.className = 'btn btn-sm ' + (item.discountType === 'amount' ? 'btn-secondary active' : 'btn-outline-secondary') + ' discount-type-btn';
+      btnAmt.dataset.type = 'amount';
+      btnAmt.textContent = 'F';
+      btnAmt.setAttribute('onclick', 'toggleDiscountType(' + i + ', this)');
+      dGroup.appendChild(dInput);
+      dGroup.appendChild(btnPct);
+      dGroup.appendChild(btnAmt);
+      tdDiscount.appendChild(dGroup);
+
+      // Total
+      var tdTotal = document.createElement('td');
+      tdTotal.className = 'fw-bold';
+      if (item.discountValue > 0) {
+        tdTotal.innerHTML =
+          '<small class="text-decoration-line-through text-muted d-block">' + formatFcfa(baseTotal) + '</small>' +
+          '<small class="text-danger d-block">-' +
+            (item.discountType === 'percent' ? item.discountValue + '%' : formatFcfa(item.discountValue)) +
+          '</small>' +
+          '<span class="text-success">' + formatFcfa(lineTotal) + '</span>';
+      } else {
+        tdTotal.textContent = formatFcfa(lineTotal);
+      }
+
+      // Supprimer
+      var tdDel = document.createElement('td');
+      var btnDel = document.createElement('button');
+      btnDel.type = 'button';
+      btnDel.className = 'btn btn-sm btn-outline-danger';
+      btnDel.innerHTML = '<i class="bi bi-trash3" aria-hidden="true"></i>';
+      btnDel.addEventListener('click', function () { removeFromCart(i); });
+      tdDel.appendChild(btnDel);
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdPrice);
+      tr.appendChild(tdQty);
+      tr.appendChild(tdDiscount);
+      tr.appendChild(tdTotal);
+      tr.appendChild(tdDel);
+      tbody.appendChild(tr);
+
+      var dpVal = item.discountType === 'percent' ? (item.discountValue || 0) : 0;
+      var daVal = item.discountType === 'amount' ? (item.discountValue || 0) : 0;
+      var dtVal = item.discountValue > 0 ? item.discountType : '';
+      hiddenFields.innerHTML +=
+        '<input type="hidden" name="Lines[' + i + '].ProductId" value="' + item.productId + '">' +
+        '<input type="hidden" name="Lines[' + i + '].Quantity" value="' + item.quantity + '">' +
+        '<input type="hidden" name="Lines[' + i + '].DiscountPercent" value="' + dpVal + '">' +
+        '<input type="hidden" name="Lines[' + i + '].DiscountAmount" value="' + daVal + '">' +
+        '<input type="hidden" name="Lines[' + i + '].DiscountType" value="' + dtVal + '">';
+    });
+  }
+
+  function updateSummary() {
+    var remise = parseFloat(document.getElementById('remise-globale').value) || 0;
+    var subtotal = cart.reduce(function (sum, item) {
+      return sum + getLineTotal(item);
+    }, 0);
+    var discount = subtotal * remise / 100;
+    var total = subtotal - discount;
+
+    var articleCount = cart.reduce(function (s, i) { return s + i.quantity; }, 0);
+    document.getElementById('summary-count').textContent = String(articleCount);
+    document.getElementById('summary-subtotal').textContent = formatFcfa(subtotal);
+    document.getElementById('summary-total').textContent = formatFcfa(total);
+  }
+
+  function hideSearchResults() {
+    var el = document.getElementById('search-results');
+    el.style.display = 'none';
+    el.innerHTML = '';
+    document.getElementById('product-search-input').setAttribute('aria-expanded', 'false');
+  }
+
+  function showSearchResults(items) {
+    var el = document.getElementById('search-results');
+    el.innerHTML = '';
+    if (!items || items.length === 0) {
+      el.innerHTML = '<div class="dropdown-item-text text-muted">Aucun produit trouvé</div>';
+    } else {
+      items.forEach(function (p) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dropdown-item d-flex align-items-center justify-content-between gap-2';
+        var label = document.createElement('span');
+        label.textContent = p.text;
+        btn.appendChild(label);
+        if (p.estTablette) {
+          var badgeT = document.createElement('span');
+          badgeT.className = 'badge text-bg-primary';
+          badgeT.textContent = 'Tablette';
+          btn.appendChild(badgeT);
+        } else if (p.estBoite) {
+          var badgeB = document.createElement('span');
+          badgeB.className = 'badge text-bg-success';
+          badgeB.textContent = 'Boîte';
+          btn.appendChild(badgeB);
+        }
+        btn.addEventListener('click', function () { addToCart(p); });
+        el.appendChild(btn);
+      });
+    }
+    el.style.display = 'block';
+    document.getElementById('product-search-input').setAttribute('aria-expanded', 'true');
+  }
+
+  function runSearch(query) {
+    fetch(searchUrl + '?term=' + encodeURIComponent(query))
+      .then(function (r) { return r.json(); })
+      .then(function (data) { showSearchResults(data); })
+      .catch(function () { hideSearchResults(); });
+  }
+
+  document.getElementById('product-search-input').addEventListener('input', function (e) {
+    var q = (e.target.value || '').trim();
+    clearTimeout(searchTimer);
+    if (q.length < 2) {
+      hideSearchResults();
+      return;
+    }
+    searchTimer = setTimeout(function () { runSearch(q); }, 300);
+  });
+
+  document.addEventListener('click', function (e) {
+    var wrap = document.getElementById('pos-left');
+    if (wrap && !wrap.contains(e.target)) {
+      hideSearchResults();
+    }
+  });
+
+  document.getElementById('remise-globale').addEventListener('input', updateSummary);
+
+  document.getElementById('notes-input').addEventListener('input', function () {
+    document.getElementById('field-notes').value = this.value;
+  });
+
+  document.querySelectorAll('.payment-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      resetModeCredit();
+      document.querySelectorAll('.payment-btn').forEach(function (b) {
+        b.classList.remove('active');
+      });
+      this.classList.add('active');
+      selectedPayment = parseInt(this.dataset.value, 10);
+      document.getElementById('field-payment-method').value = String(selectedPayment);
+      var autreSection = document.getElementById('autre-libelle-section');
+      if (autreSection) {
+        if (selectedPayment === 7) {
+          autreSection.classList.remove('d-none');
+          document.getElementById('autre-libelle-input')?.focus();
+        } else {
+          autreSection.classList.add('d-none');
+        }
+      }
+    });
+  });
+
+  var defaultPay = document.querySelector('.payment-btn[data-value="0"]');
+  if (defaultPay) {
+    defaultPay.classList.add('active');
+  }
+
+  document.getElementById('btn-valider').addEventListener('click', function () {
+    if (posMode === 'rapide') {
+      cart = [];
+      collecterLignesRapides();
+    }
+
+    if (cart.length === 0) {
+      notifyError('Ajoutez au moins un produit.');
+      return;
+    }
+    var vendeurId = document.getElementById('vendeur-select').value;
+    if (!vendeurId) {
+      notifyError('Sélectionnez un vendeur.');
+      return;
+    }
+
+    if (modeCredit) {
+      var clientNom = document.getElementById('credit-client-nom').value.trim();
+      if (!clientNom) {
+        notifyError('Saisissez le nom du client.');
+        document.getElementById('credit-client-nom').focus();
+        return;
+      }
+
+      var formBon = document.createElement('form');
+      formBon.method = 'POST';
+      formBon.action = '/Bons/CreateFromVente';
+
+      function addHiddenBon(name, value) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value || '';
+        formBon.appendChild(input);
+      }
+
+      var tokenBon = document.querySelector('input[name="__RequestVerificationToken"]');
+      if (tokenBon) addHiddenBon('__RequestVerificationToken', tokenBon.value);
+
+      addHiddenBon('ClientNom', clientNom);
+      addHiddenBon('ClientTelephone', document.getElementById('credit-client-tel').value || '');
+      addHiddenBon('NumeroIdentite', document.getElementById('credit-client-identite').value || '');
+      addHiddenBon('VendeurId', vendeurId);
+
+      cart.forEach(function (item, i) {
+        addHiddenBon('Lines[' + i + '].ProductId', String(item.productId));
+        addHiddenBon('Lines[' + i + '].Quantity', String(item.quantity));
+        addHiddenBon('Lines[' + i + '].DiscountPercent',
+          item.discountType === 'percent' ? String(item.discountValue || 0) : '0');
+        addHiddenBon('Lines[' + i + '].DiscountAmount',
+          item.discountType === 'amount' ? String(item.discountValue || 0) : '0');
+        addHiddenBon('Lines[' + i + '].DiscountType',
+          item.discountValue > 0 ? item.discountType : '');
+      });
+
+      var overlayBon = document.createElement('div');
+      overlayBon.style.cssText =
+        'position:fixed;inset:0;background:rgba(15,45,30,0.85);z-index:9999;' +
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;';
+      overlayBon.innerHTML =
+        '<div class="spinner-border text-light" style="width:3rem;height:3rem;"></div>' +
+        '<div style="color:#fff;font-size:1.1rem;font-weight:600;">Création du bon...</div>';
+      document.body.appendChild(overlayBon);
+      document.body.appendChild(formBon);
+      formBon.submit();
+      return;
+    }
+
+    var dateChoisie = document.getElementById('date-vente-passee').value;
+    if (!dateChoisie) {
+      notifyError('Sélectionnez la date de la vente.');
+      return;
+    }
+    var soldAt = dateChoisie + 'T12:00';
+    var soldAtHidden = document.getElementById('field-sold-at-passee');
+    if (soldAtHidden) soldAtHidden.value = soldAt;
+
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = postUrl;
+
+    function addHidden(name, value) {
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value || '';
+      form.appendChild(input);
+    }
+
+    // Token antiforgery — récupéré directement depuis le DOM
+    var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+    if (tokenEl) addHidden('__RequestVerificationToken', tokenEl.value);
+
+    // Champs scalaires
+    addHidden('SoldAt', soldAt);
+    addHidden('IsRegularisation', 'true');
+    addHidden('PaymentMethod', String(selectedPayment));
+    addHidden('PaymentMethodAutre',
+      selectedPayment === 7
+        ? (document.getElementById('autre-libelle-input')?.value || '')
+        : '');
+    addHidden('Notes', document.getElementById('notes-input').value || '');
+    addHidden('VendeurId', vendeurId);
+
+    // Lignes du panier
+    cart.forEach(function (item, i) {
+      addHidden('Lines[' + i + '].ProductId', String(item.productId));
+      addHidden('Lines[' + i + '].Quantity', String(item.quantity));
+      addHidden('Lines[' + i + '].DiscountPercent',
+        item.discountType === 'percent' ? String(item.discountValue || 0) : '0');
+      addHidden('Lines[' + i + '].DiscountAmount',
+        item.discountType === 'amount' ? String(item.discountValue || 0) : '0');
+      addHidden('Lines[' + i + '].DiscountType',
+        item.discountValue > 0 ? item.discountType : '');
+    });
+
+    var overlay = document.createElement('div');
+    overlay.style.cssText =
+      'position:fixed;inset:0;background:rgba(15,45,30,0.85);z-index:9999;' +
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;';
+    overlay.innerHTML =
+      '<div class="spinner-border text-light" style="width:3rem;height:3rem;"></div>' +
+      '<div style="color:#fff;font-size:1.1rem;font-weight:600;">Enregistrement en cours...</div>';
+    document.body.appendChild(overlay);
+
+    document.body.appendChild(form);
+    form.submit();
+  });
+
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+    if (window.bootstrap) new bootstrap.Tooltip(el);
+  });
+
+  function renderOptionBadge(item, escape) {
+    var name = escape(item.text || '');
+    var badge = '';
+    if (item.estTablette) {
+      badge = ' <span class="badge text-bg-primary">Tablette</span>';
+    } else if (item.estBoite) {
+      badge = ' <span class="badge text-bg-success">Boîte</span>';
+    }
+    return '<div>' + name + badge + '</div>';
+  }
+
+  window.ajouterLigneRapide = function () {
+    var idx = ligneRapideCount++;
+    var tr = document.createElement('tr');
+    tr.className = 'ligne-rapide';
+    tr.dataset.idx = String(idx);
+    tr.innerHTML =
+      '<td><select class="form-select form-select-sm tomselect-product-rapide" data-idx="' + idx + '">' +
+      '<option value="">Chercher...</option></select></td>' +
+      '<td><input type="number" class="form-control form-control-sm qte-rapide" data-idx="' + idx +
+      '" min="1" value="1"></td>' +
+      '<td class="text-end prix-rapide" data-idx="' + idx + '">—</td>' +
+      '<td class="text-end total-rapide fw-bold" data-idx="' + idx + '">—</td>' +
+      '<td><button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" data-remove-rapide="' + idx +
+      '"><i class="bi bi-x" aria-hidden="true"></i></button></td>';
+    document.getElementById('lignes-rapides').appendChild(tr);
+
+    tr.querySelector('.qte-rapide').addEventListener('change', function () {
+      updateLigneRapide(idx);
+    });
+    tr.querySelector('.qte-rapide').addEventListener('input', function () {
+      updateLigneRapide(idx);
+    });
+    tr.querySelector('[data-remove-rapide]').addEventListener('click', function () {
+      supprimerLigneRapide(idx);
+    });
+
+    initTomSelectRapide(tr.querySelector('.tomselect-product-rapide'), idx);
+  };
+
+  function initLignesRapides() {
+    for (var i = 0; i < 4; i++) {
+      window.ajouterLigneRapide();
+    }
+  }
+
+  function initTomSelectRapide(select, idx) {
+    if (!window.TomSelect || !select || select.tomselect) return;
+    var ts = new TomSelect(select, {
+      valueField: 'value',
+      labelField: 'text',
+      searchField: ['text'],
+      placeholder: 'Tapez au moins 2 caractères...',
+      maxOptions: 25,
+      preload: false,
+      create: false,
+      loadThrottle: 300,
+      dropdownParent: 'body',
+      render: {
+        option: function (item, escape) { return renderOptionBadge(item, escape); },
+        item: function (item, escape) { return renderOptionBadge(item, escape); }
+      },
+      load: function (query, callback) {
+        if (!query || query.length < 2) {
+          callback();
+          return;
+        }
+        fetch(searchUrl + '?term=' + encodeURIComponent(query))
+          .then(function (r) { return r.json(); })
+          .then(function (data) { callback(data); })
+          .catch(function () { callback(); });
+      },
+      onChange: function (value) {
+        var tr = document.querySelector('tr.ligne-rapide[data-idx="' + idx + '"]');
+        if (!tr) return;
+        if (!value) {
+          tr.dataset.price = '0';
+          tr.dataset.productId = '';
+          tr.dataset.productName = '';
+          updateLigneRapide(idx);
+          return;
+        }
+        var opt = this.options[value];
+        if (!opt) return;
+        tr.dataset.price = String(opt.salePrice || 0);
+        tr.dataset.productId = String(value);
+        tr.dataset.productName = opt.text || '';
+        updateLigneRapide(idx);
+      }
+    });
+    window.tomSelectRapides[idx] = ts;
+  }
+
+  function updateLigneRapide(idx) {
+    var tr = document.querySelector('tr.ligne-rapide[data-idx="' + idx + '"]');
+    if (!tr) return;
+    var price = parseFloat(tr.dataset.price || 0);
+    var qteInput = tr.querySelector('.qte-rapide');
+    var qte = parseInt(qteInput && qteInput.value, 10) || 0;
+    var total = price * qte;
+    var prixEl = tr.querySelector('.prix-rapide');
+    var totalEl = tr.querySelector('.total-rapide');
+    if (prixEl) {
+      prixEl.textContent = price > 0
+        ? Math.round(price).toLocaleString('fr-FR') + ' F'
+        : '—';
+    }
+    if (totalEl) {
+      totalEl.textContent = price > 0 && qte > 0
+        ? Math.round(total).toLocaleString('fr-FR') + ' F'
+        : '—';
+    }
+    updateTotalRapide();
+  }
+
+  function updateTotalRapide() {
+    var total = 0;
+    var count = 0;
+    document.querySelectorAll('tr.ligne-rapide').forEach(function (tr) {
+      var price = parseFloat(tr.dataset.price || 0);
+      var qte = parseInt(tr.querySelector('.qte-rapide')?.value || 0, 10) || 0;
+      if (tr.dataset.productId && qte > 0 && price > 0) {
+        total += price * qte;
+        count += qte;
+      }
+    });
+    document.getElementById('summary-count').textContent = String(count);
+    document.getElementById('summary-subtotal').textContent = formatFcfa(total);
+    var remise = parseFloat(document.getElementById('remise-globale').value) || 0;
+    var discount = total * remise / 100;
+    document.getElementById('summary-total').textContent = formatFcfa(total - discount);
+  }
+
+  function supprimerLigneRapide(idx) {
+    var tr = document.querySelector('tr.ligne-rapide[data-idx="' + idx + '"]');
+    if (tr) {
+      var sel = tr.querySelector('.tomselect-product-rapide');
+      if (sel && sel.tomselect) sel.tomselect.destroy();
+      tr.remove();
+    }
+    delete window.tomSelectRapides[idx];
+    updateTotalRapide();
+  }
+
+  function collecterLignesRapides() {
+    document.querySelectorAll('tr.ligne-rapide').forEach(function (tr) {
+      var productId = tr.dataset.productId;
+      var productName = tr.dataset.productName;
+      var price = parseFloat(tr.dataset.price || 0);
+      var qte = parseInt(tr.querySelector('.qte-rapide')?.value || 0, 10) || 0;
+      if (!productId || qte <= 0 || !(price > 0)) return;
+      var id = parseInt(productId, 10);
+      var existing = cart.find(function (p) { return p.productId === id; });
+      if (existing) {
+        existing.quantity += qte;
+      } else {
+        cart.push({
+          productId: id,
+          productName: productName,
+          unitPrice: price,
+          quantity: qte,
+          discountValue: 0,
+          discountType: 'percent'
+        });
+      }
+    });
+  }
+
+  window.setMode = function (mode) {
+    posMode = mode;
+    var rapideSection = document.getElementById('mode-rapide-section');
+    var cartWrap = document.getElementById('cart-table-wrap');
+    var searchWrap = document.getElementById('pos-search-wrap');
+    var btnRapide = document.getElementById('btn-mode-rapide');
+    var btnPanier = document.getElementById('btn-mode-panier');
+
+    if (mode === 'rapide') {
+      rapideSection.style.display = 'block';
+      cartWrap.style.display = 'none';
+      searchWrap.style.display = 'none';
+      btnRapide.classList.add('active', 'btn-success');
+      btnRapide.classList.remove('btn-outline-success');
+      btnPanier.classList.remove('active', 'btn-success');
+      btnPanier.classList.add('btn-outline-success');
+      if (document.querySelectorAll('.ligne-rapide').length === 0) {
+        initLignesRapides();
+      }
+      updateTotalRapide();
+    } else {
+      rapideSection.style.display = 'none';
+      cartWrap.style.display = '';
+      searchWrap.style.display = '';
+      btnPanier.classList.add('active', 'btn-success');
+      btnPanier.classList.remove('btn-outline-success');
+      btnRapide.classList.remove('active', 'btn-success');
+      btnRapide.classList.add('btn-outline-success');
+      renderCart();
+      updateSummary();
+    }
+  };
+
+  document.getElementById('remise-globale').addEventListener('input', function () {
+    if (posMode === 'rapide') updateTotalRapide();
+  });
+
+  renderCart();
+  updateSummary();
+})();
+</script>
+}

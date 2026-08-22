@@ -20,6 +20,8 @@ public class SaleCreateViewModel
     [Display(Name = "Précision mode de paiement")]
     public string? PaymentMethodAutre { get; set; }
 
+    public bool IsRegularisation { get; set; }
+
     [Required(ErrorMessage = "Veuillez sélectionner le vendeur.")]
     [Display(Name = "Vendeur")]
     public int? VendeurId { get; set; }

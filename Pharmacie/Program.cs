@@ -68,6 +68,8 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddControllersWithViews();
+builder.Services.Configure<FeatureFlags>(
+    builder.Configuration.GetSection("Features"));
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
