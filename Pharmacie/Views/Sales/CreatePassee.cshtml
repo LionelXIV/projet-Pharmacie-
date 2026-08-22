@@ -472,6 +472,12 @@
     updateSummary();
   };
 
+  window.updatePrixLigne = function (index, newPrice) {
+    cart[index].unitPrice = parseFloat(newPrice) || 0;
+    renderCart();
+    updateSummary();
+  };
+
   function renderCart() {
     var tbody = document.getElementById('cart-body');
     var emptyRow = document.getElementById('cart-empty-row');
@@ -499,7 +505,15 @@
       tdName.textContent = item.productName;
 
       var tdPrice = document.createElement('td');
-      tdPrice.textContent = formatFcfa(item.unitPrice);
+      var priceInput = document.createElement('input');
+      priceInput.type = 'number';
+      priceInput.className = 'form-control form-control-sm text-end prix-ligne-input';
+      priceInput.value = String(item.unitPrice);
+      priceInput.min = '0';
+      priceInput.step = '1';
+      priceInput.style.width = '100px';
+      priceInput.setAttribute('onchange', 'updatePrixLigne(' + i + ', this.value)');
+      tdPrice.appendChild(priceInput);
 
       // Quantité
       var tdQty = document.createElement('td');
@@ -814,6 +828,7 @@
     cart.forEach(function (item, i) {
       addHidden('Lines[' + i + '].ProductId', String(item.productId));
       addHidden('Lines[' + i + '].Quantity', String(item.quantity));
+      addHidden('Lines[' + i + '].UnitPrice', String(item.unitPrice));
       addHidden('Lines[' + i + '].DiscountPercent',
         item.discountType === 'percent' ? String(item.discountValue || 0) : '0');
       addHidden('Lines[' + i + '].DiscountAmount',

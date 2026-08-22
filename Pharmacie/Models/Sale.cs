@@ -32,5 +32,18 @@ public class Sale
     /// <summary>True = vente passée saisie manuellement (régularisation).</summary>
     public bool IsRegularisation { get; set; } = false;
 
+    public bool IsAnnulee { get; set; } = false;
+
+    public DateTime? DateAnnulation { get; set; }
+
+    [StringLength(450)]
+    public string? AnnuleeParUserId { get; set; }
+
+    [StringLength(200)]
+    public string? AnnuleeParNom { get; set; }
+
+    [StringLength(500)]
+    public string? RaisonAnnulation { get; set; }
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

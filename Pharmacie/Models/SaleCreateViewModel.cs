@@ -39,6 +39,9 @@ public class SaleLineSlotViewModel
     [Range(0, int.MaxValue)]
     public int Quantity { get; set; } = 1;
 
+    /// <summary>Prix envoyé depuis le formulaire (saisie vente passée).</summary>
+    public decimal UnitPrice { get; set; }
+
     /// <summary>Affichage uniquement — pas persisté par le POST POS.</summary>
     [ValidateNever]
     public decimal DisplayPrice { get; set; }

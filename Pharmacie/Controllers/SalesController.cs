@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -25,19 +26,22 @@ public class SalesController : Controller
     private readonly CaisseService _caisseService;
     private readonly ILogger<SalesController> _logger;
     private readonly IOptions<FeatureFlags> _features;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public SalesController(
         ApplicationDbContext context,
         SaleService sales,
         CaisseService caisseService,
         ILogger<SalesController> logger,
-        IOptions<FeatureFlags> features)
+        IOptions<FeatureFlags> features,
+        UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _sales = sales;
         _caisseService = caisseService;
         _logger = logger;
         _features = features;
+        _userManager = userManager;
     }
 
     public async Task<IActionResult> Index([FromQuery] SaleListFilters? filter, int page = 1)
@@ -402,17 +406,19 @@ public class SalesController : Controller
                             ? model.PaymentMethodAutre?.Trim()
                             : null;
 
+                        var pricedSlots = slots
+                            .Where(l => l.ProductId > 0 && l.Quantity > 0)
+                            .ToList();
                         var orderedSaleLines = sale.Lines.OrderBy(l => l.Id).ToList();
-                        for (var i = 0; i < slots.Count && i < orderedSaleLines.Count; i++)
+                        for (var i = 0; i < pricedSlots.Count && i < orderedSaleLines.Count; i++)
                         {
-                            var slot = slots[i];
-                            if (slot.ProductId <= 0 || slot.Quantity <= 0)
-                                continue;
+                            var slot = pricedSlots[i];
+                            var saleLine = orderedSaleLines[i];
+                            saleLine.UnitPrice = slot.UnitPrice;
 
                             var discountType = slot.DiscountType?.Trim() ?? "";
                             if (discountType is "percent" or "amount")
                             {
-                                var saleLine = orderedSaleLines[i];
                                 saleLine.DiscountType = discountType;
                                 saleLine.DiscountPercent = discountType == "percent" ? slot.DiscountPercent : 0;
                                 saleLine.DiscountAmount = discountType == "amount" ? slot.DiscountAmount : 0;
@@ -441,6 +447,90 @@ public class SalesController : Controller
 
         await PopulateVendeursForPosAsync(model.VendeurId);
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "PharmacienTitulaire,Pharmacien,Caissier,AssistantPharmacien")]
+    public async Task<IActionResult> AnnulerVente(int id, string? raison = null)
+    {
+        var sale = await _context.Sales
+            .Include(s => s.Lines)
+                .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(s => s.Id == id);
+        if (sale == null)
+            return NotFound();
+
+        if (sale.IsAnnulee)
+        {
+            TempData["Error"] = "Cette vente est déjà annulée.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var userId = _userManager.GetUserId(User) ?? "";
+        var user = await _userManager.FindByIdAsync(userId);
+        var nomUser = user?.DisplayName ?? user?.UserName ?? userId;
+
+        if (!User.IsInRole(AppRoles.PharmacienTitulaire)
+            && !User.IsInRole(AppRoles.Pharmacien))
+        {
+            if (sale.UserId != userId)
+            {
+                TempData["Error"] = "Vous ne pouvez annuler que vos propres ventes.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            sale.IsAnnulee = true;
+            sale.DateAnnulation = DateTime.Now;
+            sale.AnnuleeParUserId = userId;
+            sale.AnnuleeParNom = nomUser;
+            sale.RaisonAnnulation = string.IsNullOrWhiteSpace(raison)
+                ? "Annulation manuelle"
+                : raison.Trim();
+
+            var sorties = await _context.StockMovements
+                .Include(m => m.Batch)
+                .Include(m => m.Product)
+                .Where(m => m.SaleId == sale.Id && m.Type == StockMovementType.Sortie)
+                .ToListAsync();
+
+            foreach (var mouvement in sorties)
+            {
+                if (mouvement.Batch != null)
+                    mouvement.Batch.Quantity += mouvement.Quantity;
+
+                if (mouvement.Product != null)
+                    mouvement.Product.StockQuantity += mouvement.Quantity;
+
+                _context.StockMovements.Add(new StockMovement
+                {
+                    ProductId = mouvement.ProductId,
+                    BatchId = mouvement.BatchId,
+                    Type = StockMovementType.Entree,
+                    Quantity = mouvement.Quantity,
+                    Reason = $"Annulation vente #{id} par {nomUser}",
+                    OccurredAt = DateTime.Now,
+                    UserId = userId,
+                    SaleId = sale.Id
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+            TempData["Success"] = $"Vente #{id} annulée. Stock restitué.";
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Erreur lors de l'annulation de la vente {SaleId}", id);
+            TempData["Error"] = "Erreur lors de l'annulation : " + ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     private async Task PopulateVendeursForPosAsync(int? selectedId = null)

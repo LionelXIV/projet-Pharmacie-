@@ -1,10 +1,13 @@
 @model SaleIndexPageViewModel
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using Pharmacie.Services
 @{
     ViewData["Title"] = "Ventes";
     var userLabels = ViewBag.UserLabels as Dictionary<string, string> ?? new Dictionary<string, string>();
     var filterUserList = ViewData["FilterUserId"] as IEnumerable<SelectListItem>;
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var canCancelAny = User.IsInRole("PharmacienTitulaire") || User.IsInRole("Pharmacien");
 }
 
 <div class="page-header">
@@ -117,6 +120,17 @@
                                     Régularisation
                                 </span>
                             }
+                            @if (s.IsAnnulee)
+                            {
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    Annulée
+                                </span>
+                                <small class="text-muted d-block">
+                                    par @s.AnnuleeParNom
+                                    le @s.DateAnnulation?.ToString("dd/MM HH:mm")
+                                </small>
+                            }
                         </td>
                         <td class="text-nowrap small">@s.SoldAt.ToString("g")</td>
                         <td class="text-end">
@@ -144,6 +158,54 @@
                             <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@s.Id" title="Voir le détail" data-bs-toggle="tooltip">
                                 <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Détail</span>
                             </a>
+                            @if (!s.IsAnnulee && (canCancelAny || s.UserId == currentUserId))
+                            {
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modal-annuler-@s.Id"
+                                        title="Annuler cette vente">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                                <div class="modal fade" id="modal-annuler-@s.Id" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-danger text-white">
+                                                <h5 class="modal-title">Annuler la vente #@s.Id</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>
+                                                    Annuler la vente
+                                                    <strong>#@s.Id</strong>
+                                                    du
+                                                    @s.SoldAt.ToString("dd/MM/yyyy")
+                                                    d'un montant de
+                                                    <strong>@total.ToString("N0") FCFA</strong> ?
+                                                </p>
+                                                <p class="text-success">
+                                                    <i class="bi bi-arrow-up me-1"></i>
+                                                    Le stock sera restitué automatiquement.
+                                                </p>
+                                                <form asp-action="AnnulerVente" asp-route-id="@s.Id" method="post" id="form-annuler-@s.Id">
+                                                    @Html.AntiForgeryToken()
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Raison (optionnel)</label>
+                                                        <input type="text" name="raison" class="form-control" placeholder="Ex: Erreur de saisie" maxlength="500">
+                                                    </div>
+                                                </form>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                <button type="submit" form="form-annuler-@s.Id" class="btn btn-danger">
+                                                    <i class="bi bi-x-circle me-1"></i>
+                                                    Confirmer l'annulation
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                         </td>
                     </tr>
                 }
