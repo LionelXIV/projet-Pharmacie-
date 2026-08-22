@@ -13,6 +13,17 @@
                  placeholder="Ex: DOLIPRANE 500MG BT16" autocomplete="off">
         </div>
         <div class="mb-3">
+          <label class="form-label" for="qp-cip">CIP (optionnel)</label>
+          <input type="text" id="qp-cip" class="form-control" maxlength="13" autocomplete="off">
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="qp-category">Catégorie *</label>
+          <select id="qp-category" class="form-select" required>
+            <option value="">— Choisir —</option>
+          </select>
+        </div>
+        <input type="hidden" id="qp-supplier" value="">
+        <div class="mb-3">
           <label class="form-label" for="qp-purchase">Prix d'achat (FCFA)</label>
           <input type="number" id="qp-purchase" class="form-control" min="0" step="1" value="0">
         </div>
@@ -24,7 +35,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-        <button type="button" class="btn btn-success" id="qp-save">
+        <button type="button" class="btn btn-success" id="qp-save" disabled>
           <i class="bi bi-check-lg" aria-hidden="true"></i> Créer et sélectionner
         </button>
       </div>
@@ -36,8 +47,32 @@
 (function () {
   'use strict';
   let _currentTomSelectInstance = null;
+  let _categoriesLoaded = false;
 
-  window.openQuickProductModal = function (btn) {
+  function syncSaveEnabled() {
+    var save = document.getElementById('qp-save');
+    var cat = document.getElementById('qp-category');
+    save.disabled = !cat.value;
+  }
+
+  async function loadCategories() {
+    if (_categoriesLoaded) return;
+    var sel = document.getElementById('qp-category');
+    try {
+      var r = await fetch('/Products/CategoriesJson', { credentials: 'same-origin' });
+      if (!r.ok) return;
+      var list = await r.json();
+      list.forEach(function (c) {
+        var opt = document.createElement('option');
+        opt.value = String(c.id);
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+      });
+      _categoriesLoaded = true;
+    } catch (_) { /* ignore */ }
+  }
+
+  window.openQuickProductModal = function (btn, prefill) {
     _currentTomSelectInstance = null;
     if (btn) {
       const cell = btn.closest('td') || btn.parentElement;
@@ -47,27 +82,42 @@
       }
     }
 
-    document.getElementById('qp-name').value = '';
-    document.getElementById('qp-purchase').value = '0';
+    document.getElementById('qp-name').value = (prefill && prefill.name) ? prefill.name : '';
+    document.getElementById('qp-cip').value = (prefill && prefill.cip) ? prefill.cip : '';
+    document.getElementById('qp-purchase').value = (prefill && prefill.purchasePrice != null) ? String(prefill.purchasePrice) : '0';
     document.getElementById('qp-sale').value = '0';
+    document.getElementById('qp-supplier').value = (prefill && prefill.supplierId) ? String(prefill.supplierId) : '';
+    document.getElementById('qp-category').value = '';
     const errorDiv = document.getElementById('qp-error');
     errorDiv.textContent = '';
     errorDiv.classList.add('d-none');
+    syncSaveEnabled();
 
     const modalEl = document.getElementById('quickProductModal');
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    loadCategories();
     setTimeout(function () { document.getElementById('qp-name').focus(); }, 300);
   };
+
+  document.getElementById('qp-category').addEventListener('change', syncSaveEnabled);
 
   document.getElementById('qp-save').addEventListener('click', async function () {
     const name = document.getElementById('qp-name').value.trim();
     const purchase = parseFloat(document.getElementById('qp-purchase').value) || 0;
     const sale = parseFloat(document.getElementById('qp-sale').value) || 0;
+    const categoryId = parseInt(document.getElementById('qp-category').value, 10) || 0;
+    const cip = document.getElementById('qp-cip').value.trim();
+    const supplierId = document.getElementById('qp-supplier').value;
     const errorDiv = document.getElementById('qp-error');
     const btn = this;
 
     if (!name) {
       errorDiv.textContent = 'Le nom du produit est obligatoire.';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+    if (categoryId <= 0) {
+      errorDiv.textContent = 'Choisissez une catégorie.';
       errorDiv.classList.remove('d-none');
       return;
     }
@@ -92,6 +142,9 @@
       body.append('Name', name);
       body.append('PurchasePrice', String(purchase));
       body.append('SalePrice', String(sale));
+      body.append('CategoryId', String(categoryId));
+      if (cip) body.append('Cip', cip);
+      if (supplierId) body.append('SupplierId', supplierId);
       body.append('__RequestVerificationToken', tokenInput.value);
 
       const response = await fetch('/Products/CreateQuick', {
@@ -132,7 +185,7 @@
       errorDiv.textContent = err && err.message ? err.message : 'Erreur lors de la création. Réessayez.';
       errorDiv.classList.remove('d-none');
     } finally {
-      btn.disabled = false;
+      syncSaveEnabled();
       btn.innerHTML = '<i class="bi bi-check-lg" aria-hidden="true"></i> Créer et sélectionner';
     }
   });

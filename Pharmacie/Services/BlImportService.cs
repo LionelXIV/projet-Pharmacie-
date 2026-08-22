@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Pharmacie.Data;
 using Pharmacie.Models;
 using Pharmacie.Models.Dto;
@@ -42,25 +43,72 @@ public class BlImportService
     }
 
     public async Task<BlImportPreviewResult> PreviewAsync(Stream stream, string fileName, CancellationToken ct = default)
+        => await PreviewAsync(stream, fileName, configuration: null, includeOcrDebug: false, ct);
+
+    public async Task<BlImportPreviewResult> PreviewAsync(
+        Stream stream,
+        string fileName,
+        IConfiguration? configuration,
+        bool includeOcrDebug,
+        CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        // Certains flux (upload) ne sont pas seekables : on bufferise.
         await using var buffer = new MemoryStream();
         await stream.CopyToAsync(buffer, ct);
         buffer.Position = 0;
 
         var ext = Path.GetExtension(fileName ?? "").ToLowerInvariant();
         List<BlImportRawRow> raw;
+        string? texteOcr = null;
+        string? supplierName = null;
+        string? numeroBl = null;
+        DateTime? dateBl = null;
         try
         {
-            raw = ext switch
+            if (ext is ".xlsx" or ".xlsm")
             {
-                ".xlsx" or ".xlsm" => ReadExcel(buffer),
-                ".csv" or ".txt" => ReadCsv(buffer),
-                ".pdf" => ReadPdf(buffer),
-                _ => throw new InvalidOperationException("Format non supporté. Utilisez .xlsx, .csv ou .pdf (texte).")
-            };
+                raw = ReadExcel(buffer);
+            }
+            else if (ext is ".csv" or ".txt")
+            {
+                raw = ReadCsv(buffer);
+            }
+            else if (ext == ".pdf")
+            {
+                var pdfBytes = buffer.ToArray();
+                buffer.Position = 0;
+                try
+                {
+                    raw = ReadPdf(buffer);
+                }
+                catch (Exception)
+                {
+                    var endpoint = configuration?["VisionAI:Endpoint"];
+                    var apiKey = configuration?["VisionAI:ApiKey"];
+                    if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey))
+                        throw new InvalidOperationException(
+                            "PDF scanné : OCR Azure Vision non configuré (VisionAI:Endpoint / VisionAI:ApiKey).");
+
+                    texteOcr = await ExtraireTexteOCR(pdfBytes, endpoint, apiKey);
+                    if (string.IsNullOrWhiteSpace(texteOcr))
+                        throw new InvalidOperationException("OCR : aucun texte extrait du PDF.");
+
+                    supplierName = DetecterFournisseur(texteOcr);
+                    numeroBl = ExtrairNumeroBL(texteOcr, supplierName);
+                    dateBl = ExtraireDate(texteOcr);
+
+                    var extraits = supplierName == "Sodipharm"
+                        ? ParserSodipharm(texteOcr)
+                        : ParserUbiPharm(texteOcr);
+
+                    raw = ConvertirLignesExtraite(extraits);
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("Format non supporté. Utilisez .xlsx, .csv ou .pdf.");
+            }
         }
         catch (Exception ex)
         {
@@ -80,7 +128,53 @@ public class BlImportService
             };
         }
 
-        return await MatchAsync(raw, ct);
+        var result = await MatchAsync(raw, ct);
+        result.SupplierName = supplierName;
+        result.NumeroBL = string.IsNullOrWhiteSpace(numeroBl) ? null : numeroBl;
+        result.DateBL = dateBl;
+        result.SupplierId = await ResoudreSupplierIdAsync(supplierName, ct);
+        if (includeOcrDebug && !string.IsNullOrEmpty(texteOcr))
+            result.TexteOcrBrut = texteOcr;
+        return result;
+    }
+
+    private static List<BlImportRawRow> ConvertirLignesExtraite(List<BLLigneExtraite> extraits)
+    {
+        var raw = new List<BlImportRawRow>();
+        var n = 0;
+        foreach (var l in extraits)
+        {
+            n++;
+            raw.Add(new BlImportRawRow
+            {
+                RowNumber = n,
+                Cip = l.CIP,
+                Libelle = l.NomProduit,
+                Quantite = l.QuantiteLivree,
+                PrixAchat = l.PrixAchat > 0 ? l.PrixAchat : null,
+                PrixVente = l.PrixVente > 0 ? l.PrixVente : null,
+                NumeroLot = l.NumeroLot,
+                DatePeremption = l.DatePeremption,
+                TauxTVA = l.TauxTVA,
+                Confiance = l.Confiance
+            });
+        }
+
+        return raw;
+    }
+
+    private async Task<int?> ResoudreSupplierIdAsync(string? supplierName, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(supplierName) || supplierName == "Inconnu")
+            return null;
+
+        var needle = supplierName.Trim().ToLowerInvariant();
+        var id = await _db.Suppliers
+            .AsNoTracking()
+            .Where(s => s.Name.ToLower().Contains(needle))
+            .Select(s => (int?)s.Id)
+            .FirstOrDefaultAsync(ct);
+        return id;
     }
 
     private async Task<BlImportPreviewResult> MatchAsync(List<BlImportRawRow> raw, CancellationToken ct)
@@ -117,14 +211,17 @@ public class BlImportService
             var line = new BlImportPreviewLine
             {
                 RowNumber = row.RowNumber,
-                Quantite = row.Quantite is > 0 ? row.Quantite.Value : 1,
+                Quantite = row.Quantite ?? 1,
                 PrixAchat = row.PrixAchat ?? 0,
                 PrixVente = row.PrixVente ?? 0,
                 NumeroLot = row.NumeroLot,
                 DatePeremption = row.DatePeremption?.ToString("yyyy-MM-dd"),
                 EstUG = row.EstUG || (row.NbUG ?? 0) > 0,
                 NbUG = row.NbUG ?? (row.EstUG ? 1 : 0),
-                TauxTVA = row.TauxTVA
+                TauxTVA = row.TauxTVA,
+                Cip = row.Cip,
+                Libelle = row.Libelle,
+                Confiance = row.Confiance
             };
 
             ProductHit? hit = null;
@@ -1047,44 +1144,73 @@ public class BlImportService
 
     public static List<BLLigneExtraite> ParserSodipharm(string texte)
     {
-        var lignes = new List<BLLigneExtraite>();
-        if (string.IsNullOrEmpty(texte))
-            return lignes;
+        var result = new List<BLLigneExtraite>();
+        if (string.IsNullOrWhiteSpace(texte))
+            return result;
 
-        var matches = Regex.Matches(
-            texte,
-            @"(\d{7})\s+" +
-            @"([A-Z][A-Z0-9\s+\-./%]+?)\s+" +
-            @"(\d{3,4}(?:[,.]\d{2,3})?)" +
-            @"(?:\s+(\d{1,2}[,.]\d{2}))?");
+        var lines = texte.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var cipDebut = new Regex(@"^\s*(\d{7})(?:\s+(.*))?$");
+        var nomRx = new Regex(@"^[A-Z][A-Z0-9\s+\-./%]{3,}$", RegexOptions.IgnoreCase);
+        var prixRx = new Regex(@"[\d]+[,.][\d]{2,3}");
+        var perempRx = new Regex(@"\b(\d{2})[-/](\d{2})\b");
 
-        foreach (Match m in matches)
+        var anchors = new List<(int Index, string Cip, string? Remainder)>();
+        for (var i = 0; i < lines.Length; i++)
         {
-            var cip = m.Groups[1].Value.Trim();
-            var nom = Regex.Replace(m.Groups[2].Value.Trim(), @"\s+", " ");
-            var prixStr = m.Groups[3].Value.Replace(",", ".");
-            decimal.TryParse(
-                prixStr,
-                NumberStyles.Any,
-                CultureInfo.InvariantCulture,
-                out var prix);
-
-            if (cip.Length == 7 && prix > 0)
-            {
-                lignes.Add(new BLLigneExtraite
-                {
-                    CIP = cip,
-                    NomProduit = nom,
-                    PrixAchat = prix,
-                    QuantiteLivree = null,
-                    NumeroLot = null,
-                    DatePeremption = null,
-                    Confiance = "partielle"
-                });
-            }
+            var m = cipDebut.Match(lines[i]);
+            if (m.Success)
+                anchors.Add((i, m.Groups[1].Value, m.Groups[2].Success ? m.Groups[2].Value.Trim() : null));
         }
 
-        return lignes.DistinctBy(l => l.CIP).ToList();
+        for (var a = 0; a < anchors.Count; a++)
+        {
+            var start = anchors[a].Index;
+            var next = a + 1 < anchors.Count ? anchors[a + 1].Index : lines.Length;
+            var blockLines = lines.Skip(start).Take(Math.Max(0, next - start)).ToArray();
+            var blockText = string.Join('\n', blockLines);
+            var cip = anchors[a].Cip;
+
+            var qtes = ExtraireEntiersCourtsApresCip(blockLines, cip);
+            var qtCde = qtes.Count > 0 ? qtes[0] : (int?)null;
+            var qtLiv = qtes.Count > 1 ? qtes[1] : qtCde;
+
+            var rupture = blockText.Contains("PAS DE SUIVI DES MANQUANTS", StringComparison.OrdinalIgnoreCase)
+                || qtLiv == 0;
+            if (rupture)
+                qtLiv = 0;
+
+            var nom = ExtraireNomProduitBl(blockLines, anchors[a].Remainder, nomRx);
+            var montants = ExtraireMontants(blockText, prixRx);
+            var horsTva = montants.Where(p => p is not (5.5m or 10m or 18m)).ToList();
+            var prixAchat = horsTva.Count > 0 ? horsTva.Min() : 0m;
+            var prixPub = horsTva.Count > 0 ? horsTva.Max() : 0m;
+            decimal? tva = ExtraireTvaImprimee(blockText);
+            if (tva is null && montants.Any(p => p is 5.5m or 10m or 18m))
+                tva = montants.First(p => p is 5.5m or 10m or 18m);
+
+            DateTime? peremp = ExtrairePeremptionMmAa(blockText, perempRx);
+            string confiance;
+            if (rupture)
+                confiance = "rupture";
+            else if (peremp.HasValue)
+                confiance = "partielle";
+            else
+                confiance = "bonne";
+
+            result.Add(new BLLigneExtraite
+            {
+                CIP = cip,
+                NomProduit = nom,
+                PrixAchat = prixAchat,
+                PrixVente = prixPub == prixAchat ? 0 : prixPub,
+                TauxTVA = tva,
+                QuantiteLivree = qtLiv,
+                DatePeremption = peremp,
+                Confiance = confiance
+            });
+        }
+
+        return result;
     }
 
     public static List<BLLigneExtraite> ParserUbiPharm(string texte)
@@ -1119,18 +1245,22 @@ public class BlImportService
         {
             var start = anchors[a].Index;
             var next = a + 1 < anchors.Count ? anchors[a + 1].Index : lines.Length;
-            var blockLen = Math.Min(8, Math.Max(0, next - start));
-            var blockLines = lines.Skip(start).Take(blockLen).ToArray();
+            var blockLines = lines.Skip(start).Take(Math.Max(0, next - start)).ToArray();
             var blockText = string.Join('\n', blockLines);
 
-            var nom = ExtraireNomUbiPharm(blockLines, anchors[a].Remainder, nomRx);
+            var nom = ExtraireNomProduitBl(blockLines, anchors[a].Remainder, nomRx);
             var prix = ExtrairePrixUnitaireUbiPharm(blockText, prixRx);
-            var qteLivree = ExtraireQuantiteConfianteUbiPharm(blockLines, anchors[a].Cip);
+            var (qteLivree, depuisMontant) = ExtraireQuantiteUbiPharm(blockLines, blockText, anchors[a].Cip, prix, prixRx);
+            var confiance = depuisMontant && qteLivree is > 0
+                ? "bonne"
+                : "partielle";
+            if (!qteLivree.HasValue)
+                confiance = "partielle";
 
             var lots = lotRx.Matches(blockText);
             if (lots.Count == 0)
             {
-                result.Add(CreerLigneUbiPharm(anchors[a].Cip, nom, prix, qteLivree, null, null));
+                result.Add(CreerLigneUbiPharm(anchors[a].Cip, nom, prix, qteLivree, null, null, confiance));
                 continue;
             }
 
@@ -1152,29 +1282,59 @@ public class BlImportService
                     prix,
                     qteLivree,
                     lot.Groups[1].Value.Trim(),
-                    peremp));
+                    peremp,
+                    confiance));
             }
         }
 
         return result;
     }
 
-    private static string ExtraireNomUbiPharm(string[] blockLines, string? rest, Regex nomRx)
+    private static bool EstNomLot(string? s) =>
+        !string.IsNullOrWhiteSpace(s)
+        && s.TrimStart().StartsWith("LOT ", StringComparison.OrdinalIgnoreCase);
+
+    private static string ExtraireNomProduitBl(string[] blockLines, string? rest, Regex nomRx)
     {
-        if (!string.IsNullOrWhiteSpace(rest) && nomRx.IsMatch(rest.Trim()))
+        if (!string.IsNullOrWhiteSpace(rest) && !EstNomLot(rest) && nomRx.IsMatch(rest.Trim()))
             return Regex.Replace(rest.Trim(), @"\s+", " ");
 
         for (var j = 1; j < blockLines.Length; j++)
         {
             var candidate = blockLines[j].Trim();
+            if (EstNomLot(candidate))
+                continue;
             if (nomRx.IsMatch(candidate))
                 return Regex.Replace(candidate, @"\s+", " ");
         }
 
-        return rest is { Length: > 0 } ? Regex.Replace(rest, @"\s+", " ") : "";
+        if (!string.IsNullOrWhiteSpace(rest) && !EstNomLot(rest))
+            return Regex.Replace(rest, @"\s+", " ");
+        return "";
     }
 
     private static decimal ExtrairePrixUnitaireUbiPharm(string blockText, Regex prixRx)
+    {
+        var candidats = ExtraireMontants(blockText, prixRx);
+        if (candidats.Count == 0)
+            return 0;
+
+        var horsTva = candidats.Where(p => p is not (5.5m or 10m or 18m)).ToList();
+        var pool = horsTva.Count > 0 ? horsTva : candidats;
+        return pool.Min();
+    }
+
+    private static decimal? ExtraireTvaImprimee(string blockText)
+    {
+        var m = Regex.Match(blockText, @"\b(5[.,]5|10|18)\b");
+        if (!m.Success)
+            return null;
+        return m.Value.Replace(",", ".") == "5.5" || m.Value == "5,5" ? 5.5m
+            : m.Value == "10" ? 10m
+            : 18m;
+    }
+
+    private static List<decimal> ExtraireMontants(string blockText, Regex prixRx)
     {
         var candidats = new List<decimal>();
         foreach (Match m in prixRx.Matches(blockText))
@@ -1185,30 +1345,124 @@ public class BlImportService
                 candidats.Add(p);
         }
 
-        if (candidats.Count == 0)
-            return 0;
-
-        var horsTva = candidats.Where(p => p is not (5.5m or 10m or 18m)).ToList();
-        var pool = horsTva.Count > 0 ? horsTva : candidats;
-        return pool.Min();
+        return candidats;
     }
 
-    private static int? ExtraireQuantiteConfianteUbiPharm(string[] blockLines, string cip)
+    private static (int? Qty, bool FromMontant) ExtraireQuantiteUbiPharm(
+        string[] blockLines,
+        string blockText,
+        string cip,
+        decimal prixUnitaire,
+        Regex prixRx)
+    {
+        var montants = ExtraireMontants(blockText, prixRx)
+            .Where(p => p is not (5.5m or 10m or 18m))
+            .Distinct()
+            .OrderBy(p => p)
+            .ToList();
+
+        if (prixUnitaire > 0)
+        {
+            foreach (var montant in montants.Where(m => m > prixUnitaire))
+            {
+                if (EssayerQteDepuisMontant(montant, prixUnitaire, out var q))
+                    return (q, true);
+            }
+        }
+
+        for (var i = 0; i < montants.Count; i++)
+        {
+            for (var j = i + 1; j < montants.Count; j++)
+            {
+                if (EssayerQteDepuisMontant(montants[j], montants[i], out var q))
+                    return (q, true);
+            }
+        }
+
+        return (ExtraireQuantiteManuscriteUbiPharm(blockLines, cip), false);
+    }
+
+    private static bool EssayerQteDepuisMontant(decimal montant, decimal prixUnitaire, out int qte)
+    {
+        qte = 0;
+        if (prixUnitaire <= 0 || montant <= prixUnitaire)
+            return false;
+
+        var ratio = (double)(montant / prixUnitaire);
+        var rounded = Math.Round(ratio, MidpointRounding.AwayFromZero);
+        if (rounded is < 1 or > 999)
+            return false;
+        if (Math.Abs(ratio - rounded) > 0.05)
+            return false;
+
+        qte = (int)rounded;
+        return true;
+    }
+
+    /// <summary>Ne jamais prendre un n° de ligne OCR (1–2 chiffres en début de ligne) pour une quantité.</summary>
+    private static int? ExtraireQuantiteManuscriteUbiPharm(string[] blockLines, string cip)
     {
         var isolés = new List<int>();
         foreach (var line in blockLines)
         {
-            var t = line.Trim();
-            if (!Regex.IsMatch(t, @"^\d{1,4}$"))
+            var sansNumeroLigne = Regex.Replace(line, @"^\s*\d{1,2}(?=\s|$)", "").Trim();
+            if (!Regex.IsMatch(sansNumeroLigne, @"^\d{1,4}$"))
                 continue;
-            if (t == cip)
+            if (sansNumeroLigne == cip)
                 continue;
-            if (!int.TryParse(t, out var n) || n is < 1 or > 500)
+            if (!int.TryParse(sansNumeroLigne, out var n) || n is < 1 or > 999)
                 continue;
             isolés.Add(n);
         }
 
         return isolés.Count == 1 ? isolés[0] : null;
+    }
+
+    private static List<int> ExtraireEntiersCourtsApresCip(string[] blockLines, string cip)
+    {
+        var found = new List<int>();
+        var first = true;
+        foreach (var line in blockLines)
+        {
+            var src = line;
+            if (first)
+            {
+                var idx = src.IndexOf(cip, StringComparison.Ordinal);
+                src = idx >= 0 ? src[(idx + cip.Length)..] : src;
+                first = false;
+            }
+
+            foreach (Match m in Regex.Matches(src, @"\b(\d{1,3})\b"))
+            {
+                if (!int.TryParse(m.Groups[1].Value, out var n) || n > 999)
+                    continue;
+                found.Add(n);
+                if (found.Count >= 2)
+                    return found;
+            }
+        }
+
+        return found;
+    }
+
+    private static DateTime? ExtrairePeremptionMmAa(string blockText, Regex perempRx)
+    {
+        var m = perempRx.Match(blockText);
+        if (!m.Success)
+            return null;
+        if (!int.TryParse(m.Groups[1].Value, out var mm) || mm is < 1 or > 12)
+            return null;
+        if (!int.TryParse(m.Groups[2].Value, out var aa))
+            return null;
+        var year = aa < 100 ? 2000 + aa : aa;
+        try
+        {
+            return new DateTime(year, mm, DateTime.DaysInMonth(year, mm));
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static BLLigneExtraite CreerLigneUbiPharm(
@@ -1217,7 +1471,8 @@ public class BlImportService
         decimal prix,
         int? qteLivree,
         string? numeroLot,
-        DateTime? peremp) =>
+        DateTime? peremp,
+        string confiance) =>
         new()
         {
             CIP = cip,
@@ -1226,7 +1481,7 @@ public class BlImportService
             QuantiteLivree = qteLivree,
             NumeroLot = numeroLot,
             DatePeremption = peremp,
-            Confiance = qteLivree.HasValue ? "bonne" : "partielle"
+            Confiance = qteLivree.HasValue && confiance == "bonne" ? "bonne" : "partielle"
         };
 
     private sealed record ProductHit(

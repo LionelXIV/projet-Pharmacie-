@@ -14,6 +14,7 @@ public class BlImportRawRow
     public bool EstUG { get; set; }
     public int? NbUG { get; set; }
     public decimal? TauxTVA { get; set; }
+    public string? Confiance { get; set; }
 }
 
 /// <summary>Ligne prête à préremplir le formulaire CreateDirect.</summary>
@@ -34,6 +35,9 @@ public class BlImportPreviewLine
     public int NbUG { get; set; }
     public bool Matched { get; set; }
     public string? Warning { get; set; }
+    public string? Cip { get; set; }
+    public string? Libelle { get; set; }
+    public string? Confiance { get; set; }
 }
 
 public class BlImportPreviewResult
@@ -43,4 +47,9 @@ public class BlImportPreviewResult
     public int MatchedCount { get; set; }
     public int UnmatchedCount { get; set; }
     public List<BlImportPreviewLine> Lines { get; set; } = new();
+    public string? SupplierName { get; set; }
+    public int? SupplierId { get; set; }
+    public string? NumeroBL { get; set; }
+    public DateTime? DateBL { get; set; }
+    public string? TexteOcrBrut { get; set; }
 }

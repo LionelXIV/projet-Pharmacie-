@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Pharmacie.Authorization;
 using Pharmacie.Data;
 using Pharmacie.Models;
@@ -16,17 +17,20 @@ public class GoodsReceiptsController : Controller
     private readonly PurchaseService _purchase;
     private readonly InventoryService _inventory;
     private readonly BlImportService _blImport;
+    private readonly IConfiguration _configuration;
 
     public GoodsReceiptsController(
         ApplicationDbContext context,
         PurchaseService purchase,
         InventoryService inventory,
-        BlImportService blImport)
+        BlImportService blImport,
+        IConfiguration configuration)
     {
         _context = context;
         _purchase = purchase;
         _inventory = inventory;
         _blImport = blImport;
+        _configuration = configuration;
     }
 
     public async Task<IActionResult> Index(
@@ -203,7 +207,9 @@ public class GoodsReceiptsController : Controller
             return Json(new { ok = false, message = "Choisissez un fichier .xlsx, .csv ou .pdf." });
 
         await using var stream = file.OpenReadStream();
-        var result = await _blImport.PreviewAsync(stream, file.FileName, cancellationToken);
+        var includeOcrDebug = User.IsInRole(AppRoles.Administrateur);
+        var result = await _blImport.PreviewAsync(
+            stream, file.FileName, _configuration, includeOcrDebug, cancellationToken);
         return Json(result);
     }
 

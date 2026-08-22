@@ -5,6 +5,8 @@ public class BLLigneExtraite
     public string CIP { get; set; } = "";
     public string NomProduit { get; set; } = "";
     public decimal PrixAchat { get; set; }
+    public decimal PrixVente { get; set; }
+    public decimal? TauxTVA { get; set; }
     public int? QuantiteLivree { get; set; }
     public string? NumeroLot { get; set; }
     public DateTime? DatePeremption { get; set; }

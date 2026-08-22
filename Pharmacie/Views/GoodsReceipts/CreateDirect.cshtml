@@ -10,6 +10,10 @@
     <h1 class="page-title">Nouvelle saisie BL</h1>
     <p class="page-lead mb-0">Réception fournisseur directe — met à jour le stock et trace les mouvements.</p>
 </div>
+<details id="bl-ocr-debug" class="mb-3" style="display:none">
+    <summary class="small text-muted">Texte OCR brut (admin)</summary>
+    <pre id="bl-ocr-debug-text" class="small bg-light border rounded p-2 mb-0" style="max-height:16rem;overflow:auto;white-space:pre-wrap"></pre>
+</details>
 
 @if (!ViewData.ModelState.IsValid)
 {
@@ -328,7 +332,14 @@
 
         var html =
           '<tr class="bl-ligne">' +
-          '<td><select name="Lignes[' + index + '].ProductId" class="form-select form-select-sm" data-tomselect-product data-url="/Products/Search" required><option value="">Chercher...</option></select></td>' +
+          '<td><div class="d-flex align-items-center gap-1">' +
+          '<select name="Lignes[' + index + '].ProductId" class="form-select form-select-sm" data-tomselect-product data-url="/Products/Search" required><option value="">Chercher...</option></select>' +
+          '<button type="button" class="btn btn-outline-success btn-sm flex-shrink-0" title="Créer un nouveau produit" onclick="openQuickProductModal(this)"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>' +
+          '</div>' +
+          (preset && preset.unmatched
+            ? '<button type="button" class="btn btn-link btn-sm p-0 mt-1 btn-create-from-import" data-name="' + (preset.libelle || '').replace(/"/g, '&quot;') + '" data-cip="' + (preset.cip || '').replace(/"/g, '&quot;') + '" data-pa="' + (preset.prixAchat != null ? preset.prixAchat : '') + '">Créer ce produit</button>'
+            : '') +
+          '</td>' +
           '<td><input type="number" name="Lignes[' + index + '].QuantiteLivree" class="form-control form-control-sm bl-qty-input" min="0" value="' + qty + '" required title="Quantité payante"></td>' +
           '<td><input type="number" name="Lignes[' + index + '].PrixAchat" class="form-control form-control-sm prix-achat-input" min="0" step="1" placeholder="Achat" value="' + pa + '"></td>' +
           '<td><input type="number" name="Lignes[' + index + '].PrixVente" class="form-control form-control-sm prix-vente-input" min="0" step="1" placeholder="Public" value="' + pv + '"></td>' +
@@ -405,7 +416,10 @@
             datePeremption: line.datePeremption,
             estUG: line.estUG || (line.nbUG > 0),
             nbUG: line.nbUG,
-            tauxTVA: line.tauxTVA
+            tauxTVA: line.tauxTVA,
+            unmatched: !line.matched,
+            cip: line.cip || '',
+            libelle: line.libelle || line.productText || ''
           });
         });
         updateTotals();
@@ -446,6 +460,24 @@
               return;
             }
             applyImportLines(data.lines);
+            window._blImportSupplierId = data.supplierId || '';
+            var selSup = document.getElementById('SupplierId');
+            if (selSup && !selSup.value && data.supplierId) selSup.value = String(data.supplierId);
+            var refEl = document.getElementById('Reference');
+            if (refEl && !refEl.value && data.numeroBL) refEl.value = data.numeroBL;
+            var dateEl = document.getElementById('DateReception');
+            if (dateEl && !dateEl.value && data.dateBL) {
+              var d = String(data.dateBL);
+              dateEl.value = d.length >= 10 ? d.substring(0, 10) : d;
+            }
+            var ocrBox = document.getElementById('bl-ocr-debug');
+            var ocrText = document.getElementById('bl-ocr-debug-text');
+            if (data.texteOcrBrut && ocrBox && ocrText) {
+              ocrText.textContent = data.texteOcrBrut;
+              ocrBox.style.display = '';
+            } else if (ocrBox) {
+              ocrBox.style.display = 'none';
+            }
             showImportFlash(data.message || 'Import terminé.', data.unmatchedCount > 0);
           })
           .catch(function () {
@@ -471,6 +503,17 @@
         applyFiltre();
       });
 
+      tbody.addEventListener('click', function (e) {
+        var createBtn = e.target.closest('.btn-create-from-import');
+        if (!createBtn) return;
+        openQuickProductModal(createBtn, {
+          name: createBtn.getAttribute('data-name') || '',
+          cip: createBtn.getAttribute('data-cip') || '',
+          purchasePrice: createBtn.getAttribute('data-pa') || 0,
+          supplierId: window._blImportSupplierId || ''
+        });
+      });
+
       filtre.addEventListener('input', applyFiltre);
 
       btnErreurs.addEventListener('click', function () {
@@ -486,6 +529,10 @@
       document.getElementById('btn-add-ligne').addEventListener('click', function () { addLigne(); });
       document.getElementById('btn-add-ligne-bas').addEventListener('click', function () { addLigne(); });
       document.addEventListener('DOMContentLoaded', function () { addLigne(); });
+      if (new URLSearchParams(window.location.search).get('pdf') === '1') {
+        setTimeout(function () { fileInput.click(); }, 400);
+      }
     })();
     </script>
+    <partial name="_QuickProductModal" />
 }

@@ -102,6 +102,18 @@ public class ProductsController : Controller
         return Json(results);
     }
 
+    [HttpGet]
+    [Authorize(Roles = $"{AppRoles.CatalogRead},{AppRoles.GoodsReceipt},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> CategoriesJson()
+    {
+        var list = await _context.Categories
+            .AsNoTracking()
+            .OrderBy(c => c.Name)
+            .Select(c => new { c.Id, c.Name })
+            .ToListAsync();
+        return Json(list);
+    }
+
     [HttpPost]
     [Authorize(Roles = AppRoles.CanModifyPrice)]
     [ValidateAntiForgeryToken]
@@ -117,16 +129,30 @@ public class ProductsController : Controller
         if (dto.PurchasePrice < 0)
             return BadRequest(new { error = "Le prix d'achat ne peut pas être négatif." });
 
-        var categoryId = await GetOrCreateCategoryIdAsync("À catégoriser");
-        var supplierId = await GetOrCreateSupplierIdAsync("Fournisseur non précisé");
+        if (dto.CategoryId <= 0)
+            return BadRequest(new { error = "Choisissez une catégorie." });
+
+        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
+        if (!categoryExists)
+            return BadRequest(new { error = "Choisissez une catégorie." });
+
+        int supplierId;
+        if (dto.SupplierId is > 0
+            && await _context.Suppliers.AnyAsync(s => s.Id == dto.SupplierId.Value))
+            supplierId = dto.SupplierId.Value;
+        else
+            supplierId = await GetOrCreateSupplierIdAsync("Fournisseur non précisé");
+
+        var cip = string.IsNullOrWhiteSpace(dto.Cip) ? null : dto.Cip.Trim();
 
         var product = new Product
         {
             CommercialName = name,
             PurchasePrice = dto.PurchasePrice,
             SalePrice = dto.SalePrice,
-            CategoryId = categoryId,
+            CategoryId = dto.CategoryId,
             SupplierId = supplierId,
+            Cip = cip,
             ProductType = ProductType.Inconnu,
             IsActive = true,
             StockQuantity = 0,
