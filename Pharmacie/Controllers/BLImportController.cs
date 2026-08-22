@@ -15,15 +15,18 @@ public class BLImportController : Controller
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<BLImportController> _logger;
+    private readonly IConfiguration _configuration;
 
     public BLImportController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        ILogger<BLImportController> logger)
+        ILogger<BLImportController> logger,
+        IConfiguration configuration)
     {
         _context = context;
         _userManager = userManager;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpGet]
@@ -51,10 +54,46 @@ public class BLImportController : Controller
 
         try
         {
+            await using var memStream = new MemoryStream();
+            await fichierPdf.CopyToAsync(memStream);
+            var pdfBytes = memStream.ToArray();
+
             string texteComplet;
-            await using (var stream = fichierPdf.OpenReadStream())
+            using (var pdfStream = new MemoryStream(pdfBytes, writable: false))
             {
-                texteComplet = BlImportService.ExtraireTextePdf(stream);
+                texteComplet = BlImportService.ExtraireTextePdf(pdfStream);
+            }
+
+            var ocrUtilise = false;
+            if (string.IsNullOrWhiteSpace(texteComplet) || texteComplet.Trim().Length < 50)
+            {
+                var visionEndpoint = _configuration["VisionAI:Endpoint"]
+                    ?? _configuration["VisionAI__Endpoint"];
+                var visionApiKey = _configuration["VisionAI:ApiKey"]
+                    ?? _configuration["VisionAI__ApiKey"];
+
+                if (!string.IsNullOrWhiteSpace(visionEndpoint)
+                    && !string.IsNullOrWhiteSpace(visionApiKey))
+                {
+                    try
+                    {
+                        texteComplet = await BlImportService.ExtraireTexteOCR(
+                            pdfBytes, visionEndpoint, visionApiKey);
+                        ocrUtilise = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "OCR Azure Vision indisponible pour {File}", fichierPdf.FileName);
+                        TempData["Warning"] =
+                            "OCR non disponible : " + ex.Message
+                            + ". Certains champs seront vides.";
+                    }
+                }
+                else
+                {
+                    TempData["Warning"] =
+                        "PDF scanné détecté. Les données seront partielles. Complétez manuellement.";
+                }
             }
 
             var fournisseur = BlImportService.DetecterFournisseur(texteComplet);
@@ -88,6 +127,7 @@ public class BLImportController : Controller
                 NbNonTrouvees = lignes.Count(l => !l.Trouve)
             };
 
+            ViewBag.OcrUtilise = ocrUtilise;
             return View("Verifier", vm);
         }
         catch (Exception ex)

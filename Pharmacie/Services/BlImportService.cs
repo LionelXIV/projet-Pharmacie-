@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +19,8 @@ namespace Pharmacie.Services;
 /// </summary>
 public class BlImportService
 {
+    private static readonly HttpClient OcrHttp = new() { Timeout = TimeSpan.FromMinutes(3) };
+
     private readonly ApplicationDbContext _db;
 
     private static readonly Dictionary<string, string[]> HeaderAliases = new(StringComparer.OrdinalIgnoreCase)
@@ -843,6 +847,201 @@ public class BlImportService
         {
             sb.AppendLine(page.Text);
         }
+        return sb.ToString();
+    }
+
+    public static async Task<string> ExtraireTexteOCR(
+        byte[] pdfBytes,
+        string endpoint,
+        string apiKey)
+    {
+        ArgumentNullException.ThrowIfNull(pdfBytes);
+        if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey))
+            throw new InvalidOperationException("Configuration Azure Vision manquante.");
+
+        var root = endpoint.Trim().TrimEnd('/');
+        Exception? lastError = null;
+
+        try
+        {
+            var text = await AppelerImageAnalysisAsync(
+                pdfBytes, "application/pdf", root, apiKey);
+            if (!string.IsNullOrWhiteSpace(text))
+                return text;
+        }
+        catch (Exception ex)
+        {
+            lastError = ex;
+        }
+
+        try
+        {
+            var text = await AppelerReadApiPdfAsync(pdfBytes, root, apiKey);
+            if (!string.IsNullOrWhiteSpace(text))
+                return text;
+        }
+        catch (Exception ex)
+        {
+            lastError = ex;
+        }
+
+        var images = ExtraireImagesPdf(pdfBytes);
+        if (images.Count == 0)
+        {
+            throw lastError ?? new InvalidOperationException(
+                "OCR impossible : PDF sans texte extractible ni image embarquée.");
+        }
+
+        var sb = new StringBuilder();
+        foreach (var image in images)
+        {
+            var pageText = await AppelerImageAnalysisAsync(
+                image, "application/octet-stream", root, apiKey);
+            if (!string.IsNullOrWhiteSpace(pageText))
+                sb.AppendLine(pageText);
+        }
+
+        var combined = sb.ToString().Trim();
+        if (combined.Length == 0)
+            throw lastError ?? new InvalidOperationException("Azure Vision n'a renvoyé aucun texte.");
+
+        return combined;
+    }
+
+    private static List<byte[]> ExtraireImagesPdf(byte[] pdfBytes)
+    {
+        var list = new List<byte[]>();
+        using var stream = new MemoryStream(pdfBytes, writable: false);
+        using var pdf = PdfDocument.Open(stream);
+        foreach (var page in pdf.GetPages())
+        {
+            foreach (var image in page.GetImages())
+            {
+                var raw = image.RawBytes;
+                if (raw == null || raw.Count == 0)
+                    continue;
+                list.Add(raw as byte[] ?? raw.ToArray());
+            }
+        }
+
+        return list;
+    }
+
+    private static async Task<string> AppelerImageAnalysisAsync(
+        byte[] bytes,
+        string contentType,
+        string endpointRoot,
+        string apiKey)
+    {
+        var url = endpointRoot
+            + "/computervision/imageanalysis:analyze"
+            + "?api-version=2024-02-01&features=read";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Add("Ocp-Apim-Subscription-Key", apiKey);
+        request.Content = new ByteArrayContent(bytes);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+
+        using var response = await OcrHttp.SendAsync(request);
+        var payload = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Azure Vision error ({(int)response.StatusCode}): {payload}");
+
+        return ParserReponseOcr(payload);
+    }
+
+    private static async Task<string> AppelerReadApiPdfAsync(
+        byte[] pdfBytes,
+        string endpointRoot,
+        string apiKey)
+    {
+        var url = endpointRoot + "/vision/v3.2/read/analyze";
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Headers.Add("Ocp-Apim-Subscription-Key", apiKey);
+        request.Content = new ByteArrayContent(pdfBytes);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+
+        using var response = await OcrHttp.SendAsync(request);
+        if (response.StatusCode != System.Net.HttpStatusCode.Accepted
+            && !response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"Azure Read API error ({(int)response.StatusCode}): {error}");
+        }
+
+        var operationUrl = response.Headers.TryGetValues("Operation-Location", out var values)
+            ? values.FirstOrDefault()
+            : null;
+        if (string.IsNullOrEmpty(operationUrl))
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            var immediate = ParserReponseOcr(body);
+            if (!string.IsNullOrWhiteSpace(immediate))
+                return immediate;
+            throw new InvalidOperationException("Azure Read API : Operation-Location manquante.");
+        }
+
+        for (var i = 0; i < 40; i++)
+        {
+            await Task.Delay(500);
+            using var poll = new HttpRequestMessage(HttpMethod.Get, operationUrl);
+            poll.Headers.Add("Ocp-Apim-Subscription-Key", apiKey);
+            using var pollResponse = await OcrHttp.SendAsync(poll);
+            var json = await pollResponse.Content.ReadAsStringAsync();
+            if (!pollResponse.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Azure Read poll error: {json}");
+
+            using var doc = JsonDocument.Parse(json);
+            var status = doc.RootElement.TryGetProperty("status", out var st)
+                ? st.GetString()
+                : "";
+            if (string.Equals(status, "failed", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Azure Read API : analyse échouée.");
+            if (string.Equals(status, "succeeded", StringComparison.OrdinalIgnoreCase)
+                || !doc.RootElement.TryGetProperty("status", out _))
+                return ParserReponseOcr(json);
+        }
+
+        throw new TimeoutException("Azure Read API : délai d'attente dépassé.");
+    }
+
+    private static string ParserReponseOcr(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var sb = new StringBuilder();
+
+        if (root.TryGetProperty("readResult", out var readResult)
+            && readResult.TryGetProperty("blocks", out var blocks))
+        {
+            foreach (var block in blocks.EnumerateArray())
+            {
+                if (!block.TryGetProperty("lines", out var lines))
+                    continue;
+                foreach (var line in lines.EnumerateArray())
+                {
+                    if (line.TryGetProperty("text", out var text))
+                        sb.AppendLine(text.GetString());
+                }
+            }
+        }
+
+        if (sb.Length == 0
+            && root.TryGetProperty("analyzeResult", out var analyzeResult)
+            && analyzeResult.TryGetProperty("readResults", out var readResults))
+        {
+            foreach (var page in readResults.EnumerateArray())
+            {
+                if (!page.TryGetProperty("lines", out var lines))
+                    continue;
+                foreach (var line in lines.EnumerateArray())
+                {
+                    if (line.TryGetProperty("text", out var text))
+                        sb.AppendLine(text.GetString());
+                }
+            }
+        }
+
         return sb.ToString();
     }
 
