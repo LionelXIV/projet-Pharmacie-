@@ -32,8 +32,19 @@
         .statut-solde { background:#000; color:#fff; text-align:center; padding:2px 4px; font-weight:bold; }
         .statut-part { text-align:center; padding:2px 4px; font-weight:bold; border:1px solid #000; }
         @@media print {
-            body { margin: 0; padding: 2mm; }
-            @@page { margin: 0; }
+            @@page {
+                size: 80mm auto;
+                margin: 0;
+                scale: 97%;
+            }
+            body {
+                width: 80mm;
+                margin: 0;
+                padding: 2mm;
+                transform: scale(0.97);
+                transform-origin: top left;
+            }
+            .no-print { display: none; }
         }
     </style>
 </head>

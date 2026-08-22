@@ -39,9 +39,19 @@
             padding-top: 2px;
         }
         @@media print {
-            body { margin: 0; padding: 2mm; }
-            @@page { margin: 0; }
-            .no-print { display: none !important; }
+            @@page {
+                size: 80mm auto;
+                margin: 0;
+                scale: 97%;
+            }
+            body {
+                width: 80mm;
+                margin: 0;
+                padding: 2mm;
+                transform: scale(0.97);
+                transform-origin: top left;
+            }
+            .no-print { display: none; }
         }
     </style>
 </head>

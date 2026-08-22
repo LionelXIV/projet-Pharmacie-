@@ -29,8 +29,19 @@
         .row { display: flex; justify-content: space-between; align-items: baseline; }
         .big { font-size: 14px; font-weight: bold; }
         @@media print {
-            body { margin: 0; padding: 2mm; }
-            @@page { margin: 0; }
+            @@page {
+                size: 80mm auto;
+                margin: 0;
+                scale: 97%;
+            }
+            body {
+                width: 80mm;
+                margin: 0;
+                padding: 2mm;
+                transform: scale(0.97);
+                transform-origin: top left;
+            }
+            .no-print { display: none; }
         }
     </style>
 </head>
