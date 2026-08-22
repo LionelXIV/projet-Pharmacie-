@@ -1018,8 +1018,37 @@ public class BlImportService
         var sb = new StringBuilder();
         foreach (var page in pdf.GetPages())
         {
-            sb.AppendLine(page.Text);
+            var words = page.GetWords().ToList();
+            if (words.Count == 0)
+            {
+                if (!string.IsNullOrWhiteSpace(page.Text))
+                    sb.AppendLine(page.Text);
+                continue;
+            }
+
+            var groups = new List<List<Word>>();
+            foreach (var word in words.OrderByDescending(w => w.BoundingBox.Bottom).ThenBy(w => w.BoundingBox.Left))
+            {
+                var y = word.BoundingBox.Bottom;
+                var group = groups.FirstOrDefault(g =>
+                    Math.Abs(g[0].BoundingBox.Bottom - y) <= 3.0);
+                if (group == null)
+                {
+                    group = new List<Word>();
+                    groups.Add(group);
+                }
+                group.Add(word);
+            }
+
+            foreach (var group in groups)
+            {
+                var line = string.Join(' ', group.OrderBy(w => w.BoundingBox.Left).Select(w => w.Text.Trim())
+                    .Where(t => t.Length > 0));
+                if (line.Length > 0)
+                    sb.AppendLine(line);
+            }
         }
+
         return sb.ToString();
     }
 
@@ -1310,6 +1339,42 @@ public class BlImportService
             });
         }
 
+        if (result.Count == 0)
+            result.AddRange(ParserSodipharmBordereauFlux(texte));
+
+        return result;
+    }
+
+    /// <summary>Même BL Sodipharm quand PdfPig colle tout le texte sans retours à la ligne.</summary>
+    private static List<BLLigneExtraite> ParserSodipharmBordereauFlux(string texte)
+    {
+        var result = new List<BLLigneExtraite>();
+        var rx = new Regex(
+            @"(\d{1,2})\.\s*[A-Z]\s*\.\s*\S+\s+(\d{1,4})\s+(\d{1,4})\s+([A-Z][A-Z0-9 /%.,'\-]{6,}?)\s+(\d{7})\s+(.*?)(?=\s*\d{1,2}\.\s*[A-Z]\s*\.|\s*LIGNES|\s*TOTAL HT|\s*REF\.CDE|$)",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        foreach (Match m in rx.Matches(texte))
+        {
+            int.TryParse(m.Groups[2].Value, out var qtLiv);
+            var nom = Regex.Replace(m.Groups[4].Value.Trim(), @"\s+", " ");
+            var cip = m.Groups[5].Value;
+            var montants = new List<int>();
+            foreach (Match n in Regex.Matches(m.Groups[6].Value, @"\b(\d{3,6})\b"))
+            {
+                if (int.TryParse(n.Groups[1].Value, out var v) && v is >= 50 and <= 1_000_000)
+                    montants.Add(v);
+            }
+
+            result.Add(new BLLigneExtraite
+            {
+                CIP = cip,
+                NomProduit = nom,
+                PrixAchat = montants.Count > 0 ? montants.Min() : 0m,
+                PrixVente = montants.Count > 1 ? montants.Max() : 0m,
+                QuantiteLivree = qtLiv,
+                Confiance = qtLiv == 0 ? "rupture" : "bonne"
+            });
+        }
+
         return result;
     }
 
@@ -1394,7 +1459,7 @@ public class BlImportService
             return false;
         if (t.Contains("F A C T U R E", StringComparison.OrdinalIgnoreCase))
             return false;
-        return Regex.IsMatch(t, @"^\d{1,3}\s+\S{3,}\s+.+\d{1,3}[.,]\d{3}\s*$");
+        return Regex.IsMatch(t, @"^\d{1,3}\s+\S{3,}\s+.+\d{1,3}[.,]\d{3}");
     }
 
     private readonly record struct UbiFactureParse(

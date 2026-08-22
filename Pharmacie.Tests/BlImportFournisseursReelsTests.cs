@@ -99,4 +99,43 @@ public class BlImportFournisseursReelsTests
         Assert.Equal("AMLOPAMIDE 10MG/1MG5 CPR BT 30", lignes[1].NomProduit);
         Assert.Equal(2, lignes[1].QuantiteLivree);
     }
+
+    [Fact]
+    public void ParserSodipharm_texte_colle_sans_retours_ligne()
+    {
+        var texte = "SODIPHARM BORDEREAU DE LIVRAISON N 012978910 26. N . 0104        1           1 BACTOX SS SUCR SUSP 125MG 60ML 3335882        1249 T   859       859 36. J . 0501        2           2 AMLOPAMIDE 10MG/1MG5 CPR BT 30 2475717        5647 T  3986      3986 LIGNES 2 TOTAL HT";
+        var lignes = BlImportService.ParserSodipharm(texte);
+        Assert.Equal(2, lignes.Count);
+        Assert.Contains(lignes, l => l.CIP == "3335882" && l.QuantiteLivree == 1);
+        Assert.Contains(lignes, l => l.CIP == "2475717" && l.QuantiteLivree == 2);
+    }
+
+    [Fact]
+    public void ExtraireTextePdf_puis_parsers_sur_pdf_reels()
+    {
+        var sodioPdf = Fixture("blsodiof.pdf");
+        var ubiPdf = Fixture("ubi_bel_812307.pdf");
+        if (!File.Exists(sodioPdf) || !File.Exists(ubiPdf))
+            return;
+
+        using (var fs = File.OpenRead(sodioPdf))
+        {
+            var texte = BlImportService.ExtraireTextePdf(fs);
+            Assert.Contains("SODIPHARM", texte, StringComparison.OrdinalIgnoreCase);
+            var lignes = BlImportService.ParserSodipharm(texte);
+            Assert.Equal(2, lignes.Count);
+            Assert.Contains(lignes, l => l.NomProduit.Contains("BACTOX", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(lignes, l => l.NomProduit.Contains("AMLOPAMIDE", StringComparison.OrdinalIgnoreCase));
+        }
+
+        using (var fs = File.OpenRead(Fixture("ubi_bel_812307.pdf")))
+        {
+            var texte = BlImportService.ExtraireTextePdf(fs);
+            Assert.Contains("BEL/", texte, StringComparison.OrdinalIgnoreCase);
+            var lignes = BlImportService.ParserUbiPharm(texte);
+            Assert.True(lignes.Count >= 24, $"UbiPharm PDF: {lignes.Count} lignes");
+            Assert.Contains(lignes, l => l.NomProduit.Contains("SPASFON", StringComparison.OrdinalIgnoreCase) && l.QuantiteLivree == 2);
+            Assert.Equal(2, lignes.Count(l => l.NomProduit.Contains("VIKVIT", StringComparison.OrdinalIgnoreCase)));
+        }
+    }
 }
