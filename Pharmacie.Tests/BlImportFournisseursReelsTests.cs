@@ -78,4 +78,25 @@ public class BlImportFournisseursReelsTests
         var magne = result.Lines.Single(l => (l.Libelle ?? l.ProductText ?? "").Contains("MAGNESIUM", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(18m, magne.TauxTVA);
     }
+
+    [Fact]
+    public void ParserSodipharm_pdf_une_ligne_par_produit_comme_pdfpig()
+    {
+        var texte = """
+            SODIPHARM
+            BORDEREAU DE LIVRAISON
+            26. N . 0104        1           1 BACTOX SS SUCR SUSP 125MG 60ML 3335882        1249 T   859       859
+            36. J . 0501        2           2 AMLOPAMIDE 10MG/1MG5 CPR BT 30 2475717        5647 T  3986      3986
+            LIGNES
+                 2
+            """;
+
+        var lignes = BlImportService.ParserSodipharm(texte);
+        Assert.Equal(2, lignes.Count);
+        Assert.Equal("BACTOX SS SUCR SUSP 125MG 60ML", lignes[0].NomProduit);
+        Assert.Equal(1, lignes[0].QuantiteLivree);
+        Assert.Equal(859m, lignes[0].PrixAchat);
+        Assert.Equal("AMLOPAMIDE 10MG/1MG5 CPR BT 30", lignes[1].NomProduit);
+        Assert.Equal(2, lignes[1].QuantiteLivree);
+    }
 }

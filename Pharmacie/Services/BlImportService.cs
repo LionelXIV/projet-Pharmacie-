@@ -87,12 +87,18 @@ public class BlImportService
                 buffer.Position = 0;
                 var texteNatif = ExtraireTextePdf(buffer);
                 var depuisTexte = EssayerParsersDepuisTexte(texteNatif);
+                var fournisseurDetecte = DetecterFournisseur(texteNatif ?? "");
                 if (depuisTexte != null && depuisTexte.Value.Rows.Count > 0)
                 {
                     raw = depuisTexte.Value.Rows;
                     supplierName = depuisTexte.Value.SupplierName;
                     numeroBl = depuisTexte.Value.NumeroBL;
                     dateBl = depuisTexte.Value.DateBL;
+                }
+                else if (fournisseurDetecte is "Sodipharm" or "UbiPharm")
+                {
+                    throw new InvalidOperationException(
+                        $"PDF {fournisseurDetecte} reconnu mais aucune ligne produit extraite. Vérifiez le fichier ou importez le CSV.");
                 }
                 else
                 {
@@ -1212,7 +1218,7 @@ public class BlImportService
         return sb.ToString();
     }
 
-    /// <summary>PDF Sodipharm généré : ligne GEO + qté, puis désignation, puis code article 7 chiffres.</summary>
+    /// <summary>PDF Sodipharm généré : ligne GEO + qté, nom et code sur la même ligne ou les suivantes.</summary>
     public static List<BLLigneExtraite> ParserSodipharmBordereau(string texte)
     {
         var result = new List<BLLigneExtraite>();
@@ -1220,24 +1226,47 @@ public class BlImportService
             return result;
 
         var lines = texte.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-        var geoRx = new Regex(@"^\s*\d{1,2}\.\s*[A-Z]\s*\.\s*\S+\s+(\d{1,4})\s+(\d{1,4})\s*$");
+        var geoRx = new Regex(
+            @"^\s*\d{1,2}\.\s*[A-Z]\s*\.\s*\S+\s+(\d{1,4})\s+(\d{1,4})(?:\s+(.*))?$");
         var cipRx = new Regex(@"^\s*(\d{7})\s*$");
+        var cipInText = new Regex(@"\b(\d{7})\b");
 
         for (var i = 0; i < lines.Length; i++)
         {
-            var geo = geoRx.Match(lines[i]);
+            var geo = geoRx.Match(lines[i].TrimEnd());
             if (!geo.Success)
                 continue;
 
             int.TryParse(geo.Groups[1].Value, out var qtCde);
             int.TryParse(geo.Groups[2].Value, out var qtLiv);
+            var suite = geo.Groups[3].Success ? geo.Groups[3].Value.Trim() : "";
 
             string? nom = null;
             string? cip = null;
             var montants = new List<int>();
+
+            if (suite.Length > 0)
+            {
+                var cipM = cipInText.Match(suite);
+                if (cipM.Success)
+                {
+                    cip = cipM.Groups[1].Value;
+                    nom = Regex.Replace(suite[..cipM.Index].Trim(), @"\s+", " ");
+                    foreach (Match n in Regex.Matches(suite[cipM.Index..], @"\b(\d{3,6})\b"))
+                    {
+                        if (int.TryParse(n.Groups[1].Value, out var v) && v is >= 50 and <= 1_000_000 && n.Groups[1].Value != cip)
+                            montants.Add(v);
+                    }
+                }
+                else
+                {
+                    nom = Regex.Replace(suite, @"\s+", " ");
+                }
+            }
+
             for (var j = i + 1; j < lines.Length && j <= i + 12; j++)
             {
-                if (geoRx.IsMatch(lines[j]))
+                if (geoRx.IsMatch(lines[j].TrimEnd()))
                     break;
                 var t = lines[j].Trim();
                 if (t.Length == 0)
@@ -1248,10 +1277,10 @@ public class BlImportService
                     continue;
                 }
 
-                var cipM = cipRx.Match(t);
-                if (cipM.Success)
+                var cipSeul = cipRx.Match(t);
+                if (cipSeul.Success)
                 {
-                    cip = cipM.Groups[1].Value;
+                    cip ??= cipSeul.Groups[1].Value;
                     continue;
                 }
 
@@ -1262,16 +1291,18 @@ public class BlImportService
 
             if (string.IsNullOrWhiteSpace(cip) && string.IsNullOrWhiteSpace(nom))
                 continue;
+            if (string.IsNullOrWhiteSpace(nom) || nom.Equals("T", StringComparison.OrdinalIgnoreCase))
+                continue;
 
             var prixAchat = montants.Count > 0 ? montants.Min() : 0m;
             var prixPub = montants.Count > 0 ? montants.Max() : 0m;
             var rupture = qtLiv == 0
-                || (nom?.Contains("PAS DE SUIVI", StringComparison.OrdinalIgnoreCase) ?? false);
+                || nom.Contains("PAS DE SUIVI", StringComparison.OrdinalIgnoreCase);
 
             result.Add(new BLLigneExtraite
             {
                 CIP = cip ?? "",
-                NomProduit = nom ?? "",
+                NomProduit = nom,
                 PrixAchat = prixAchat,
                 PrixVente = prixPub == prixAchat ? 0 : prixPub,
                 QuantiteLivree = rupture ? 0 : qtLiv,
