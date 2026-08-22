@@ -16,15 +16,18 @@ public class AvoirsController : Controller
 
     private readonly ApplicationDbContext _context;
     private readonly AvoirService _avoirService;
+    private readonly CaisseService _caisseService;
     private readonly ILogger<AvoirsController> _logger;
 
     public AvoirsController(
         ApplicationDbContext context,
         AvoirService avoirService,
+        CaisseService caisseService,
         ILogger<AvoirsController> logger)
     {
         _context = context;
         _avoirService = avoirService;
+        _caisseService = caisseService;
         _logger = logger;
     }
 
@@ -77,6 +80,18 @@ public class AvoirsController : Controller
     [HttpGet]
     public async Task<IActionResult> Create()
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var isAdmin = User.IsInRole(AppRoles.Administrateur);
+        if (!isAdmin)
+        {
+            var sessionOuverte = await _caisseService.GetSessionOuverteAsync(userId);
+            if (sessionOuverte == null)
+            {
+                TempData["Warning"] = "Ouvrez une caisse avant de créer un avoir.";
+                return RedirectToAction("Index", "Caisse");
+            }
+        }
+
         await PopulateVendeursAsync();
         return View();
     }
@@ -131,6 +146,17 @@ public class AvoirsController : Controller
             }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var isAdmin = User.IsInRole(AppRoles.Administrateur);
+            if (!isAdmin)
+            {
+                var sessionOuverte = await _caisseService.GetSessionOuverteAsync(userId);
+                if (sessionOuverte == null)
+                {
+                    TempData["Warning"] = "Ouvrez une caisse avant de créer un avoir.";
+                    return RedirectToAction("Index", "Caisse");
+                }
+            }
+
             var (success, error, avoirId) = await _avoirService.CreateAvoirAsync(
                 clientNom, clientTelephone, numeroIdentite, lignes,
                 paymentMethod, userId, vendeurId, notes);

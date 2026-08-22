@@ -346,7 +346,7 @@ public class ReportsController : Controller
         var sales = await _db.Sales
             .AsNoTracking()
             .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-            .Where(s => !s.IsAnnulee)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest)
             .OrderByDescending(s => s.SoldAt)
             .ThenByDescending(s => s.Id)
             .Take(ReportLimits.MaxSalesRows)
@@ -404,7 +404,7 @@ public class ReportsController : Controller
         var ventes = await _db.Sales
             .AsNoTracking()
             .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-            .Where(s => !s.IsAnnulee && s.SoldAt >= debut && s.SoldAt < finExclusive)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt >= debut && s.SoldAt < finExclusive)
             .ToListAsync();
 
         var lignesParJour = ventes
@@ -543,7 +543,7 @@ public class ReportsController : Controller
             .AsNoTracking()
             .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
             .Include(s => s.Vendeur)
-            .Where(s => !s.IsAnnulee && s.SoldAt >= start && s.SoldAt < endExclusive)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt >= start && s.SoldAt < endExclusive)
             .OrderBy(s => s.SoldAt)
             .ToListAsync();
 
@@ -691,7 +691,7 @@ public class ReportsController : Controller
             .AsNoTracking()
             .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
             .Include(s => s.Vendeur)
-            .Where(s => !s.IsAnnulee && s.SoldAt >= start && s.SoldAt < end)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt >= start && s.SoldAt < end)
             .ToListAsync();
 
         return ProduitsExtrasFilter.VentesAvecLignesOfficielles(sales)
@@ -820,7 +820,7 @@ public class ReportsController : Controller
         var ventes = await _db.Sales
             .AsNoTracking()
             .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-            .Where(s => !s.IsAnnulee && s.SoldAt >= start && s.SoldAt < endExclusive)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt >= start && s.SoldAt < endExclusive)
             .ToListAsync();
 
         var lignes = ventes.SelectMany(s => ProduitsExtrasFilter.LignesOfficielles(s.Lines)).ToList();
@@ -945,7 +945,7 @@ public class ReportsController : Controller
                     .AsNoTracking()
                     .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
                     .Include(s => s.Vendeur)
-                    .Where(s => !s.IsAnnulee && s.SoldAt >= start && s.SoldAt < endExclusive))
+                    .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt >= start && s.SoldAt < endExclusive))
             .OrderByDescending(s => s.SoldAt)
             .ToListAsync();
 

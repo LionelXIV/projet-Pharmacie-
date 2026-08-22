@@ -110,7 +110,8 @@ public class CaisseController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Ouvrir(int NumeroCaisse, decimal FondDepart)
     {
-        var (ok, error, _) = await _caisseService.OuvrirCaisseAsync(NumeroCaisse, FondDepart, CurrentUserId);
+        var (ok, error, _) = await _caisseService.OuvrirCaisseAsync(
+            NumeroCaisse, FondDepart, CurrentUserId, User.IsInRole(AppRoles.Administrateur));
         if (!ok)
         {
             TempData["Error"] = error;
@@ -371,6 +372,9 @@ public class CaisseController : Controller
     [Authorize]
     public async Task<IActionResult> VerifierCaisseOuverte()
     {
+        if (User.IsInRole(AppRoles.Administrateur))
+            return Json(new { ouverte = false });
+
         var userId = CurrentUserId;
         if (string.IsNullOrEmpty(userId))
             return Json(new { ouverte = false });

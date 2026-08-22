@@ -45,5 +45,8 @@ public class Sale
     [StringLength(500)]
     public string? RaisonAnnulation { get; set; }
 
+    /// <summary>True = vente saisie en mode fantôme Administrateur (exclue des rapports).</summary>
+    public bool IsAdminTest { get; set; } = false;
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

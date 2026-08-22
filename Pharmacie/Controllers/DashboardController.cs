@@ -33,7 +33,7 @@ public class DashboardController : Controller
             .Include(s => s.Lines)
             .ThenInclude(l => l.Product!)
             .ThenInclude(p => p.Category)
-            .Where(s => !s.IsAnnulee && s.SoldAt.Date == today)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt.Date == today)
             .ToListAsync();
 
         var todaySalesOff = ProduitsExtrasFilter.VentesAvecLignesOfficielles(todaySalesRaw).ToList();
@@ -85,7 +85,7 @@ public class DashboardController : Controller
                 .Include(s => s.Lines)
                     .ThenInclude(l => l.Product!)
                         .ThenInclude(p => p.Category)
-                .Where(s => !s.IsAnnulee && s.SoldAt >= debutFinance && s.SoldAt < finExclusiveFinance)
+                .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt >= debutFinance && s.SoldAt < finExclusiveFinance)
                 .ToListAsync();
 
             var caParCategorie = ventes30jRaw
@@ -190,7 +190,7 @@ public class DashboardController : Controller
         var salesInRange = await _db.Sales
             .AsNoTracking()
             .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
-            .Where(s => !s.IsAnnulee && s.SoldAt.Date >= chartStart && s.SoldAt.Date <= today)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt.Date >= chartStart && s.SoldAt.Date <= today)
             .ToListAsync();
 
         var salesByDay = salesInRange
@@ -243,7 +243,7 @@ public class DashboardController : Controller
             .Include(s => s.Lines)
             .ThenInclude(l => l.Product!)
             .ThenInclude(p => p.Category)
-            .Where(s => !s.IsAnnulee && s.SoldAt.Date >= from && s.SoldAt.Date <= today)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt.Date >= from && s.SoldAt.Date <= today)
             .ToListAsync();
 
         var byDay = sales
@@ -322,7 +322,7 @@ public class DashboardController : Controller
             .Include(s => s.Lines)
             .ThenInclude(l => l.Product!)
             .ThenInclude(p => p.Category)
-            .Where(s => !s.IsAnnulee && s.SoldAt.Date >= debut)
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest && s.SoldAt.Date >= debut)
             .ToListAsync();
 
         var tableauJournalier = ventesParJour

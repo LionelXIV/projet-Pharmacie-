@@ -424,7 +424,8 @@
              || User.IsInRole(AppRoles.Administrateur)
              || User.IsInRole(AppRoles.Pharmacien)
              || User.IsInRole(AppRoles.Caissier)
-             || User.IsInRole(AppRoles.AssistantPharmacien))
+             || User.IsInRole(AppRoles.AssistantPharmacien)
+             || User.IsInRole(AppRoles.Vendeur))
          && !IsCtrl("Sales"))
     {
         <a asp-controller="Sales"

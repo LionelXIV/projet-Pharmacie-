@@ -212,16 +212,32 @@ public class SalesController : Controller
     public async Task<IActionResult> Create()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-        var session = await _caisseService.GetSessionOuverteAsync(userId);
-        if (session == null)
+        var isAdmin = User.IsInRole(AppRoles.Administrateur);
+
+        if (!isAdmin)
         {
-            TempData["Error"] = "Ouvrez votre caisse avant d'enregistrer une vente.";
-            return RedirectToAction("Index", "Caisse");
+            var session = await _caisseService.GetSessionOuverteAsync(userId);
+            if (session == null)
+            {
+                TempData["Warning"] = "Ouvrez une caisse avant de faire une vente.";
+                return RedirectToAction("Index", "Caisse");
+            }
+
+            ViewBag.SessionCaisse = session;
+            ViewBag.SessionCaisseId = session.Id;
+            ViewBag.SessionCaisseNom = session.NomCaisse;
+        }
+        else
+        {
+            var session = await _caisseService.GetSessionOuverteAsync(userId);
+            if (session != null)
+            {
+                ViewBag.SessionCaisse = session;
+                ViewBag.SessionCaisseId = session.Id;
+                ViewBag.SessionCaisseNom = session.NomCaisse;
+            }
         }
 
-        ViewBag.SessionCaisse = session;
-        ViewBag.SessionCaisseId = session.Id;
-        ViewBag.SessionCaisseNom = session.NomCaisse;
         await PopulateVendeursForPosAsync();
         return View(new SaleCreateViewModel());
     }
@@ -233,10 +249,11 @@ public class SalesController : Controller
         try
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var isAdmin = User.IsInRole(AppRoles.Administrateur);
             var session = await _caisseService.GetSessionOuverteAsync(userId);
-            if (session == null)
+            if (!isAdmin && session == null)
             {
-                TempData["Error"] = "Ouvrez votre caisse avant d'enregistrer une vente.";
+                TempData["Warning"] = "Ouvrez une caisse avant de faire une vente.";
                 return RedirectToAction("Index", "Caisse");
             }
 
@@ -302,10 +319,14 @@ public class SalesController : Controller
                             }
                         }
 
+                        if (isAdmin)
+                            sale.IsAdminTest = true;
+
                         await _context.SaveChangesAsync();
                     }
 
-                    await _caisseService.LierVenteAsync(session.Id, saleId.Value);
+                    if (session != null && !isAdmin)
+                        await _caisseService.LierVenteAsync(session.Id, saleId.Value);
 
                     TempData["NewSale"] = true;
                     return RedirectToAction(nameof(Details), new { id = saleId.Value });

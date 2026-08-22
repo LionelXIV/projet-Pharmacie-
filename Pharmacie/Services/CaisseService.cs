@@ -19,7 +19,8 @@ public class CaisseService
     public async Task<(bool Success, string Error, int SessionId)> OuvrirCaisseAsync(
         int numeroCaisse,
         decimal fondDepart,
-        string userId)
+        string userId,
+        bool isAdmin = false)
     {
         if (numeroCaisse is not (1 or 2))
             return (false, "Numéro de caisse invalide (1 = Matin, 2 = Soir).", 0);
@@ -53,7 +54,7 @@ public class CaisseService
                 s.CaissierUserId == userId
                 && s.Statut == SessionCaisseStatut.Ouverte);
 
-        if (sessionUser != null)
+        if (sessionUser != null && !isAdmin)
             return (false, $"Vous avez déjà une session ouverte ({sessionUser.NomCaisse}). Fermez-la avant d'en ouvrir une autre.", 0);
 
         // Nouvelle session même si des sessions fermées existent (réouverture)

@@ -120,6 +120,13 @@
                                     Régularisation
                                 </span>
                             }
+                            @if (s.IsAdminTest)
+                            {
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-gear me-1"></i>
+                                    Admin/Test
+                                </span>
+                            }
                             @if (s.IsAnnulee)
                             {
                                 <span class="badge bg-danger">

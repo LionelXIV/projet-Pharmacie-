@@ -10,19 +10,25 @@ using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = AppRoles.Sales)]
+[Authorize(Roles = AppRoles.CanCreateBon)]
 public class BonsController : Controller
 {
     private const int PageSize = 50;
 
     private readonly ApplicationDbContext _context;
     private readonly BonService _bonService;
+    private readonly CaisseService _caisseService;
     private readonly ILogger<BonsController> _logger;
 
-    public BonsController(ApplicationDbContext context, BonService bonService, ILogger<BonsController> logger)
+    public BonsController(
+        ApplicationDbContext context,
+        BonService bonService,
+        CaisseService caisseService,
+        ILogger<BonsController> logger)
     {
         _context = context;
         _bonService = bonService;
+        _caisseService = caisseService;
         _logger = logger;
     }
 
@@ -78,6 +84,18 @@ public class BonsController : Controller
     [HttpGet]
     public async Task<IActionResult> Create()
     {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var isAdmin = User.IsInRole(AppRoles.Administrateur);
+        if (!isAdmin)
+        {
+            var sessionOuverte = await _caisseService.GetSessionOuverteAsync(userId);
+            if (sessionOuverte == null)
+            {
+                TempData["Warning"] = "Ouvrez une caisse avant de créer un bon.";
+                return RedirectToAction("Index", "Caisse");
+            }
+        }
+
         await PopulateVendeursAsync();
         return View();
     }
@@ -134,6 +152,17 @@ public class BonsController : Controller
             }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var isAdmin = User.IsInRole(AppRoles.Administrateur);
+            if (!isAdmin)
+            {
+                var sessionOuverte = await _caisseService.GetSessionOuverteAsync(userId);
+                if (sessionOuverte == null)
+                {
+                    TempData["Warning"] = "Ouvrez une caisse avant de créer un bon.";
+                    return RedirectToAction("Index", "Caisse");
+                }
+            }
+
             var (success, error, bonId) = await _bonService.CreateBonAsync(
                 clientNom, clientTelephone, notes, lignes, userId, vendeurId, numeroIdentite);
 
