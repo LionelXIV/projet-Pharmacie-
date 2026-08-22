@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Data;
+using Pharmacie.Models;
 using Pharmacie.Models.Dto;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
@@ -764,6 +765,195 @@ public class BlImportService
             return false;
         text = text.Trim().ToLowerInvariant();
         return text is "1" or "true" or "oui" or "o" or "x" or "ug" or "yes" or "vrai";
+    }
+
+    public static string DetecterFournisseur(string texte)
+    {
+        if (string.IsNullOrEmpty(texte))
+            return "Inconnu";
+
+        if (texte.Contains("UbiPharm", StringComparison.OrdinalIgnoreCase)
+            || texte.Contains("UBIPHARM", StringComparison.OrdinalIgnoreCase)
+            || texte.Contains("DEL/", StringComparison.OrdinalIgnoreCase)
+            || texte.Contains("BEL/", StringComparison.OrdinalIgnoreCase))
+            return "UbiPharm";
+
+        if (texte.Contains("SODIPHARM", StringComparison.OrdinalIgnoreCase)
+            || texte.Contains("BORDEREAU DE LIVRAISON", StringComparison.OrdinalIgnoreCase))
+            return "Sodipharm";
+
+        return "Inconnu";
+    }
+
+    public static string ExtrairNumeroBL(string texte, string fournisseur)
+    {
+        if (string.IsNullOrEmpty(texte))
+            return "";
+
+        if (fournisseur == "Sodipharm")
+        {
+            var match = Regex.Match(texte, @"N[°o]\s*(\d{9,12}\s*\d{3})", RegexOptions.IgnoreCase);
+            if (match.Success)
+                return match.Groups[1].Value.Replace(" ", "");
+        }
+
+        if (fournisseur == "UbiPharm")
+        {
+            var match = Regex.Match(texte, @"(DEL/\d+|BEL/\d+)", RegexOptions.IgnoreCase);
+            if (match.Success)
+                return match.Groups[1].Value;
+        }
+
+        return "";
+    }
+
+    public static DateTime? ExtraireDate(string texte)
+    {
+        if (string.IsNullOrEmpty(texte))
+            return null;
+
+        var match = Regex.Match(texte, @"(\d{2}/\d{2}/\d{4})");
+        if (match.Success
+            && DateTime.TryParseExact(
+                match.Groups[1].Value,
+                "dd/MM/yyyy",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var date))
+            return date.Date;
+
+        match = Regex.Match(texte, @"(\d{2}/\d{2}/\d{2})(?!\d)");
+        if (match.Success
+            && DateTime.TryParseExact(
+                match.Groups[1].Value,
+                "dd/MM/yy",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out date))
+            return date.Date;
+
+        return null;
+    }
+
+    public static string ExtraireTextePdf(Stream stream)
+    {
+        using var pdf = PdfDocument.Open(stream);
+        var sb = new StringBuilder();
+        foreach (var page in pdf.GetPages())
+        {
+            sb.AppendLine(page.Text);
+        }
+        return sb.ToString();
+    }
+
+    public static List<BLLigneExtraite> ParserSodipharm(string texte)
+    {
+        var lignes = new List<BLLigneExtraite>();
+        if (string.IsNullOrEmpty(texte))
+            return lignes;
+
+        var matches = Regex.Matches(
+            texte,
+            @"(\d{7})\s+" +
+            @"([A-Z][A-Z0-9\s+\-./%]+?)\s+" +
+            @"(\d{3,4}(?:[,.]\d{2,3})?)" +
+            @"(?:\s+(\d{1,2}[,.]\d{2}))?");
+
+        foreach (Match m in matches)
+        {
+            var cip = m.Groups[1].Value.Trim();
+            var nom = Regex.Replace(m.Groups[2].Value.Trim(), @"\s+", " ");
+            var prixStr = m.Groups[3].Value.Replace(",", ".");
+            decimal.TryParse(
+                prixStr,
+                NumberStyles.Any,
+                CultureInfo.InvariantCulture,
+                out var prix);
+
+            if (cip.Length == 7 && prix > 0)
+            {
+                lignes.Add(new BLLigneExtraite
+                {
+                    CIP = cip,
+                    NomProduit = nom,
+                    PrixAchat = prix,
+                    QuantiteLivree = null,
+                    NumeroLot = null,
+                    DatePeremption = null,
+                    Confiance = "partielle"
+                });
+            }
+        }
+
+        return lignes.DistinctBy(l => l.CIP).ToList();
+    }
+
+    public static List<BLLigneExtraite> ParserUbiPharm(string texte)
+    {
+        var lignes = new List<BLLigneExtraite>();
+        if (string.IsNullOrEmpty(texte))
+            return lignes;
+
+        var matches = Regex.Matches(
+            texte,
+            @"(\d{7})\s*\n?" +
+            @"(?:\d{13})?\s*\n?" +
+            @"([A-Z][A-Z0-9\s+\-./%]+?)\s+" +
+            @"(?:LOT\s+\S+\s+PER\.\s+(\d{2}/\d{2}/\d{2,4}))?\s*" +
+            @"[\d,.]+\s+" +
+            @"(?:\d+\s+)?" +
+            @"(\d+)\s+" +
+            @"(\d+)?\s+" +
+            @"([\d,.]+)",
+            RegexOptions.IgnoreCase);
+
+        foreach (Match m in matches)
+        {
+            var cip = m.Groups[1].Value.Trim();
+            var nom = Regex.Replace(m.Groups[2].Value.Trim(), @"\s+", " ");
+
+            DateTime? peremp = null;
+            if (m.Groups[3].Success && m.Groups[3].Length > 0)
+            {
+                if (DateTime.TryParseExact(
+                        m.Groups[3].Value,
+                        ["dd/MM/yy", "dd/MM/yyyy"],
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out var d)
+                    && d != default)
+                    peremp = d.Date;
+            }
+
+            int? qteLivree = null;
+            if (m.Groups[5].Success
+                && m.Groups[5].Length > 0
+                && int.TryParse(m.Groups[5].Value, out var q))
+                qteLivree = q;
+
+            var prixStr = m.Groups[6].Value.Replace(",", ".");
+            decimal.TryParse(
+                prixStr,
+                NumberStyles.Any,
+                CultureInfo.InvariantCulture,
+                out var prix);
+
+            if (cip.Length >= 7 && prix > 0)
+            {
+                lignes.Add(new BLLigneExtraite
+                {
+                    CIP = cip,
+                    NomProduit = nom,
+                    PrixAchat = prix,
+                    QuantiteLivree = qteLivree,
+                    DatePeremption = peremp,
+                    NumeroLot = null,
+                    Confiance = qteLivree.HasValue ? "bonne" : "partielle"
+                });
+            }
+        }
+
+        return lignes.DistinctBy(l => l.CIP).ToList();
     }
 
     private sealed record ProductHit(

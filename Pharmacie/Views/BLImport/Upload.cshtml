@@ -1,0 +1,42 @@
+@{
+    ViewData["Title"] = "Importer un BL PDF";
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header mb-3">
+    <h1 class="page-title"><i class="bi bi-file-pdf me-2" aria-hidden="true"></i>Importer un Bon de Livraison PDF</h1>
+    <p class="page-lead mb-0">Extraction automatique, puis vérification manuelle avant mise à jour du stock.</p>
+</div>
+
+<div class="card shadow-sm mx-auto" style="max-width:600px">
+    <div class="card-header bg-success text-white fw-bold">
+        <i class="bi bi-file-pdf me-1"></i>
+        Importer un Bon de Livraison PDF
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info py-2">
+            <i class="bi bi-info-circle me-1"></i>
+            Formats supportés : <strong>UbiPharm</strong> et <strong>Sodipharm</strong>
+            (PDF texte, pas un scan image).
+        </div>
+
+        <form asp-action="Analyser" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="fichierPdf">Fichier PDF du BL</label>
+                <input type="file"
+                       id="fichierPdf"
+                       name="fichierPdf"
+                       class="form-control"
+                       accept=".pdf"
+                       required>
+                <div class="form-text">Sélectionnez le PDF reçu du fournisseur.</div>
+            </div>
+            <button type="submit" class="btn btn-success w-100 py-3">
+                <i class="bi bi-upload me-2"></i>
+                Analyser le BL
+            </button>
+        </form>
+    </div>
+</div>
