@@ -1,5 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Pharmacie.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -17,6 +19,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<ApplicationDbContext>()
+    .SetApplicationName("PharmacieApp");
 
 builder.Services.AddAuthorization(options =>
 {
@@ -53,11 +59,11 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// Cookie de session : 8h (journée de travail), sliding, MaxAge null.
+// Cookie de session : 12h (journée de travail), sliding, MaxAge null.
 // La déconnexion explicite se fait via le bouton « Terminer la session ».
 builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.ExpireTimeSpan = TimeSpan.FromHours(12);
     options.SlidingExpiration = true;
     options.Cookie.IsEssential = true;
     options.Cookie.HttpOnly = true;
