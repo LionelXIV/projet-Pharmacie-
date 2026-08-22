@@ -80,13 +80,26 @@ public class BLImportController : Controller
                         texteComplet = await BlImportService.ExtraireTexteOCR(
                             pdfBytes, visionEndpoint, visionApiKey);
                         ocrUtilise = true;
+                        _logger.LogInformation(
+                            "OCR retourné : {Length} caractères pour {File}",
+                            texteComplet?.Length ?? 0,
+                            fichierPdf.FileName);
+                        if (string.IsNullOrWhiteSpace(texteComplet))
+                        {
+                            TempData["Warning"] =
+                                "OCR exécuté mais aucun texte retourné par Azure (réponse vide).";
+                        }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "OCR Azure Vision indisponible pour {File}", fichierPdf.FileName);
+                        _logger.LogWarning(
+                            ex,
+                            "OCR Azure Vision indisponible pour {File} ({ExceptionType}): {Message}",
+                            fichierPdf.FileName,
+                            ex.GetType().Name,
+                            ex.Message);
                         TempData["Warning"] =
-                            "OCR non disponible : " + ex.Message
-                            + ". Certains champs seront vides.";
+                            $"OCR indisponible ({ex.GetType().Name}) : {ex.Message}";
                     }
                 }
                 else

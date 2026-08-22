@@ -3,6 +3,15 @@
     ViewData["Title"] = "Vérifier le BL";
 }
 
+@if (TempData["Warning"] != null)
+{
+    <div class="alert alert-warning">@TempData["Warning"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
 @await Html.PartialAsync("_BackButton")
 
 <div class="page-header mb-3">
