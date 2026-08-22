@@ -113,7 +113,16 @@
     </div>
     <div class="col-md-6 mb-3">
         <label asp-for="AlertThreshold" class="form-label"></label>
-        <input asp-for="AlertThreshold" class="form-control" type="number" min="0" />
+        <input asp-for="AlertThreshold" class="form-control" type="number" min="0" step="1" list="alert-threshold-suggestions" />
+        <datalist id="alert-threshold-suggestions">
+            <option value="0"></option>
+            <option value="1"></option>
+            <option value="2"></option>
+            <option value="3"></option>
+            <option value="4"></option>
+            <option value="5"></option>
+        </datalist>
+        <div class="form-text">Suggestions 0 à 5 ; vous pouvez aussi saisir n’importe quel nombre (15, 30…).</div>
         <span asp-validation-for="AlertThreshold" class="text-danger"></span>
     </div>
 </div>

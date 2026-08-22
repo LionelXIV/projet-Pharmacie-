@@ -112,8 +112,8 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
     context.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
 
     Console.WriteLine("=== Remise a zero des donnees metier (--reset-data) ===");
-    Console.WriteLine("Conserve : AspNetUsers/Roles, Categories, Suppliers, Products (catalogue + anomalies)");
-    Console.WriteLine("Supprime : ventes, caisse, bons, avoirs, patients, BL, commandes, lots, mouvements, imports, histo prix, Vendeurs");
+    Console.WriteLine("Conserve : AspNetUsers/Roles, Categories, Suppliers, Vendeurs, Products (types, categories, CIP, prix, seuils)");
+    Console.WriteLine("Supprime : ventes, caisse, bons, avoirs, patients, BL, commandes, lots, mouvements, imports Excel, histo prix");
     Console.WriteLine("Conseil : arrete temporairement l'App Service Azure pour liberer les verrous.");
 
     await using var transaction = await context.Database.BeginTransactionAsync();
@@ -163,9 +163,6 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
         await context.PrixModifications.ExecuteDeleteAsync();
         await context.UserActivityReports.ExecuteDeleteAsync();
 
-        // Vendeurs (liste encaissement)
-        await context.Vendeurs.ExecuteDeleteAsync();
-
         foreach (var table in new[]
                  {
                      "Sales", "SaleLines", "SessionCaisses", "DepotCaisses", "VenteCaisses",
@@ -174,7 +171,7 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
                      "GoodsReceiptLines", "GoodsReceipts", "PurchaseOrderLines", "PurchaseOrders",
                      "StockMovements", "ProductBatches",
                      "ImportBatches", "ImportLines", "ImportAnomalies",
-                     "PrixModifications", "UserActivityReports", "Vendeurs"
+                     "PrixModifications", "UserActivityReports"
                  })
         {
             await context.Database.ExecuteSqlRawAsync($"DBCC CHECKIDENT ('{table}', RESEED, 0)");
@@ -200,8 +197,8 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
     var caisseLeft = await context.SessionCaisses.CountAsync();
     var lotsLeft = await context.ProductBatches.CountAsync();
 
-    Console.WriteLine("OK: nettoyage complet termine (Products conserve, BL + Vendeurs supprimes).");
-    Console.WriteLine($"OK: Utilisateurs={usersLeft}, produits={productsLeft}, vendeurs={vendeursLeft} (attendu 0).");
+    Console.WriteLine("OK: nettoyage termine (catalogue produits + vendeurs conserves).");
+    Console.WriteLine($"OK: Utilisateurs={usersLeft}, produits={productsLeft}, vendeurs={vendeursLeft}.");
     Console.WriteLine($"Verification: Sales={salesLeft}, Bons={bonsLeft}, BL={blLeft}, SessionsCaisse={caisseLeft}, Lots={lotsLeft} (attendu 0).");
     logger.LogWarning(
         "RESET DATA CLI effectue. Users={Users}, Vendeurs={Vendeurs}, Products={Products}, Sales={Sales}",

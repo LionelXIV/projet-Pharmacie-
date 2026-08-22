@@ -148,6 +148,17 @@
                 class="form-select form-select-sm" style="width:220px" id="valeur-select">
             <option value="">Choisir la valeur...</option>
         </select>
+        <input type="number" min="0" step="1" class="form-control form-control-sm"
+               id="valeur-seuil" list="alert-threshold-suggestions" placeholder="0–5 ou autre"
+               style="width:10rem;display:none" disabled autocomplete="off" />
+        <datalist id="alert-threshold-suggestions">
+            <option value="0"></option>
+            <option value="1"></option>
+            <option value="2"></option>
+            <option value="3"></option>
+            <option value="4"></option>
+            <option value="5"></option>
+        </datalist>
         <button type="submit" form="form-groupe" class="btn btn-warning btn-sm"
                 onclick="return confirm('Appliquer cette correction à tous les produits sélectionnés ?');">
             <i class="bi bi-check-lg me-1"></i>Appliquer
@@ -287,13 +298,9 @@
                     <td>
                         @if (item.AlertThreshold == 0)
                         {
-                            <select name="alertThreshold" form="@formId" class="form-select form-select-sm" style="width:4.5rem">
-                                <option value="0" selected>0</option>
-                                <option value="5">5</option>
-                                <option value="10">10</option>
-                                <option value="20">20</option>
-                                <option value="50">50</option>
-                            </select>
+                            <input type="number" name="alertThreshold" form="@formId" value="0" min="0" step="1"
+                                   class="form-control form-control-sm" style="width:5.5rem"
+                                   list="alert-threshold-suggestions" />
                         }
                         else
                         {
@@ -388,16 +395,35 @@ var optionsParChamp = {
         { v: '4', l: 'PPH avec TVA 18%' }
     ],
     AlertThreshold: [
-        { v: '5', l: 'Seuil = 5' },
-        { v: '10', l: 'Seuil = 10' },
-        { v: '20', l: 'Seuil = 20' },
-        { v: '50', l: 'Seuil = 50' }
+        { v: '0', l: 'Seuil = 0' },
+        { v: '1', l: 'Seuil = 1' },
+        { v: '2', l: 'Seuil = 2' },
+        { v: '3', l: 'Seuil = 3' },
+        { v: '4', l: 'Seuil = 4' },
+        { v: '5', l: 'Seuil = 5' }
     ],
     CategoryId: categoriesOptions
 };
 
 function updateValeurOptions(champ) {
     var sel = document.getElementById('valeur-select');
+    var seuil = document.getElementById('valeur-seuil');
+    if (champ === 'AlertThreshold') {
+        sel.disabled = true;
+        sel.removeAttribute('name');
+        sel.style.display = 'none';
+        seuil.style.display = '';
+        seuil.disabled = false;
+        seuil.setAttribute('name', 'nouvelleValeur');
+        seuil.setAttribute('form', 'form-groupe');
+        return;
+    }
+    seuil.style.display = 'none';
+    seuil.disabled = true;
+    seuil.removeAttribute('name');
+    sel.disabled = false;
+    sel.setAttribute('name', 'nouvelleValeur');
+    sel.style.display = '';
     sel.innerHTML = '<option value="">Valeur...</option>';
     if (optionsParChamp[champ]) {
         optionsParChamp[champ].forEach(function (o) {
