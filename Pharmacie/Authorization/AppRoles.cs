@@ -78,13 +78,13 @@ public static class AppRoles
     public const string DashboardAccess =
         $"{PharmacienTitulaire},{Administrateur},{Pharmacien},{Caissier},{AssistantPharmacien}";
     public const string ReportsAccess =
-        $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Comptable}";
+        $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Caissier},{AssistantPharmacien},{Comptable}";
     /// <summary>État du stock et péremption (inclut Comptable).</summary>
     public const string StockReportsAccess =
         $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Comptable}";
     /// <summary>Historiques opérationnels (sans Comptable).</summary>
     public const string OperationalReportsAccess =
-        $"{PharmacienTitulaire},{Pharmacien},{Vendeur}";
+        $"{PharmacienTitulaire},{Pharmacien},{Vendeur},{Caissier},{AssistantPharmacien}";
     public const string FinancesAccess = CanAccessFinance;
     public const string PatientsRead =
         $"{PharmacienTitulaire},{Pharmacien},{AssistantPharmacien}";
@@ -120,6 +120,9 @@ public static class AppRoles
         IsTitulaire(user)
         || user.IsInRole(Pharmacien)
         || user.IsInRole(Vendeur)
+        || user.IsInRole(Caissier)
+        || user.IsInRole(AssistantPharmacien)
+        || user.IsInRole(Assistant)
         || user.IsInRole(GestionnaireStock)
         || user.IsInRole(Comptable);
 
@@ -134,6 +137,9 @@ public static class AppRoles
         IsTitulaire(user)
         || user.IsInRole(Pharmacien)
         || user.IsInRole(Vendeur)
+        || user.IsInRole(Caissier)
+        || user.IsInRole(AssistantPharmacien)
+        || user.IsInRole(Assistant)
         || user.IsInRole(GestionnaireStock);
 
     public static bool CanAccessFinances(ClaimsPrincipal user) =>

@@ -133,6 +133,19 @@ public class GoodsReceiptsController : Controller
         return View(receipt);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var (ok, error) = await _purchase.DeleteReceiptAsync(id, userId);
+        if (ok)
+            TempData["Success"] = "BL supprimé. Le stock correspondant a été retiré.";
+        else
+            TempData["Error"] = error ?? "Suppression du BL impossible.";
+        return RedirectToAction(nameof(Index));
+    }
+
     public async Task<IActionResult> Create(int purchaseOrderId)
     {
         var order = await _context.PurchaseOrders

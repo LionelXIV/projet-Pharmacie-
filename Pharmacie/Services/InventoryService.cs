@@ -83,6 +83,40 @@ public class InventoryService
         }
     }
 
+    /// <summary>
+    /// Prépare une sortie stock sans SaveChanges — à utiliser dans une transaction globale (ex. suppression de BL).
+    /// </summary>
+    public (bool Ok, string? Error) StageSortie(
+        ProductBatch batch,
+        int quantity,
+        string? reason,
+        string? userId)
+    {
+        if (quantity <= 0)
+            return (false, "La quantité doit être positive.");
+        if (batch.Product == null)
+            return (false, "Lot introuvable.");
+        if (quantity > batch.Quantity)
+            return (false, "Quantité indisponible sur ce lot.");
+
+        batch.Quantity -= quantity;
+        batch.Product.StockQuantity -= quantity;
+        if (batch.Product.StockQuantity < 0)
+            batch.Product.StockQuantity = 0;
+
+        _db.StockMovements.Add(new StockMovement
+        {
+            ProductId = batch.ProductId,
+            BatchId = batch.Id,
+            Type = StockMovementType.Sortie,
+            Quantity = quantity,
+            Reason = reason,
+            OccurredAt = DateTime.Now,
+            UserId = userId
+        });
+        return (true, null);
+    }
+
     public async Task<(bool Ok, string? Error)> RecordSortieAsync(
         int batchId,
         int quantity,

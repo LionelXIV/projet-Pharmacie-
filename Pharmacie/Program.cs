@@ -300,6 +300,24 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
 
+    // Ventes faites par un compte métier (titulaire, pharmacien, caisse…)
+    // parfois taguées « test admin » si le user a aussi le rôle Administrateur.
+    // On les réaffiche dans l'historique, sans toucher aux ventes fantôme admin pur.
+    await db.Database.ExecuteSqlRawAsync("""
+        UPDATE s SET IsAdminTest = 0
+        FROM Sales s
+        WHERE s.IsAdminTest = 1
+          AND EXISTS (
+              SELECT 1
+              FROM AspNetUserRoles ur
+              INNER JOIN AspNetRoles r ON r.Id = ur.RoleId
+              WHERE ur.UserId = s.UserId
+                AND r.Name IN (
+                    N'PharmacienTitulaire', N'Pharmacien', N'Vendeur',
+                    N'Caissier', N'AssistantPharmacien', N'Assistant')
+          );
+        """);
+
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     await IdentitySeed.SeedRolesAsync(roleManager);
 

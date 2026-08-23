@@ -136,6 +136,15 @@
                                title="Modifier le BL">
                                 <i class="bi bi-pencil" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Modifier</span>
                             </a>
+                            <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-danger"
+                                        title="Supprimer le BL et retirer le stock"
+                                        data-confirm="Supprimer le BL #@item.Id ? Le stock ajouté par ce BL sera retiré. Impossible si des unités ont déjà été vendues.">
+                                    <i class="bi bi-trash" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Supprimer</span>
+                                </button>
+                            </form>
                             @if (item.PurchaseOrderId.HasValue)
                             {
                                 <a class="btn btn-sm btn-outline-secondary"

@@ -182,6 +182,192 @@ public class PurchaseService
         }
     }
 
+    /// <summary>
+    /// Supprime un BL et retire du stock les quantités encore présentes sur les lots de cette réception.
+    /// Refusé si une partie a déjà été vendue.
+    /// </summary>
+    public async Task<(bool Ok, string? Error)> DeleteReceiptAsync(int receiptId, string? userId)
+    {
+        var receipt = await _db.GoodsReceipts
+            .Include(r => r.Lines)
+            .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(r => r.Id == receiptId);
+        if (receipt == null)
+            return (false, "Bon de livraison introuvable.");
+
+        await using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            var reasonTag = receipt.PurchaseOrderId is int poId
+                ? $"Réception commande #{poId}"
+                : $"BL Direct #{receipt.Id}";
+            var reverseReason = $"Suppression BL #{receipt.Id}";
+
+            var assignedBatchIds = new HashSet<int>();
+
+            foreach (var line in receipt.Lines.Where(l => l.ProductId is > 0 && l.QuantityReceived > 0))
+            {
+                var productId = line.ProductId!.Value;
+                var productName = line.Product?.CommercialName ?? $"#{productId}";
+                var lot = (line.LotNumber ?? "").Trim();
+                var exp = line.ExpirationDate.Date;
+
+                var entrees = await _db.StockMovements
+                    .Include(m => m.Batch!)
+                    .ThenInclude(b => b.Product)
+                    .Where(m => m.Type == StockMovementType.Entree
+                                && m.ProductId == productId
+                                && m.Batch != null
+                                && m.Batch.LotNumber == lot
+                                && m.Batch.ExpirationDate.Date == exp
+                                && m.Quantity == line.QuantityReceived)
+                    .OrderBy(m => m.OccurredAt)
+                    .ToListAsync();
+
+                var entree = entrees.FirstOrDefault(m =>
+                    !assignedBatchIds.Contains(m.BatchId)
+                    && (string.IsNullOrEmpty(m.Reason)
+                        || m.Reason.Contains(reasonTag, StringComparison.Ordinal)
+                        || m.Reason.Contains($"BL Direct #{receipt.Id}", StringComparison.Ordinal)
+                        || m.Reason.Contains($"BL Direct #{receipt.Id}", StringComparison.Ordinal)
+                        || (receipt.PurchaseOrderId is int oid
+                            && (m.Reason.Contains($"Réception commande #{oid}", StringComparison.Ordinal)
+                                || m.Reason.Contains($"Réception commande #{oid}", StringComparison.Ordinal)))));
+
+                if (entree?.Batch?.Product == null)
+                {
+                    // Lots créés sans motif exploitable : on prend le lot encore inutilisé le plus proche.
+                    entree = entrees.FirstOrDefault(m => !assignedBatchIds.Contains(m.BatchId) && m.Batch?.Product != null);
+                }
+
+                if (entree?.Batch?.Product == null)
+                    return await FailAsync(tx,
+                        $"Lots de stock introuvables pour « {productName} » (lot {lot}). Suppression impossible.");
+
+                var batch = entree.Batch;
+                assignedBatchIds.Add(batch.Id);
+
+                var soldOnBatch = await _db.StockMovements.AnyAsync(m =>
+                    m.BatchId == batch.Id && m.SaleId != null);
+                if (soldOnBatch)
+                    return await FailAsync(tx,
+                        $"Impossible de supprimer le BL : du stock de « {productName} » (lot {lot}) a déjà été vendu.");
+
+                var ouvertures = await _db.StockMovements
+                    .Where(m => m.BatchId == batch.Id
+                                && m.Type == StockMovementType.Sortie
+                                && m.SaleId == null
+                                && m.Reason != null
+                                && (m.Reason.Contains("Ouverture boîte")
+                                    || m.Reason.Contains("Ouverture boîte")
+                                    || m.Reason.Contains("Ouverture boîte")))
+                    .ToListAsync();
+                var qtyOpened = ouvertures.Sum(m => m.Quantity);
+
+                var otherSorties = await _db.StockMovements
+                    .Where(m => m.BatchId == batch.Id
+                                && m.Type == StockMovementType.Sortie
+                                && m.SaleId == null
+                                && (m.Reason == null
+                                    || (!m.Reason.Contains("Ouverture boîte")
+                                        && !m.Reason.Contains("Ouverture boîte")
+                                        && !m.Reason.Contains("Ouverture boîte"))))
+                    .SumAsync(m => m.Quantity);
+                if (otherSorties > 0)
+                    return await FailAsync(tx,
+                        $"Impossible de supprimer le BL : le lot « {productName} » {lot} a déjà été consommé.");
+
+                var remainingOnBatch = batch.Quantity;
+                var expectedRemaining = line.QuantityReceived - qtyOpened;
+                if (remainingOnBatch < expectedRemaining)
+                    return await FailAsync(tx,
+                        $"Impossible de supprimer le BL : le stock restant de « {productName} » est inférieur à la quantité reçue (déjà vendu ou sorti).");
+
+                if (qtyOpened > 0)
+                {
+                    var child = await _db.Products
+                        .Include(p => p.Batches)
+                        .FirstOrDefaultAsync(p => p.ParentProductId == productId);
+                    if (child == null || child.NbUnitesParBoite is not > 0)
+                        return await FailAsync(tx,
+                            $"Des boîtes de « {productName} » ont été ouvertes : impossible d’annuler le stock détail.");
+
+                    var tablettes = qtyOpened * child.NbUnitesParBoite.Value;
+                    var childBatch = child.Batches.FirstOrDefault(b =>
+                        b.LotNumber == lot && b.ExpirationDate.Date == exp);
+                    if (childBatch == null)
+                        childBatch = await _db.ProductBatches
+                            .Include(b => b.Product)
+                            .FirstOrDefaultAsync(b =>
+                                b.ProductId == child.Id
+                                && b.LotNumber == lot
+                                && b.ExpirationDate.Date == exp);
+                    else
+                        childBatch.Product ??= child;
+
+                    if (childBatch?.Product == null)
+                        return await FailAsync(tx,
+                            $"Lot unité introuvable pour « {productName} ». Suppression refusée pour ne pas fausser le stock.");
+
+                    var childSold = await _db.StockMovements.AnyAsync(m =>
+                        m.BatchId == childBatch.Id && m.SaleId != null);
+                    if (childSold || childBatch.Quantity < tablettes)
+                        return await FailAsync(tx,
+                            $"Impossible de supprimer le BL : des unités de « {productName} » ouvertes à la réception ont déjà été vendues.");
+
+                    var (okChild, errChild) = _inventory.StageSortie(
+                        childBatch,
+                        tablettes,
+                        reverseReason + " (unités ouvertes)",
+                        userId);
+                    if (!okChild)
+                        return await FailAsync(tx, errChild ?? "Sortie stock unités impossible.");
+                }
+
+                if (remainingOnBatch > 0)
+                {
+                    var (okParent, errParent) = _inventory.StageSortie(
+                        batch,
+                        remainingOnBatch,
+                        reverseReason,
+                        userId);
+                    if (!okParent)
+                        return await FailAsync(tx, errParent ?? "Sortie stock impossible.");
+                }
+            }
+
+            if (receipt.PurchaseOrderId is int orderId)
+            {
+                var order = await _db.PurchaseOrders
+                    .Include(o => o.Lines)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+                if (order != null)
+                {
+                    foreach (var line in receipt.Lines.Where(l => l.PurchaseOrderLineId.HasValue))
+                    {
+                        var poLine = order.Lines.FirstOrDefault(l => l.Id == line.PurchaseOrderLineId);
+                        if (poLine == null)
+                            continue;
+                        poLine.QuantityReceived = Math.Max(0, poLine.QuantityReceived - line.QuantityReceived);
+                    }
+
+                    RefreshOrderStatus(order);
+                }
+            }
+
+            _db.GoodsReceiptLines.RemoveRange(receipt.Lines);
+            _db.GoodsReceipts.Remove(receipt);
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+            return (true, null);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
     private static async Task<(bool Ok, string? Error)> FailAsync(
         IDbContextTransaction tx,
         string message)

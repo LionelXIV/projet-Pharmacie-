@@ -56,15 +56,20 @@ public class SalesController : Controller
             .Include(s => s.Vendeur)
             .AsQueryable();
 
-        if (filter.From.HasValue)
+        DateTime? fromDay = filter.From?.Date;
+        DateTime? toDay = filter.To?.Date;
+        if (fromDay.HasValue && toDay.HasValue && fromDay > toDay)
+            (fromDay, toDay) = (toDay, fromDay);
+
+        if (fromDay.HasValue)
         {
-            var from = filter.From.Value.Date;
+            var from = fromDay.Value;
             q = q.Where(s => s.SoldAt >= from);
         }
 
-        if (filter.To.HasValue)
+        if (toDay.HasValue)
         {
-            var toExclusive = filter.To.Value.Date.AddDays(1);
+            var toExclusive = toDay.Value.AddDays(1);
             q = q.Where(s => s.SoldAt < toExclusive);
         }
 
