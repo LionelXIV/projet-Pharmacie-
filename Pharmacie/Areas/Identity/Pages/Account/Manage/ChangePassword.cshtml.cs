@@ -42,7 +42,7 @@ public class ChangePasswordModel : PageModel
         public string NewPassword { get; set; } = default!;
 
         [DataType(DataType.Password)]
-        [Display(Name = "Confirmer le mot de passe")]
+        [Display(Name = "Confirmer le nouveau mot de passe")]
         [Compare("NewPassword", ErrorMessage = "Le nouveau mot de passe et la confirmation ne correspondent pas.")]
         public string? ConfirmPassword { get; set; }
     }

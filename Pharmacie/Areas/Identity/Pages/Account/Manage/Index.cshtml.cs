@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
-using Pharmacie.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Pharmacie.Models;
 
 namespace Pharmacie.Areas.Identity.Pages.Account.Manage;
 
@@ -29,6 +29,10 @@ public class IndexModel : PageModel
 
     public class InputModel
     {
+        [Display(Name = "Nom affiché")]
+        [StringLength(100)]
+        public string? DisplayName { get; set; }
+
         [Phone]
         [Display(Name = "Téléphone")]
         public string? PhoneNumber { get; set; }
@@ -42,6 +46,7 @@ public class IndexModel : PageModel
         Username = userName ?? string.Empty;
         Input = new InputModel
         {
+            DisplayName = user.DisplayName,
             PhoneNumber = phoneNumber
         };
     }
@@ -79,6 +84,18 @@ public class IndexModel : PageModel
             if (!setPhoneResult.Succeeded)
             {
                 StatusMessage = "Erreur : impossible de définir le numéro de téléphone.";
+                return RedirectToPage();
+            }
+        }
+
+        var nom = (Input.DisplayName ?? string.Empty).Trim();
+        if (!string.Equals(user.DisplayName, nom, StringComparison.Ordinal))
+        {
+            user.DisplayName = nom;
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                StatusMessage = "Erreur : impossible d'enregistrer le nom affiché.";
                 return RedirectToPage();
             }
         }
