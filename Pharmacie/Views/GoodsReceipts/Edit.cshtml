@@ -1,0 +1,102 @@
+@model GoodsReceiptEditViewModel
+@{
+    ViewData["Title"] = "Modifier le BL #" + Model.Id;
+    var fournisseurs = ViewBag.Fournisseurs as IEnumerable<Supplier> ?? Enumerable.Empty<Supplier>();
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header mb-3">
+    <h1 class="page-title">Modifier le BL #@Model.Id</h1>
+    <p class="page-lead mb-0">
+        Corrigez le n° de lot et la péremption. Les quantités et les produits ne changent pas (le stock resterait faux).
+    </p>
+</div>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger">
+        <div asp-validation-summary="All" class="mb-0"></div>
+    </div>
+}
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-3 border-bottom fw-semibold">Informations générales</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="SupplierId" class="form-label"></label>
+                    <select asp-for="SupplierId" class="form-select">
+                        <option value="">— Fournisseur —</option>
+                        @foreach (var s in fournisseurs)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Reference" class="form-label"></label>
+                    <input asp-for="Reference" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="DateReception" class="form-label"></label>
+                    <input asp-for="DateReception" class="form-control" type="date" data-flatpickr-ignore="true" />
+                </div>
+                <div class="col-12">
+                    <label asp-for="Notes" class="form-label"></label>
+                    <input asp-for="Notes" class="form-control" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white py-3 border-bottom fw-semibold">Lignes</div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Produit</th>
+                        <th class="text-end">Qté</th>
+                        <th>N° lot</th>
+                        <th>Péremption</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Lignes.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                @Model.Lignes[i].NomProduit
+                                <input type="hidden" asp-for="Lignes[i].Id" />
+                                <input type="hidden" asp-for="Lignes[i].ProductId" />
+                                <input type="hidden" asp-for="Lignes[i].NomProduit" />
+                                <input type="hidden" asp-for="Lignes[i].QuantiteRecue" />
+                            </td>
+                            <td class="text-end">@Model.Lignes[i].QuantiteRecue</td>
+                            <td style="min-width:9rem">
+                                <input asp-for="Lignes[i].NumeroLot" class="form-control form-control-sm" />
+                            </td>
+                            <td style="min-width:9rem">
+                                <input asp-for="Lignes[i].DatePeremption" class="form-control form-control-sm"
+                                       type="month" data-flatpickr-ignore="true"
+                                       value="@ExpirationMonth.ToInputValue(Model.Lignes[i].DatePeremption)" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Enregistrer
+        </button>
+        <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Annuler</a>
+    </div>
+</form>

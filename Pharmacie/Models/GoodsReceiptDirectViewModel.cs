@@ -65,3 +65,41 @@ public class GoodsReceiptDirectLigne
     [Range(0, int.MaxValue)]
     public int NbBoitesAOuvrir { get; set; }
 }
+
+public class GoodsReceiptEditViewModel
+{
+    public int Id { get; set; }
+
+    [Display(Name = "N° BL fournisseur")]
+    [StringLength(80)]
+    public string? Reference { get; set; }
+
+    [Display(Name = "Fournisseur")]
+    public int? SupplierId { get; set; }
+
+    [Display(Name = "Date de réception")]
+    [DataType(DataType.Date)]
+    public DateTime DateReception { get; set; }
+
+    [Display(Name = "Notes")]
+    [StringLength(500)]
+    public string? Notes { get; set; }
+
+    public List<GoodsReceiptEditLigneViewModel> Lignes { get; set; } = new();
+}
+
+public class GoodsReceiptEditLigneViewModel
+{
+    public int Id { get; set; }
+    public int? ProductId { get; set; }
+    public string NomProduit { get; set; } = "";
+    public int QuantiteRecue { get; set; }
+
+    [StringLength(80)]
+    [Display(Name = "N° lot")]
+    public string? NumeroLot { get; set; }
+
+    [DataType(DataType.Date)]
+    [Display(Name = "Péremption")]
+    public DateTime? DatePeremption { get; set; }
+}

@@ -319,9 +319,6 @@ public class SalesController : Controller
                             }
                         }
 
-                        if (isAdmin)
-                            sale.IsAdminTest = true;
-
                         await _context.SaveChangesAsync();
                     }
 

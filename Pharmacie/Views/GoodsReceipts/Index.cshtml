@@ -130,6 +130,12 @@
                                title="Voir le BL">
                                 <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Détail</span>
                             </a>
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-action="Edit"
+                               asp-route-id="@item.Id"
+                               title="Modifier le BL">
+                                <i class="bi bi-pencil" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Modifier</span>
+                            </a>
                             @if (item.PurchaseOrderId.HasValue)
                             {
                                 <a class="btn btn-sm btn-outline-secondary"

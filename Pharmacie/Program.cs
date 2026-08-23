@@ -300,6 +300,11 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
 
+    // Les ventes du rôle Administrateur avaient été marquées « test » à tort
+    // et disparaissaient des historiques / rapports.
+    await db.Database.ExecuteSqlRawAsync(
+        "UPDATE Sales SET IsAdminTest = 0 WHERE IsAdminTest = 1");
+
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     await IdentitySeed.SeedRolesAsync(roleManager);
 

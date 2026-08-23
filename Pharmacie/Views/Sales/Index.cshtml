@@ -41,11 +41,11 @@
         <form method="get" asp-action="Index" class="row g-2 align-items-end">
             <div class="col-md-4 col-lg-2">
                 <label class="form-label small mb-0" for="From">Du</label>
-                <input type="date" name="From" id="From" value="@(Model.Filter.From?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
+                <input type="date" name="From" id="From" value="@(Model.Filter.From?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" data-flatpickr-ignore="true" />
             </div>
             <div class="col-md-4 col-lg-2">
                 <label class="form-label small mb-0" for="To">Au</label>
-                <input type="date" name="To" id="To" value="@(Model.Filter.To?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
+                <input type="date" name="To" id="To" value="@(Model.Filter.To?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" data-flatpickr-ignore="true" />
             </div>
             <div class="col-md-4 col-lg-4">
                 <label class="form-label small mb-0" for="UserId">Utilisateur</label>

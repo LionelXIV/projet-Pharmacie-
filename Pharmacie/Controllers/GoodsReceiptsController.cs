@@ -516,6 +516,172 @@ public class GoodsReceiptsController : Controller
         return null;
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id)
+    {
+        var receipt = await _context.GoodsReceipts
+            .Include(r => r.Lines)
+            .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (receipt == null)
+            return NotFound();
+
+        await PopulateSuppliersAsync(receipt.SupplierId);
+        return View(MapEditViewModel(receipt));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, GoodsReceiptEditViewModel model)
+    {
+        if (id != model.Id)
+            return BadRequest();
+
+        var receipt = await _context.GoodsReceipts
+            .Include(r => r.Lines)
+            .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (receipt == null)
+            return NotFound();
+
+        model.Lignes ??= new List<GoodsReceiptEditLigneViewModel>();
+        if (model.Lignes.Count == 0)
+            ModelState.AddModelError(string.Empty, "Le BL n'a aucune ligne à modifier.");
+
+        if (model.SupplierId.HasValue
+            && !await _context.Suppliers.AnyAsync(s => s.Id == model.SupplierId.Value))
+            ModelState.AddModelError(nameof(model.SupplierId), "Fournisseur introuvable.");
+
+        if (!ModelState.IsValid)
+        {
+            await PopulateSuppliersAsync(model.SupplierId);
+            RestoreEditLineLabels(receipt, model);
+            return View(model);
+        }
+
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            receipt.Reference = string.IsNullOrWhiteSpace(model.Reference) ? null : model.Reference.Trim();
+            receipt.Notes = string.IsNullOrWhiteSpace(model.Notes) ? null : model.Notes.Trim();
+            receipt.SupplierId = model.SupplierId;
+            if (model.DateReception != default)
+            {
+                var time = receipt.ReceivedAt.TimeOfDay;
+                receipt.ReceivedAt = model.DateReception.Date + time;
+            }
+
+            foreach (var posted in model.Lignes)
+            {
+                var line = receipt.Lines.FirstOrDefault(l => l.Id == posted.Id);
+                if (line == null)
+                    continue;
+
+                var productId = line.ProductId;
+                if (productId is null or <= 0)
+                    continue;
+
+                var oldLot = line.LotNumber ?? "";
+                var oldExp = line.ExpirationDate.Date;
+                var newLot = string.IsNullOrWhiteSpace(posted.NumeroLot)
+                    ? oldLot
+                    : posted.NumeroLot.Trim();
+                var newExp = ExpirationMonth.EndOfMonth(
+                    posted.DatePeremption ?? line.ExpirationDate);
+
+                if (newLot == oldLot && newExp.Date == oldExp)
+                    continue;
+
+                await SyncBatchLotAndExpirationAsync(productId.Value, oldLot, oldExp, newLot, newExp);
+
+                var enfant = await _context.Products
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.ParentProductId == productId.Value);
+                if (enfant != null)
+                    await SyncBatchLotAndExpirationAsync(enfant.Id, oldLot, oldExp, newLot, newExp);
+
+                line.LotNumber = newLot;
+                line.ExpirationDate = newExp;
+            }
+
+            await _context.SaveChangesAsync();
+            await tx.CommitAsync();
+            TempData["Success"] = "BL mis à jour. Lots et dates de péremption synchronisés avec le stock.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            ModelState.AddModelError(string.Empty, ex.Message);
+            await PopulateSuppliersAsync(model.SupplierId);
+            RestoreEditLineLabels(receipt, model);
+            return View(model);
+        }
+    }
+
+    private async Task PopulateSuppliersAsync(int? selectedId = null)
+    {
+        ViewBag.Fournisseurs = await _context.Suppliers
+            .AsNoTracking()
+            .OrderBy(s => s.Name)
+            .ToListAsync();
+        _ = selectedId;
+    }
+
+    private static GoodsReceiptEditViewModel MapEditViewModel(GoodsReceipt receipt) => new()
+    {
+        Id = receipt.Id,
+        Reference = receipt.Reference,
+        SupplierId = receipt.SupplierId,
+        DateReception = receipt.ReceivedAt.Date,
+        Notes = receipt.Notes,
+        Lignes = receipt.Lines
+            .OrderBy(l => l.Id)
+            .Select(l => new GoodsReceiptEditLigneViewModel
+            {
+                Id = l.Id,
+                ProductId = l.ProductId,
+                NomProduit = l.Product?.CommercialName ?? $"#{l.ProductId}",
+                QuantiteRecue = l.QuantityReceived,
+                NumeroLot = l.LotNumber,
+                DatePeremption = l.ExpirationDate
+            })
+            .ToList()
+    };
+
+    private static void RestoreEditLineLabels(GoodsReceipt receipt, GoodsReceiptEditViewModel model)
+    {
+        foreach (var posted in model.Lignes)
+        {
+            var line = receipt.Lines.FirstOrDefault(l => l.Id == posted.Id);
+            if (line == null)
+                continue;
+            posted.NomProduit = line.Product?.CommercialName ?? $"#{line.ProductId}";
+            posted.QuantiteRecue = line.QuantityReceived;
+            posted.ProductId = line.ProductId;
+        }
+    }
+
+    private async Task SyncBatchLotAndExpirationAsync(
+        int productId,
+        string oldLot,
+        DateTime oldExpiration,
+        string newLot,
+        DateTime newExpiration)
+    {
+        var batches = await _context.ProductBatches
+            .Where(b => b.ProductId == productId
+                        && b.LotNumber == oldLot
+                        && b.ExpirationDate.Date == oldExpiration.Date)
+            .ToListAsync();
+
+        foreach (var batch in batches)
+        {
+            batch.LotNumber = newLot;
+            batch.ExpirationDate = newExpiration.Date;
+        }
+    }
+
     private static ReceptionFormViewModel BuildReceptionViewModel(
         PurchaseOrder order,
         IReadOnlyList<PurchaseOrderLine> openLines)
