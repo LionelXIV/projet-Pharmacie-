@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Pharmacie.Authorization;
@@ -19,17 +20,20 @@ public class BonsController : Controller
     private readonly BonService _bonService;
     private readonly CaisseService _caisseService;
     private readonly ILogger<BonsController> _logger;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public BonsController(
         ApplicationDbContext context,
         BonService bonService,
         CaisseService caisseService,
-        ILogger<BonsController> logger)
+        ILogger<BonsController> logger,
+        UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _bonService = bonService;
         _caisseService = caisseService;
         _logger = logger;
+        _userManager = userManager;
     }
 
     // ─── Liste ───────────────────────────────────────────────────────────────
@@ -326,10 +330,20 @@ public class BonsController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Administrateur},{AppRoles.Pharmacien}")]
-    public async Task<IActionResult> AnnulerBon(int id)
+    public async Task<IActionResult> AnnulerBon(int id, string? raison = null)
     {
-        var bon = await _context.Bons.FindAsync(id);
+        var bon = await _context.Bons
+            .Include(b => b.Lignes)
+                .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(b => b.Id == id);
+
         if (bon == null) return NotFound();
+
+        if (bon.Statut == BonStatut.Annule)
+        {
+            TempData["Error"] = "Ce bon est déjà annulé.";
+            return RedirectToAction(nameof(Index));
+        }
 
         if (bon.Statut == BonStatut.Solde)
         {
@@ -337,11 +351,96 @@ public class BonsController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        bon.Statut = BonStatut.Annule;
-        await _context.SaveChangesAsync();
+        var userId = _userManager.GetUserId(User) ?? "";
+        var user = await _userManager.FindByIdAsync(userId);
+        var nomUser = user?.DisplayName ?? user?.UserName ?? userId;
 
-        TempData["Success"] = "Bon annulé.";
-        return RedirectToAction(nameof(Details), new { id });
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var marker = $"Bon {bon.Numero}";
+            var sorties = await _context.StockMovements
+                .Include(m => m.Batch)
+                .Include(m => m.Product)
+                .Where(m =>
+                    m.Type == StockMovementType.Sortie
+                    && m.Reason != null
+                    && m.Reason.Contains(marker))
+                .ToListAsync();
+
+            if (sorties.Count > 0)
+            {
+                foreach (var mouvement in sorties)
+                {
+                    if (mouvement.Batch != null)
+                        mouvement.Batch.Quantity += mouvement.Quantity;
+                    if (mouvement.Product != null)
+                        mouvement.Product.StockQuantity += mouvement.Quantity;
+
+                    _context.StockMovements.Add(new StockMovement
+                    {
+                        ProductId = mouvement.ProductId,
+                        BatchId = mouvement.BatchId,
+                        Type = StockMovementType.Entree,
+                        Quantity = mouvement.Quantity,
+                        Reason = $"Restitution stock — Annulation bon #{bon.Numero} par {nomUser}",
+                        OccurredAt = DateTime.Now,
+                        UserId = userId
+                    });
+                }
+            }
+            else
+            {
+                foreach (var ligne in bon.Lignes)
+                {
+                    var product = await _context.Products
+                        .Include(p => p.Batches)
+                        .FirstOrDefaultAsync(p => p.Id == ligne.ProductId);
+                    if (product == null) continue;
+
+                    product.StockQuantity += ligne.Quantity;
+
+                    var lot = product.Batches
+                        .OrderBy(b => b.ExpirationDate)
+                        .ThenBy(b => b.Id)
+                        .FirstOrDefault();
+
+                    if (lot != null)
+                    {
+                        lot.Quantity += ligne.Quantity;
+                        _context.StockMovements.Add(new StockMovement
+                        {
+                            ProductId = product.Id,
+                            BatchId = lot.Id,
+                            Type = StockMovementType.Entree,
+                            Quantity = ligne.Quantity,
+                            Reason = $"Restitution stock — Annulation bon #{bon.Numero} par {nomUser}",
+                            OccurredAt = DateTime.Now,
+                            UserId = userId
+                        });
+                    }
+                }
+            }
+
+            bon.Statut = BonStatut.Annule;
+            var extra = string.IsNullOrWhiteSpace(raison)
+                ? $"\nAnnulé par {nomUser} le {DateTime.Now:dd/MM/yyyy HH:mm}"
+                : $"\nAnnulé par {nomUser} le {DateTime.Now:dd/MM/yyyy HH:mm} — {raison.Trim()}";
+            var combined = string.IsNullOrWhiteSpace(bon.Notes) ? extra.Trim() : bon.Notes + extra;
+            bon.Notes = combined.Length <= 500 ? combined : combined[..500];
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+            TempData["Success"] = $"Bon #{bon.Numero} annulé. Stock restitué.";
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Erreur lors de l'annulation du bon {BonId}", id);
+            TempData["Error"] = "Erreur lors de l'annulation : " + ex.Message;
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

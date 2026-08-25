@@ -16,6 +16,22 @@
             @PaymentMethodDisplay.Format(Model.PaymentMethod, Model.PaymentMethodAutre)
         </span>
     </p>
+    @if (Model.IsModifiee && Model.VenteOriginaleId.HasValue)
+    {
+        <div class="small text-muted mt-1">
+            <i class="bi bi-arrow-left-circle me-1"></i>
+            Remplace la vente
+            <a asp-action="Details" asp-route-id="@Model.VenteOriginaleId" class="text-warning fw-bold">#@Model.VenteOriginaleId</a>
+        </div>
+    }
+    @if (Model.IsAnnulee && Model.VenteRemplaceeParId.HasValue)
+    {
+        <div class="small text-muted mt-1">
+            <i class="bi bi-arrow-right-circle me-1"></i>
+            Remplacée par
+            <a asp-action="Details" asp-route-id="@Model.VenteRemplaceeParId" class="text-success fw-bold">#@Model.VenteRemplaceeParId</a>
+        </div>
+    }
 </div>
 
 @if (TempData["NewSale"] != null)

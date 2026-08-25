@@ -284,6 +284,9 @@ public class SalesController : Controller
                     ModelState.AddModelError(nameof(model.VendeurId), "Vendeur invalide ou inactif.");
             }
 
+            if (model.PaiementFractionne)
+                ValiderPaiementFractionne(model, slots);
+
             if (ModelState.IsValid)
             {
                 var (ok, error, saleId) = await _sales.RecordSaleAsync(
@@ -415,6 +418,9 @@ public class SalesController : Controller
                             sale.MonnaieRendue = 0;
                         }
 
+                        if (EstVenteTestAdmin())
+                            sale.IsAdminTest = true;
+
                         await _context.SaveChangesAsync();
                     }
 
@@ -538,6 +544,9 @@ public class SalesController : Controller
                                 saleLine.DiscountAmount = discountType == "amount" ? slot.DiscountAmount : 0;
                             }
                         }
+
+                        if (EstVenteTestAdmin())
+                            sale.IsAdminTest = true;
 
                         await _context.SaveChangesAsync();
                     }
@@ -668,31 +677,63 @@ public class SalesController : Controller
 
         var user = await _userManager.FindByIdAsync(userId);
         var nomUser = user?.DisplayName ?? user?.UserName ?? userId;
+        var soldAtOriginale = sale.SoldAt;
 
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             await MarquerAnnuleeEtRestituerStockAsync(sale, userId, nomUser,
-                $"Modification — remplacée par une nouvelle vente");
+                "Remplacée par modification");
             sale.IsModifiee = true;
             await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+
+            model.VenteOriginaleId = id;
+            var result = await Create(model);
+
+            if (result is RedirectToActionResult redirect
+                && string.Equals(redirect.ActionName, nameof(Details), StringComparison.OrdinalIgnoreCase)
+                && redirect.RouteValues != null
+                && int.TryParse(Convert.ToString(redirect.RouteValues["id"]), out var newId)
+                && newId > 0)
+            {
+                sale.VenteRemplaceeParId = newId;
+                var nouvelle = await _context.Sales.FindAsync(newId);
+                if (nouvelle != null)
+                {
+                    nouvelle.VenteOriginaleId = id;
+                    nouvelle.IsModifiee = true;
+                }
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                TempData["Success"] = $"Vente #{id} modifiée. Nouvelle vente : #{newId}";
+                return redirect;
+            }
+
+            await transaction.RollbackAsync();
+            if (result is ViewResult)
+            {
+                ViewBag.ModificationSaleId = id;
+                ViewBag.ModificationSoldAt = soldAtOriginale;
+                return result;
+            }
+
+            TempData["Error"] = TempData["Error"] as string
+                ?? TempData["Warning"] as string
+                ?? "La modification a été annulée. L'ancienne vente n'a pas été modifiée.";
+            return result;
         }
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            _logger.LogError(ex, "Erreur lors de la préparation de modification de la vente {SaleId}", id);
-            TempData["Error"] = "Impossible de modifier cette vente : " + ex.Message;
+            _logger.LogError(ex, "Erreur lors de la modification de la vente {SaleId}", id);
+            TempData["Error"] = "Erreur lors de la modification : " + ex.Message;
             return RedirectToAction(nameof(Index));
         }
-
-        model.VenteOriginaleId = id;
-        return await Create(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "PharmacienTitulaire,Pharmacien,Caissier,AssistantPharmacien")]
+    [Authorize(Roles = "PharmacienTitulaire,Pharmacien,Caissier,AssistantPharmacien,Vendeur")]
     public async Task<IActionResult> AnnulerVente(int id, string? raison = null)
     {
         var sale = await _context.Sales
@@ -712,12 +753,18 @@ public class SalesController : Controller
         var user = await _userManager.FindByIdAsync(userId);
         var nomUser = user?.DisplayName ?? user?.UserName ?? userId;
 
-        if (!User.IsInRole(AppRoles.PharmacienTitulaire)
-            && !User.IsInRole(AppRoles.Pharmacien))
+        var isPrivileged = AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien);
+        if (!isPrivileged)
         {
             if (sale.UserId != userId)
             {
                 TempData["Error"] = "Vous ne pouvez annuler que vos propres ventes.";
+                return RedirectToAction(nameof(Index));
+            }
+            if (sale.SoldAt < DateTime.Now.AddHours(-24))
+            {
+                TempData["Error"] =
+                    "Vous ne pouvez annuler une vente que dans les 24h suivant la transaction.";
                 return RedirectToAction(nameof(Index));
             }
         }
@@ -740,6 +787,54 @@ public class SalesController : Controller
         }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    private bool EstVenteTestAdmin() =>
+        User.IsInRole(AppRoles.Administrateur)
+        && !User.IsInRole(AppRoles.PharmacienTitulaire)
+        && !User.IsInRole(AppRoles.Pharmacien)
+        && !User.IsInRole(AppRoles.Caissier)
+        && !User.IsInRole(AppRoles.AssistantPharmacien)
+        && !User.IsInRole(AppRoles.Vendeur);
+
+    private void ValiderPaiementFractionne(SaleCreateViewModel model, List<SaleLineSlotViewModel> slots)
+    {
+        var totalVente = slots
+            .Where(l => l.ProductId > 0 && l.Quantity > 0)
+            .Sum(SlotLineTotal);
+
+        var m1 = model.MontantPaiement1;
+        var m2 = model.MontantPaiement2;
+        if (m2 <= 0)
+            m2 = Math.Max(0, totalVente - m1);
+
+        if (Math.Abs(m1 + m2 - totalVente) > 1)
+        {
+            ModelState.AddModelError(string.Empty,
+                $"Paiement fractionné invalide. Somme des parties ({(m1 + m2):N0} FCFA) ≠ total ({totalVente:N0} FCFA).");
+        }
+
+        if (!model.PaymentMethod2.HasValue)
+        {
+            ModelState.AddModelError(nameof(model.PaymentMethod2),
+                "Veuillez sélectionner un second mode de paiement.");
+        }
+        else if (model.PaymentMethod == model.PaymentMethod2.Value)
+        {
+            ModelState.AddModelError(nameof(model.PaymentMethod2),
+                "Les deux modes de paiement doivent être différents.");
+        }
+    }
+
+    private static decimal SlotLineTotal(SaleLineSlotViewModel l)
+    {
+        var baseAmt = l.UnitPrice * l.Quantity;
+        var dt = l.DiscountType?.Trim() ?? "";
+        if (dt == "percent" && l.DiscountPercent > 0)
+            return baseAmt - (baseAmt * l.DiscountPercent / 100m);
+        if (dt == "amount" && l.DiscountAmount > 0)
+            return Math.Max(0, baseAmt - l.DiscountAmount);
+        return baseAmt;
     }
 
     private bool PeutModifierVente(Sale sale, string userId)

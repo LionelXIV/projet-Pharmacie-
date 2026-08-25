@@ -49,7 +49,7 @@ public static class AppRoles
         $"{PharmacienTitulaire},{Pharmacien}";
 
     public const string CanAccessCaisse =
-        $"{PharmacienTitulaire},{Administrateur},{Pharmacien},{Caissier},{Vendeur}";
+        $"{PharmacienTitulaire},{Administrateur},{Pharmacien},{Caissier},{Vendeur},{AssistantPharmacien}";
 
     public const string CanCreateBon =
         $"{PharmacienTitulaire},{Administrateur},{Pharmacien},{Caissier},{AssistantPharmacien},{Vendeur}";
@@ -160,7 +160,8 @@ public static class AppRoles
         IsTitulaire(user)
         || user.IsInRole(Pharmacien)
         || user.IsInRole(Caissier)
-        || user.IsInRole(Vendeur);
+        || user.IsInRole(Vendeur)
+        || user.IsInRole(AssistantPharmacien);
 
     public static bool CanAccessPurchasing(ClaimsPrincipal user) =>
         IsTitulaire(user)

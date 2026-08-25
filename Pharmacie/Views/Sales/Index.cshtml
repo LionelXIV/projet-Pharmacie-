@@ -146,6 +146,22 @@
                             {
                                 <span class="badge bg-info text-dark" title="Issue de la vente #@s.VenteOriginaleId">Modifiée</span>
                             }
+                            @if (s.IsModifiee && s.VenteOriginaleId.HasValue)
+                            {
+                                <div class="small text-muted mt-1">
+                                    <i class="bi bi-arrow-left-circle me-1"></i>
+                                    Remplace la vente
+                                    <a asp-action="Details" asp-route-id="@s.VenteOriginaleId" class="text-warning fw-bold">#@s.VenteOriginaleId</a>
+                                </div>
+                            }
+                            @if (s.IsAnnulee && s.VenteRemplaceeParId.HasValue)
+                            {
+                                <div class="small text-muted mt-1">
+                                    <i class="bi bi-arrow-right-circle me-1"></i>
+                                    Remplacée par
+                                    <a asp-action="Details" asp-route-id="@s.VenteRemplaceeParId" class="text-success fw-bold">#@s.VenteRemplaceeParId</a>
+                                </div>
+                            }
                         </td>
                         <td class="text-nowrap small">@s.SoldAt.ToString("g")</td>
                         <td class="text-end">
@@ -192,7 +208,14 @@
                                     <i class="bi bi-pencil"></i>
                                 </a>
                             }
-                            @if (!s.IsAnnulee && (canCancelAny || s.UserId == currentUserId))
+                            @if (!s.IsAnnulee && (
+                                canCancelAny
+                                || User.IsInRole("Administrateur")
+                                || ((User.IsInRole("Caissier")
+                                     || User.IsInRole("AssistantPharmacien")
+                                     || User.IsInRole("Vendeur"))
+                                    && s.UserId == currentUserId
+                                    && s.SoldAt >= DateTime.Now.AddHours(-24))))
                             {
                                 <button type="button"
                                         class="btn btn-sm btn-outline-danger"

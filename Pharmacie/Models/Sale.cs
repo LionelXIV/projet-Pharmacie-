@@ -73,5 +73,7 @@ public class Sale
 
     public int? VenteOriginaleId { get; set; }
 
+    public int? VenteRemplaceeParId { get; set; }
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }
