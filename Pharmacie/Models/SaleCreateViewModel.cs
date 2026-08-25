@@ -37,6 +37,8 @@ public class SaleCreateViewModel
     [Display(Name = "Nom du client")]
     public string? NomClient { get; set; }
 
+    public int? VenteOriginaleId { get; set; }
+
     [Required(ErrorMessage = "Veuillez sélectionner le vendeur.")]
     [Display(Name = "Vendeur")]
     public int? VendeurId { get; set; }
@@ -72,4 +74,10 @@ public class SaleLineSlotViewModel
 
     [ValidateNever]
     public string? DiscountType { get; set; }
+
+    [ValidateNever]
+    public bool PrixModifie { get; set; }
+
+    [ValidateNever]
+    public decimal AncienPrix { get; set; }
 }

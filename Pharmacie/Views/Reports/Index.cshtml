@@ -130,6 +130,23 @@
                     </div>
                 </div>
             </div>
+            @if (User.IsInRole(AppRoles.PharmacienTitulaire))
+            {
+            <div class="col-md-6 col-xl-4">
+                <div class="card border-warning shadow-sm h-100 report-hub-card">
+                    <div class="card-body">
+                        <h2 class="h5 card-title text-warning">
+                            <i class="bi bi-tag me-1" aria-hidden="true"></i>
+                            Modifications de prix
+                        </h2>
+                        <p class="card-text small text-muted">
+                            Prix modifiés lors des ventes (catalogue inchangé).
+                        </p>
+                        <a asp-action="RapportPrixModifies" class="btn btn-warning btn-sm text-dark stretched-link">Voir le rapport</a>
+                    </div>
+                </div>
+            </div>
+            }
         }
     }
 </div>

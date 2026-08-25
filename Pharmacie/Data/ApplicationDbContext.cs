@@ -379,6 +379,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
                 .WithMany()
                 .HasForeignKey(m => m.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(m => m.Sale)
+                .WithMany()
+                .HasForeignKey(m => m.SaleId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

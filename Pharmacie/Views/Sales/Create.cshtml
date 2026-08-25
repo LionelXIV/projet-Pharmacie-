@@ -1,7 +1,9 @@
 @model SaleCreateViewModel
 @{
-    ViewData["Title"] = "Point de vente";
+    var modificationId = ViewBag.ModificationSaleId as int?;
+    ViewData["Title"] = modificationId.HasValue ? "Modifier la vente" : "Point de vente";
     var selectedVendeurId = ViewBag.SelectedVendeurId as int? ?? Model.VendeurId;
+    var peutModifierPrix = AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien);
     var paymentModes = new[]
     {
         new { Value = 0, Label = "Espèces", Icon = "bi-cash-coin", Color = "success" },
@@ -18,6 +20,16 @@
 }
 
 @await Html.PartialAsync("_BackButton")
+
+@if (modificationId.HasValue)
+{
+    <div class="alert alert-warning py-2 mx-2 mx-lg-0">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        <strong>Modification de vente #@modificationId</strong>
+        du @(((DateTime?)ViewBag.ModificationSoldAt)?.ToString("dd/MM/yyyy HH:mm") ?? "").
+        Le stock sera ajusté automatiquement.
+    </div>
+}
 
 <div class="page-header py-2 mb-0">
     <h1 class="page-title h4 mb-0"><i class="bi bi-cash-register me-2" aria-hidden="true"></i>Point de vente</h1>
@@ -209,6 +221,26 @@
                     <span class="fw-bold fs-5">TOTAL</span>
                     <span id="summary-total" class="fw-bold fs-5 text-success">0 FCFA</span>
                 </div>
+
+                <div id="resume-especes-confirme" class="mt-3 p-3 rounded" style="display:none;background:#f0faf5;border:1px solid #4CAF82">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted small">Mode de paiement</span>
+                        <span class="badge bg-success">Espèces confirmé</span>
+                    </div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="small text-muted">Total à payer</span>
+                        <span class="fw-bold" id="resume-total-payer">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="small text-muted">Montant encaissé</span>
+                        <span class="fw-bold text-primary" id="resume-encaisse">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between p-2 rounded mt-1" style="background:#4CAF82">
+                        <span class="text-white fw-bold">Monnaie à rendre</span>
+                        <span class="text-white fw-bold fs-5" id="resume-rendu">—</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -393,7 +425,8 @@
                    id="nom-client"
                    class="form-control form-control-sm"
                    placeholder="Ex: DR DIALLO — CLINIQUE DU SOLEIL"
-                   maxlength="100">
+                   maxlength="100"
+                   value="@Model.NomClient">
             <div class="form-text">Apparaîtra sur le ticket imprimé.</div>
         </div>
 
@@ -474,7 +507,8 @@
 <script>
 (function () {
   var searchUrl = '@Url.Action("Search", "Products")';
-  var postUrl = '@Url.Action("Create", "Sales")';
+  var postUrl = '@(modificationId.HasValue ? Url.Action("Modifier", "Sales", new { id = modificationId.Value }) : Url.Action("Create", "Sales"))';
+  var peutModifierPrix = @(peutModifierPrix ? "true" : "false");
   var cart = [];
   var searchTimer = null;
   var selectedPayment = @((int)Model.PaymentMethod);
@@ -571,6 +605,18 @@
     updateSummary();
   };
 
+  window.modifierPrixLigne = function (index, newPrice) {
+    var ancien = cart[index].unitPrice;
+    var n = parseFloat(newPrice);
+    if (isNaN(n) || n < 0) n = ancien;
+    if (!cart[index].prixModifie)
+      cart[index].ancienPrix = ancien;
+    cart[index].unitPrice = n;
+    cart[index].prixModifie = true;
+    renderCart();
+    updateSummary();
+  };
+
   function getLineTotal(item) {
     var base = item.unitPrice * item.quantity;
     if (!item.discountValue || item.discountValue <= 0) return base;
@@ -624,7 +670,20 @@
       tdName.textContent = item.productName;
 
       var tdPrice = document.createElement('td');
-      tdPrice.textContent = formatFcfa(item.unitPrice);
+      if (peutModifierPrix) {
+        var prixInput = document.createElement('input');
+        prixInput.type = 'number';
+        prixInput.className = 'form-control form-control-sm text-end prix-modif-input';
+        prixInput.style.width = '90px';
+        prixInput.min = '0';
+        prixInput.step = '1';
+        prixInput.value = String(item.unitPrice);
+        prixInput.title = 'Prix modifiable (catalogue inchangé)';
+        prixInput.addEventListener('change', function () { modifierPrixLigne(i, this.value); });
+        tdPrice.appendChild(prixInput);
+      } else {
+        tdPrice.textContent = formatFcfa(item.unitPrice);
+      }
 
       // Quantité
       var tdQty = document.createElement('td');
@@ -716,6 +775,9 @@
       hiddenFields.innerHTML +=
         '<input type="hidden" name="Lines[' + i + '].ProductId" value="' + item.productId + '">' +
         '<input type="hidden" name="Lines[' + i + '].Quantity" value="' + item.quantity + '">' +
+        '<input type="hidden" name="Lines[' + i + '].UnitPrice" value="' + item.unitPrice + '">' +
+        '<input type="hidden" name="Lines[' + i + '].PrixModifie" value="' + (item.prixModifie ? 'true' : 'false') + '">' +
+        '<input type="hidden" name="Lines[' + i + '].AncienPrix" value="' + (item.ancienPrix || item.unitPrice) + '">' +
         '<input type="hidden" name="Lines[' + i + '].DiscountPercent" value="' + dpVal + '">' +
         '<input type="hidden" name="Lines[' + i + '].DiscountAmount" value="' + daVal + '">' +
         '<input type="hidden" name="Lines[' + i + '].DiscountType" value="' + dtVal + '">';
@@ -853,13 +915,15 @@
   }
 
   function confirmerEspeces() {
+    var total = calculerTotal();
+    var encaisse = parseFloat(document.getElementById('especes-encaisse').value) || 0;
+    var rendu = Math.max(0, encaisse - total);
     var modalEl = document.getElementById('modal-especes');
     var instance = bootstrap.Modal.getInstance(modalEl);
     if (instance) instance.hide();
     selectedPayment = 0;
     document.getElementById('field-payment-method').value = '0';
-    document.getElementById('field-montant-encaisse').value =
-      document.getElementById('especes-encaisse').value || '0';
+    document.getElementById('field-montant-encaisse').value = String(encaisse);
     document.querySelectorAll('.payment-btn').forEach(function (b) {
       b.classList.remove('active');
     });
@@ -867,6 +931,30 @@
     if (especesBtn) especesBtn.classList.add('active');
     var autreSection = document.getElementById('autre-libelle-section');
     if (autreSection) autreSection.classList.add('d-none');
+
+    var resume = document.getElementById('resume-especes-confirme');
+    if (resume) {
+      resume.style.display = 'block';
+      document.getElementById('resume-total-payer').textContent = total.toLocaleString('fr-FR') + ' FCFA';
+      document.getElementById('resume-encaisse').textContent = encaisse.toLocaleString('fr-FR') + ' FCFA';
+      document.getElementById('resume-rendu').textContent = rendu.toLocaleString('fr-FR') + ' FCFA';
+    }
+    var btnValider = document.getElementById('btn-valider');
+    if (btnValider) {
+      btnValider.innerHTML =
+        '<i class="bi bi-check-circle me-2"></i>Valider — Rendre ' +
+        rendu.toLocaleString('fr-FR') + ' FCFA';
+    }
+  }
+
+  function cacherResumeEspeces() {
+    var resume = document.getElementById('resume-especes-confirme');
+    if (resume) resume.style.display = 'none';
+    var btnValider = document.getElementById('btn-valider');
+    if (btnValider && !modeCredit) {
+      btnValider.innerHTML =
+        '<i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>Valider la vente';
+    }
   }
 
   document.getElementById('especes-encaisse').addEventListener('input', calculerRendu);
@@ -895,6 +983,7 @@
     });
     if (isF) {
       resetModeCredit();
+      cacherResumeEspeces();
       updateFractionne();
     }
   }
@@ -979,6 +1068,7 @@
         ouvrirModalEspeces();
         return;
       }
+      cacherResumeEspeces();
       document.querySelectorAll('.payment-btn').forEach(function (b) {
         b.classList.remove('active');
       });
@@ -1136,11 +1226,15 @@
     addHidden('PaymentMethod2', document.getElementById('field-mode-2')?.value || '');
     addHidden('MontantPaiement1', document.getElementById('field-montant-paiement-1')?.value || '0');
     addHidden('MontantPaiement2', document.getElementById('field-montant-paiement-2')?.value || '0');
+    addHidden('VenteOriginaleId', '@(modificationId?.ToString() ?? "")');
 
     // Lignes du panier
     cart.forEach(function (item, i) {
       addHidden('Lines[' + i + '].ProductId', String(item.productId));
       addHidden('Lines[' + i + '].Quantity', String(item.quantity));
+      addHidden('Lines[' + i + '].UnitPrice', String(item.unitPrice || 0));
+      addHidden('Lines[' + i + '].PrixModifie', item.prixModifie ? 'true' : 'false');
+      addHidden('Lines[' + i + '].AncienPrix', String(item.ancienPrix || item.unitPrice || 0));
       addHidden('Lines[' + i + '].DiscountPercent',
         item.discountType === 'percent' ? String(item.discountValue || 0) : '0');
       addHidden('Lines[' + i + '].DiscountAmount',
@@ -1370,6 +1464,11 @@
   document.getElementById('remise-globale').addEventListener('input', function () {
     if (posMode === 'rapide') updateTotalRapide();
   });
+
+  var initialCartJson = @Html.Raw(ViewBag.InitialCartJson as string ?? "[]");
+  if (Array.isArray(initialCartJson) && initialCartJson.length > 0) {
+    cart = initialCartJson;
+  }
 
   renderCart();
   updateSummary();

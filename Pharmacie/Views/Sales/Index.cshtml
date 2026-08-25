@@ -138,6 +138,14 @@
                                     le @s.DateAnnulation?.ToString("dd/MM HH:mm")
                                 </small>
                             }
+                            @if (s.IsModifiee && s.IsAnnulee)
+                            {
+                                <span class="badge bg-warning text-dark">Remplacée</span>
+                            }
+                            @if (s.VenteOriginaleId.HasValue)
+                            {
+                                <span class="badge bg-info text-dark" title="Issue de la vente #@s.VenteOriginaleId">Modifiée</span>
+                            }
                         </td>
                         <td class="text-nowrap small">@s.SoldAt.ToString("g")</td>
                         <td class="text-end">
@@ -165,6 +173,25 @@
                             <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@s.Id" title="Voir le détail" data-bs-toggle="tooltip">
                                 <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Détail</span>
                             </a>
+                            @{
+                                var peutModifierVente = !s.IsAnnulee && (
+                                    User.IsInRole("PharmacienTitulaire")
+                                    || User.IsInRole("Pharmacien")
+                                    || User.IsInRole("Administrateur")
+                                    || ((User.IsInRole("Caissier")
+                                         || User.IsInRole("AssistantPharmacien")
+                                         || User.IsInRole("Vendeur"))
+                                        && s.SoldAt >= DateTime.Now.AddHours(-24)
+                                        && s.UserId == currentUserId));
+                            }
+                            @if (peutModifierVente)
+                            {
+                                <a asp-action="Modifier" asp-route-id="@s.Id"
+                                   class="btn btn-sm btn-outline-warning"
+                                   title="Modifier cette vente">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            }
                             @if (!s.IsAnnulee && (canCancelAny || s.UserId == currentUserId))
                             {
                                 <button type="button"

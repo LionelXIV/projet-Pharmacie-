@@ -327,6 +327,44 @@ public class SalesController : Controller
                             }
                         }
 
+                        var peutPrix = AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien);
+                        if (peutPrix)
+                        {
+                            var displayName = (await _userManager.FindByIdAsync(userId))?.DisplayName
+                                ?? User.Identity?.Name
+                                ?? userId;
+                            for (var i = 0; i < slots.Count && i < orderedSaleLines.Count; i++)
+                            {
+                                var slot = slots[i];
+                                if (slot.ProductId <= 0 || slot.Quantity <= 0 || !slot.PrixModifie)
+                                    continue;
+                                var saleLine = orderedSaleLines[i];
+                                var ancien = slot.AncienPrix > 0 ? slot.AncienPrix : saleLine.UnitPrice;
+                                if (slot.UnitPrice < 0 || slot.UnitPrice == ancien)
+                                    continue;
+                                saleLine.UnitPrice = slot.UnitPrice;
+                                _context.PrixModifications.Add(new PrixModification
+                                {
+                                    ProductId = saleLine.ProductId,
+                                    SaleId = sale.Id,
+                                    AncienPrix = ancien,
+                                    NouveauPrix = slot.UnitPrice,
+                                    ModifiedAt = DateTime.Now,
+                                    ModifiedByUserId = userId,
+                                    ModifiedByDisplayName = displayName,
+                                    Raison = $"Modification prix pendant vente #{sale.Id}"
+                                });
+                            }
+                        }
+
+                        if (model.VenteOriginaleId is int origId)
+                        {
+                            sale.VenteOriginaleId = origId;
+                            var orig = await _context.Sales.FirstOrDefaultAsync(s => s.Id == origId);
+                            if (orig != null)
+                                orig.IsModifiee = true;
+                        }
+
                         var totalVente = sale.Lines.Sum(CaisseService.LineTotal);
 
                         if (model.PaiementFractionne)
@@ -525,6 +563,133 @@ public class SalesController : Controller
         return View(model);
     }
 
+    [HttpGet]
+    [Authorize(Roles = "PharmacienTitulaire,Administrateur,Pharmacien,Caissier,AssistantPharmacien,Vendeur")]
+    public async Task<IActionResult> Modifier(int id)
+    {
+        var sale = await _context.Sales
+            .Include(s => s.Lines)
+                .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(s => s.Id == id);
+        if (sale == null)
+            return NotFound();
+        if (sale.IsAnnulee)
+        {
+            TempData["Error"] = "Une vente annulée ne peut pas être modifiée.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var userId = _userManager.GetUserId(User) ?? "";
+        if (!PeutModifierVente(sale, userId))
+        {
+            TempData["Error"] = "Vous ne pouvez pas modifier cette vente.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var vm = new SaleCreateViewModel
+        {
+            SoldAt = sale.SoldAt,
+            Notes = sale.Notes,
+            PaymentMethod = sale.PaymentMethod,
+            PaymentMethodAutre = sale.PaymentMethodAutre,
+            VendeurId = sale.VendeurId,
+            NomClient = sale.NomClient,
+            PaiementFractionne = sale.PaiementFractionne,
+            PaymentMethod2 = sale.PaymentMethod2,
+            MontantPaiement1 = sale.MontantPaiement1,
+            MontantPaiement2 = sale.MontantPaiement2,
+            MontantEncaisse = sale.MontantEncaisse,
+            VenteOriginaleId = sale.Id,
+            Lines = sale.Lines.OrderBy(l => l.Id).Select(l => new SaleLineSlotViewModel
+            {
+                ProductId = l.ProductId,
+                Quantity = l.Quantity,
+                UnitPrice = l.UnitPrice,
+                ProductName = l.Product?.CommercialName,
+                DiscountPercent = l.DiscountPercent,
+                DiscountAmount = l.DiscountAmount,
+                DiscountType = l.DiscountType
+            }).ToList()
+        };
+
+        ViewBag.ModificationSaleId = id;
+        ViewBag.ModificationSoldAt = sale.SoldAt;
+        ViewBag.InitialCartJson = System.Text.Json.JsonSerializer.Serialize(
+            vm.Lines.Select(l => new
+            {
+                productId = l.ProductId,
+                productName = l.ProductName ?? "Produit",
+                unitPrice = l.UnitPrice,
+                quantity = l.Quantity,
+                discountValue = l.DiscountType == "amount" ? l.DiscountAmount : l.DiscountPercent,
+                discountType = string.IsNullOrEmpty(l.DiscountType) ? "percent" : l.DiscountType
+            }));
+
+        var isAdmin = User.IsInRole(AppRoles.Administrateur);
+        var session = await _caisseService.GetSessionOuverteAsync(userId);
+        if (!isAdmin && session == null)
+        {
+            TempData["Warning"] = "Ouvrez une caisse avant de modifier une vente.";
+            return RedirectToAction("Index", "Caisse");
+        }
+        if (session != null)
+        {
+            ViewBag.SessionCaisse = session;
+            ViewBag.SessionCaisseId = session.Id;
+            ViewBag.SessionCaisseNom = session.NomCaisse;
+        }
+
+        await PopulateVendeursForPosAsync(vm.VendeurId);
+        return View("Create", vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "PharmacienTitulaire,Administrateur,Pharmacien,Caissier,AssistantPharmacien,Vendeur")]
+    public async Task<IActionResult> Modifier(int id, SaleCreateViewModel model)
+    {
+        var sale = await _context.Sales
+            .Include(s => s.Lines)
+            .FirstOrDefaultAsync(s => s.Id == id);
+        if (sale == null)
+            return NotFound();
+        if (sale.IsAnnulee)
+        {
+            TempData["Error"] = "Une vente annulée ne peut pas être modifiée.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var userId = _userManager.GetUserId(User) ?? "";
+        if (!PeutModifierVente(sale, userId))
+        {
+            TempData["Error"] = "Vous ne pouvez pas modifier cette vente.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        var nomUser = user?.DisplayName ?? user?.UserName ?? userId;
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await MarquerAnnuleeEtRestituerStockAsync(sale, userId, nomUser,
+                $"Modification — remplacée par une nouvelle vente");
+            sale.IsModifiee = true;
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Erreur lors de la préparation de modification de la vente {SaleId}", id);
+            TempData["Error"] = "Impossible de modifier cette vente : " + ex.Message;
+            return RedirectToAction(nameof(Index));
+        }
+
+        model.VenteOriginaleId = id;
+        return await Create(model);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "PharmacienTitulaire,Pharmacien,Caissier,AssistantPharmacien")]
@@ -560,97 +725,8 @@ public class SalesController : Controller
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
-            sale.IsAnnulee = true;
-            sale.DateAnnulation = DateTime.Now;
-            sale.AnnuleeParUserId = userId;
-            sale.AnnuleeParNom = nomUser;
-            sale.RaisonAnnulation = string.IsNullOrWhiteSpace(raison)
-                ? "Annulation manuelle"
-                : raison.Trim();
-
-            var sorties = await _context.StockMovements
-                .Include(m => m.Batch)
-                .Include(m => m.Product)
-                .Where(m => m.SaleId == sale.Id && m.Type == StockMovementType.Sortie)
-                .ToListAsync();
-
-            if (sorties.Count == 0)
-            {
-                var productIds = sale.Lines.Select(l => l.ProductId).Distinct().ToList();
-                var from = sale.SoldAt.AddSeconds(-30);
-                var to = sale.SoldAt.AddSeconds(30);
-                var marker = $"#{sale.Id}";
-                sorties = await _context.StockMovements
-                    .Include(m => m.Batch)
-                    .Include(m => m.Product)
-                    .Where(m =>
-                        m.Type == StockMovementType.Sortie
-                        && productIds.Contains(m.ProductId)
-                        && m.OccurredAt >= from
-                        && m.OccurredAt <= to
-                        && (m.UserId == sale.UserId || sale.UserId == null)
-                        && (m.Reason == "Vente"
-                            || (m.Reason != null && m.Reason.Contains(marker))))
-                    .ToListAsync();
-            }
-
-            if (sorties.Count > 0)
-            {
-                foreach (var mouvement in sorties)
-                {
-                    if (mouvement.Batch != null)
-                        mouvement.Batch.Quantity += mouvement.Quantity;
-
-                    if (mouvement.Product != null)
-                        mouvement.Product.StockQuantity += mouvement.Quantity;
-
-                    _context.StockMovements.Add(new StockMovement
-                    {
-                        ProductId = mouvement.ProductId,
-                        BatchId = mouvement.BatchId,
-                        Type = StockMovementType.Entree,
-                        Quantity = mouvement.Quantity,
-                        Reason = $"Restitution stock — Annulation vente #{id} par {nomUser}",
-                        OccurredAt = DateTime.Now,
-                        UserId = userId,
-                        SaleId = sale.Id
-                    });
-                }
-            }
-            else
-            {
-                foreach (var ligne in sale.Lines)
-                {
-                    var product = await _context.Products
-                        .FirstOrDefaultAsync(p => p.Id == ligne.ProductId);
-                    if (product == null)
-                        continue;
-
-                    product.StockQuantity += ligne.Quantity;
-
-                    var lot = await _context.ProductBatches
-                        .Where(b => b.ProductId == ligne.ProductId)
-                        .OrderBy(b => b.ExpirationDate)
-                        .ThenBy(b => b.Id)
-                        .FirstOrDefaultAsync();
-
-                    if (lot != null)
-                    {
-                        lot.Quantity += ligne.Quantity;
-                        _context.StockMovements.Add(new StockMovement
-                        {
-                            ProductId = ligne.ProductId,
-                            BatchId = lot.Id,
-                            Type = StockMovementType.Entree,
-                            Quantity = ligne.Quantity,
-                            Reason = $"Restitution stock — Annulation vente #{sale.Id}",
-                            OccurredAt = DateTime.Now,
-                            UserId = userId,
-                            SaleId = sale.Id
-                        });
-                    }
-                }
-            }
+            await MarquerAnnuleeEtRestituerStockAsync(sale, userId, nomUser,
+                string.IsNullOrWhiteSpace(raison) ? "Annulation manuelle" : raison.Trim());
 
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -664,6 +740,111 @@ public class SalesController : Controller
         }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    private bool PeutModifierVente(Sale sale, string userId)
+    {
+        if (sale.IsAnnulee)
+            return false;
+        if (AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien))
+            return true;
+        if (sale.UserId != userId)
+            return false;
+        return sale.SoldAt >= DateTime.Now.AddHours(-24);
+    }
+
+    private async Task MarquerAnnuleeEtRestituerStockAsync(
+        Sale sale, string userId, string nomUser, string raison)
+    {
+        sale.IsAnnulee = true;
+        sale.DateAnnulation = DateTime.Now;
+        sale.AnnuleeParUserId = userId;
+        sale.AnnuleeParNom = nomUser;
+        sale.RaisonAnnulation = raison;
+
+        var sorties = await _context.StockMovements
+            .Include(m => m.Batch)
+            .Include(m => m.Product)
+            .Where(m => m.SaleId == sale.Id && m.Type == StockMovementType.Sortie)
+            .ToListAsync();
+
+        if (sorties.Count == 0)
+        {
+            var productIds = sale.Lines.Select(l => l.ProductId).Distinct().ToList();
+            var from = sale.SoldAt.AddSeconds(-30);
+            var to = sale.SoldAt.AddSeconds(30);
+            var marker = $"#{sale.Id}";
+            sorties = await _context.StockMovements
+                .Include(m => m.Batch)
+                .Include(m => m.Product)
+                .Where(m =>
+                    m.Type == StockMovementType.Sortie
+                    && productIds.Contains(m.ProductId)
+                    && m.OccurredAt >= from
+                    && m.OccurredAt <= to
+                    && (m.UserId == sale.UserId || sale.UserId == null)
+                    && (m.Reason == "Vente"
+                        || (m.Reason != null && m.Reason.Contains(marker))))
+                .ToListAsync();
+        }
+
+        if (sorties.Count > 0)
+        {
+            foreach (var mouvement in sorties)
+            {
+                if (mouvement.Batch != null)
+                    mouvement.Batch.Quantity += mouvement.Quantity;
+
+                if (mouvement.Product != null)
+                    mouvement.Product.StockQuantity += mouvement.Quantity;
+
+                _context.StockMovements.Add(new StockMovement
+                {
+                    ProductId = mouvement.ProductId,
+                    BatchId = mouvement.BatchId,
+                    Type = StockMovementType.Entree,
+                    Quantity = mouvement.Quantity,
+                    Reason = $"Restitution stock — Annulation vente #{sale.Id} par {nomUser}",
+                    OccurredAt = DateTime.Now,
+                    UserId = userId,
+                    SaleId = sale.Id
+                });
+            }
+        }
+        else
+        {
+            foreach (var ligne in sale.Lines)
+            {
+                var product = await _context.Products
+                    .FirstOrDefaultAsync(p => p.Id == ligne.ProductId);
+                if (product == null)
+                    continue;
+
+                product.StockQuantity += ligne.Quantity;
+
+                var lot = await _context.ProductBatches
+                    .Where(b => b.ProductId == ligne.ProductId)
+                    .OrderBy(b => b.ExpirationDate)
+                    .ThenBy(b => b.Id)
+                    .FirstOrDefaultAsync();
+
+                if (lot != null)
+                {
+                    lot.Quantity += ligne.Quantity;
+                    _context.StockMovements.Add(new StockMovement
+                    {
+                        ProductId = ligne.ProductId,
+                        BatchId = lot.Id,
+                        Type = StockMovementType.Entree,
+                        Quantity = ligne.Quantity,
+                        Reason = $"Restitution stock — Annulation vente #{sale.Id}",
+                        OccurredAt = DateTime.Now,
+                        UserId = userId,
+                        SaleId = sale.Id
+                    });
+                }
+            }
+        }
     }
 
     private async Task PopulateVendeursForPosAsync(int? selectedId = null)

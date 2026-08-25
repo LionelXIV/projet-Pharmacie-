@@ -69,5 +69,9 @@ public class Sale
     [Display(Name = "Nom du client")]
     public string? NomClient { get; set; }
 
+    public bool IsModifiee { get; set; }
+
+    public int? VenteOriginaleId { get; set; }
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

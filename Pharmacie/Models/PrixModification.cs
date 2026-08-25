@@ -26,4 +26,7 @@ public class PrixModification
 
     [StringLength(200)]
     public string Raison { get; set; } = "";
+
+    public int? SaleId { get; set; }
+    public Sale? Sale { get; set; }
 }

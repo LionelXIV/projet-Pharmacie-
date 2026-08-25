@@ -1027,4 +1027,28 @@ public class ReportsController : Controller
         ViewBag.SuspectCount = lignes.Count(l => l.EstSuspect);
         return View(lignes);
     }
+
+    [HttpGet]
+    [Authorize(Roles = AppRoles.PharmacienTitulaire)]
+    public async Task<IActionResult> RapportPrixModifies(DateTime? dateDebut = null, DateTime? dateFin = null)
+    {
+        var debut = (dateDebut ?? DateTime.Today.AddDays(-30)).Date;
+        var fin = (dateFin ?? DateTime.Today).Date;
+        if (debut > fin)
+            (debut, fin) = (fin, debut);
+        var finExcl = fin.AddDays(1);
+
+        var modifs = await _db.PrixModifications
+            .AsNoTracking()
+            .Include(m => m.Product)
+            .Include(m => m.Sale)
+                .ThenInclude(s => s!.Vendeur)
+            .Where(m => m.ModifiedAt >= debut && m.ModifiedAt < finExcl && m.SaleId != null)
+            .OrderByDescending(m => m.ModifiedAt)
+            .ToListAsync();
+
+        ViewBag.DateDebut = debut.ToString("yyyy-MM-dd");
+        ViewBag.DateFin = fin.ToString("yyyy-MM-dd");
+        return View(modifs);
+    }
 }

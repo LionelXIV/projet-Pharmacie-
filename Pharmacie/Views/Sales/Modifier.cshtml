@@ -1,0 +1,15 @@
+@model Sale
+@{
+    ViewData["Title"] = "Modifier la vente";
+}
+@*
+    L’action GET Modifier affiche le POS (Create.cshtml) pré-rempli
+    avec l’avertissement de modification. Cette vue n’est pas utilisée
+    en production ; elle documente le flux.
+*@
+<div class="alert alert-warning py-2">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    <strong>Modification de vente #@Model.Id</strong>
+    du @Model.SoldAt.ToString("dd/MM/yyyy HH:mm").
+    Le stock sera ajusté automatiquement.
+</div>
