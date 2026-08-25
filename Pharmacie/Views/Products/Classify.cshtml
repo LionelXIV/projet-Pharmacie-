@@ -19,6 +19,7 @@
     {
         ProductType.Medicament => "Médicament",
         ProductType.Parapharmacie => "Parapharmacie",
+        ProductType.Autre => "Autre",
         _ => "Inconnu"
     };
 }
@@ -124,6 +125,7 @@
                     <select name="newType" id="newType" class="form-select form-select-sm" style="width: auto; min-width: 10rem;">
                         <option value="@((int)ProductType.Medicament)">Médicament</option>
                         <option value="@((int)ProductType.Parapharmacie)">Parapharmacie</option>
+                        <option value="@((int)ProductType.Autre)">Autre</option>
                         <option value="@((int)ProductType.Inconnu)">Inconnu</option>
                     </select>
                     <button type="submit" class="btn btn-warning btn-sm">

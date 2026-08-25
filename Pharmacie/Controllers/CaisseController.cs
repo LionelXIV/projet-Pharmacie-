@@ -143,15 +143,13 @@ public class CaisseController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var sales = session.Ventes.Select(v => v.Sale).Where(s => s != null).Cast<Sale>().ToList();
+        var sales = session.Ventes.Select(v => v.Sale).Where(s => s != null).Cast<Sale>()
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest)
+            .ToList();
         var caEspeces = sales.Where(s => s.PaymentMethod == PaymentMethod.Especes).Sum(CaisseService.CalculerTotalSale);
         ViewBag.NbVentes = sales.Count;
         ViewBag.CaEspeces = caEspeces;
-        ViewBag.CaWave = sales.Where(s => s.PaymentMethod == PaymentMethod.Wave).Sum(CaisseService.CalculerTotalSale);
-        ViewBag.CaOM = sales.Where(s => s.PaymentMethod == PaymentMethod.OrangeMoney).Sum(CaisseService.CalculerTotalSale);
-        ViewBag.CaAutre = sales
-            .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
-            .Sum(CaisseService.CalculerTotalSale);
+        FillPaymentBreakdown(sales);
 
         var totalDepots = await _context.DepotCaisses
             .Where(d => d.SessionCaisseId == id)
@@ -199,14 +197,15 @@ public class CaisseController : Controller
         }
 
         var sales = session.Ventes.Select(v => v.Sale).Where(s => s != null).Cast<Sale>()
+            .Where(s => !s.IsAnnulee && !s.IsAdminTest)
             .OrderBy(s => s.SoldAt).ToList();
 
         var caEspeces = sales.Where(s => s.PaymentMethod == PaymentMethod.Especes).Sum(CaisseService.CalculerTotalSale);
-        var caWave = sales.Where(s => s.PaymentMethod == PaymentMethod.Wave).Sum(CaisseService.CalculerTotalSale);
-        var caOM = sales.Where(s => s.PaymentMethod == PaymentMethod.OrangeMoney).Sum(CaisseService.CalculerTotalSale);
-        var caAutre = sales
-            .Where(s => s.PaymentMethod is not (PaymentMethod.Especes or PaymentMethod.Wave or PaymentMethod.OrangeMoney))
-            .Sum(CaisseService.CalculerTotalSale);
+        FillPaymentBreakdown(sales);
+        var caWave = (decimal)ViewBag.TotalWave;
+        var caOM = (decimal)ViewBag.TotalOrangeMoney;
+        var caAutre = (decimal)ViewBag.TotalAutresPaiements
+            - caWave - caOM;
 
         var bons = await _context.Bons.AsNoTracking()
             .Where(b => b.CreatedByUserId == session.CaissierUserId
@@ -239,6 +238,7 @@ public class CaisseController : Controller
         ViewBag.CaWave = caWave;
         ViewBag.CaOM = caOM;
         ViewBag.CaAutre = caAutre;
+        ViewBag.TotalEspeces = caEspeces;
         ViewBag.BonsTotal = bons;
         ViewBag.TheoriqueEspeces = theoriqueEspeces;
         ViewBag.TotalCa = caEspeces + caWave + caOM + caAutre;
@@ -365,6 +365,17 @@ public class CaisseController : Controller
         ViewBag.ConsoPrimeTableau2 = prime2J;
         ViewBag.ConsoPrimeTotale = primeTotaleJ;
 
+        var ventesJour = sessions
+            .SelectMany(s => s.Ventes)
+            .Select(v => v.Sale)
+            .Where(s => s != null && !s.IsAnnulee && !s.IsAdminTest)
+            .Cast<Sale>()
+            .ToList();
+        FillPaymentBreakdown(ventesJour);
+        ViewBag.TotalEspeces = ventesJour
+            .Where(s => s.PaymentMethod == PaymentMethod.Especes)
+            .Sum(CaisseService.CalculerTotalSale);
+
         return View();
     }
 
@@ -429,5 +440,39 @@ public class CaisseController : Controller
 
         TempData["Success"] = $"Session {session.NomCaisse} fermée de force.";
         return RedirectToAction(nameof(Index));
+    }
+
+    private void FillPaymentBreakdown(IReadOnlyCollection<Sale> sales)
+    {
+        decimal Sum(PaymentMethod pm) =>
+            sales.Where(s => s.PaymentMethod == pm).Sum(CaisseService.CalculerTotalSale);
+
+        var totalWave = Sum(PaymentMethod.Wave);
+        var totalOrangeMoney = Sum(PaymentMethod.OrangeMoney);
+        var totalFreemoney = Sum(PaymentMethod.Freemoney);
+        var totalYasMoney = Sum(PaymentMethod.YasMoney);
+        var totalCheque = Sum(PaymentMethod.Cheque);
+        var totalTpe = Sum(PaymentMethod.TPE);
+        var totalVirement = Sum(PaymentMethod.Virement);
+        var totalTransfert = Sum(PaymentMethod.TransfertInternational);
+        var totalAutres = Sum(PaymentMethod.Autre);
+
+        ViewBag.TotalWave = totalWave;
+        ViewBag.TotalOrangeMoney = totalOrangeMoney;
+        ViewBag.TotalFreemoney = totalFreemoney;
+        ViewBag.TotalYasMoney = totalYasMoney;
+        ViewBag.TotalCheque = totalCheque;
+        ViewBag.TotalTPE = totalTpe;
+        ViewBag.TotalVirement = totalVirement;
+        ViewBag.TotalTransfertInternational = totalTransfert;
+        ViewBag.TotalAutres = totalAutres;
+        ViewBag.TotalAutresPaiements =
+            totalWave + totalOrangeMoney + totalFreemoney + totalYasMoney
+            + totalCheque + totalTpe + totalVirement + totalTransfert + totalAutres;
+
+        ViewBag.CaWave = totalWave;
+        ViewBag.CaOM = totalOrangeMoney;
+        ViewBag.CaAutre = totalFreemoney + totalYasMoney + totalCheque + totalTpe
+            + totalVirement + totalTransfert + totalAutres;
     }
 }

@@ -155,6 +155,7 @@
         <div id="hidden-fields" class="d-none" aria-hidden="true"></div>
         <input type="hidden" name="SoldAt" id="field-sold-at" value="@Model.SoldAt.ToString("yyyy-MM-ddTHH:mm")">
         <input type="hidden" name="PaymentMethod" id="field-payment-method" value="@((int)Model.PaymentMethod)">
+        <input type="hidden" id="field-montant-encaisse" name="MontantEncaisse" value="0">
         <input type="hidden" name="Notes" id="field-notes" value="@Model.Notes">
         @Html.AntiForgeryToken()
     </div>
@@ -320,6 +321,50 @@
 </div>
 
 <form id="pos-dummy-form" class="d-none" aria-hidden="true"></form>
+
+<div class="modal fade" id="modal-especes" tabindex="-1" aria-labelledby="modal-especes-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="modal-especes-title">
+                    <i class="bi bi-cash me-2"></i>
+                    Paiement en espèces
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+                    <span class="fw-bold text-muted">Total à payer</span>
+                    <span class="fs-4 fw-bold text-success" id="especes-total">0 FCFA</span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold" for="especes-encaisse">Montant encaissé</label>
+                    <input type="number"
+                           id="especes-encaisse"
+                           class="form-control form-control-lg text-end"
+                           min="0"
+                           step="100"
+                           placeholder="0">
+                    <div class="form-text">Saisissez le montant remis par le client.</div>
+                </div>
+                <div class="p-3 rounded text-center" id="rendu-container" style="display:none;background:#f0faf5">
+                    <div class="text-muted small mb-1">Monnaie rendue</div>
+                    <div class="fs-2 fw-bold text-success" id="especes-rendu">0 FCFA</div>
+                </div>
+                <div class="alert alert-danger py-2 mt-2" id="alerte-insuffisant" style="display:none">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Montant insuffisant.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" id="btn-confirmer-especes" class="btn btn-success btn-lg" disabled>
+                    <i class="bi bi-check-circle me-2"></i>
+                    Confirmer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
 <script>
@@ -650,6 +695,75 @@
     }
   });
 
+  function calculerTotal() {
+    var remise = parseFloat(document.getElementById('remise-globale')?.value) || 0;
+    var subtotal = cart.reduce(function (sum, item) {
+      return sum + getLineTotal(item);
+    }, 0);
+    return subtotal - (subtotal * remise / 100);
+  }
+
+  function ouvrirModalEspeces() {
+    var total = calculerTotal();
+    document.getElementById('especes-total').textContent =
+      total.toLocaleString('fr-FR') + ' FCFA';
+    document.getElementById('especes-encaisse').value = '';
+    document.getElementById('rendu-container').style.display = 'none';
+    document.getElementById('alerte-insuffisant').style.display = 'none';
+    document.getElementById('btn-confirmer-especes').disabled = true;
+    var el = document.getElementById('modal-especes');
+    bootstrap.Modal.getOrCreateInstance(el).show();
+    setTimeout(function () { document.getElementById('especes-encaisse').focus(); }, 300);
+  }
+
+  function calculerRendu() {
+    var total = calculerTotal();
+    var encaisse = parseFloat(document.getElementById('especes-encaisse').value) || 0;
+    var rendu = encaisse - total;
+    var renduContainer = document.getElementById('rendu-container');
+    var alerte = document.getElementById('alerte-insuffisant');
+    var btnConfirmer = document.getElementById('btn-confirmer-especes');
+
+    if (encaisse <= 0) {
+      renduContainer.style.display = 'none';
+      alerte.style.display = 'none';
+      btnConfirmer.disabled = true;
+      return;
+    }
+
+    if (rendu < 0) {
+      renduContainer.style.display = 'none';
+      alerte.style.display = 'block';
+      btnConfirmer.disabled = true;
+    } else {
+      alerte.style.display = 'none';
+      renduContainer.style.display = 'block';
+      document.getElementById('especes-rendu').textContent =
+        rendu.toLocaleString('fr-FR') + ' FCFA';
+      btnConfirmer.disabled = false;
+    }
+  }
+
+  function confirmerEspeces() {
+    var modalEl = document.getElementById('modal-especes');
+    var instance = bootstrap.Modal.getInstance(modalEl);
+    if (instance) instance.hide();
+    selectedPayment = 0;
+    document.getElementById('field-payment-method').value = '0';
+    document.getElementById('field-montant-encaisse').value =
+      document.getElementById('especes-encaisse').value || '0';
+    document.querySelectorAll('.payment-btn').forEach(function (b) {
+      b.classList.remove('active');
+    });
+    var especesBtn = document.querySelector('.payment-btn[data-value="0"]');
+    if (especesBtn) especesBtn.classList.add('active');
+    var autreSection = document.getElementById('autre-libelle-section');
+    if (autreSection) autreSection.classList.add('d-none');
+  }
+
+  document.getElementById('especes-encaisse').addEventListener('input', calculerRendu);
+  document.getElementById('btn-confirmer-especes').addEventListener('click', confirmerEspeces);
+
   document.getElementById('remise-globale').addEventListener('input', updateSummary);
 
   document.getElementById('notes-input').addEventListener('input', function () {
@@ -659,12 +773,18 @@
   document.querySelectorAll('.payment-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       resetModeCredit();
+      var value = parseInt(this.dataset.value, 10);
+      if (value === 0) {
+        ouvrirModalEspeces();
+        return;
+      }
       document.querySelectorAll('.payment-btn').forEach(function (b) {
         b.classList.remove('active');
       });
       this.classList.add('active');
-      selectedPayment = parseInt(this.dataset.value, 10);
+      selectedPayment = value;
       document.getElementById('field-payment-method').value = String(selectedPayment);
+      document.getElementById('field-montant-encaisse').value = '0';
       var autreSection = document.getElementById('autre-libelle-section');
       if (autreSection) {
         if (selectedPayment === 7) {
@@ -691,6 +811,13 @@
     if (cart.length === 0) {
       notifyError('Ajoutez au moins un produit.');
       return;
+    }
+    if (selectedPayment === 0) {
+      var encaisse = parseFloat(document.getElementById('field-montant-encaisse').value) || 0;
+      if (encaisse <= 0) {
+        ouvrirModalEspeces();
+        return;
+      }
     }
     var vendeurId = document.getElementById('vendeur-select').value;
     if (!vendeurId) {
@@ -781,6 +908,7 @@
         : '');
     addHidden('Notes', document.getElementById('notes-input').value || '');
     addHidden('VendeurId', vendeurId);
+    addHidden('MontantEncaisse', document.getElementById('field-montant-encaisse')?.value || '0');
 
     // Lignes du panier
     cart.forEach(function (item, i) {

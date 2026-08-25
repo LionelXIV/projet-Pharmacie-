@@ -48,5 +48,11 @@ public class Sale
     /// <summary>True = vente saisie en mode fantôme Administrateur (exclue des rapports).</summary>
     public bool IsAdminTest { get; set; } = false;
 
+    [Display(Name = "Montant encaissé")]
+    public decimal MontantEncaisse { get; set; }
+
+    [Display(Name = "Monnaie rendue")]
+    public decimal MonnaieRendue { get; set; }
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

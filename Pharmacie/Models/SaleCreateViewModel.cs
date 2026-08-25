@@ -22,6 +22,9 @@ public class SaleCreateViewModel
 
     public bool IsRegularisation { get; set; }
 
+    [Display(Name = "Montant encaissé")]
+    public decimal MontantEncaisse { get; set; }
+
     [Required(ErrorMessage = "Veuillez sélectionner le vendeur.")]
     [Display(Name = "Vendeur")]
     public int? VendeurId { get; set; }

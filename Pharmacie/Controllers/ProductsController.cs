@@ -1106,6 +1106,7 @@ public class ProductsController : Controller
     {
         ProductType.Medicament => "Médicament",
         ProductType.Parapharmacie => "Parapharmacie",
+        ProductType.Autre => "Autre",
         _ => "Inconnu"
     };
 }

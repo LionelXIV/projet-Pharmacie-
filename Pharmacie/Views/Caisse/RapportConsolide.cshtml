@@ -161,6 +161,8 @@
     </div>
 </div>
 
+@await Html.PartialAsync("_RepartitionPaiements")
+
 @if (consoQte1 > 0 || consoQte2 > 0)
 {
     <div class="card border-danger mt-3">

@@ -13,6 +13,7 @@
     {
         ProductType.Medicament => "Médicament",
         ProductType.Parapharmacie => "Parapharmacie",
+        ProductType.Autre => "Autre",
         _ => "Inconnu"
     };
 
@@ -263,6 +264,7 @@
                                 <option value="Inconnu" selected>Inconnu</option>
                                 <option value="Medicament">Médicament</option>
                                 <option value="Parapharmacie">Parapharmacie</option>
+                                <option value="Autre">Autre</option>
                             </select>
                         }
                         else
@@ -385,6 +387,7 @@ var optionsParChamp = {
     ProductType: [
         { v: 'Medicament', l: 'Médicament' },
         { v: 'Parapharmacie', l: 'Parapharmacie' },
+        { v: 'Autre', l: 'Autre' },
         { v: 'Inconnu', l: 'Inconnu' }
     ],
     TarifType: [

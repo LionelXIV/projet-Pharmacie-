@@ -324,6 +324,18 @@ public class SalesController : Controller
                             }
                         }
 
+                        if (model.PaymentMethod == PaymentMethod.Especes && model.MontantEncaisse > 0)
+                        {
+                            var totalVente = sale.Lines.Sum(CaisseService.LineTotal);
+                            sale.MontantEncaisse = model.MontantEncaisse;
+                            sale.MonnaieRendue = Math.Max(0, model.MontantEncaisse - totalVente);
+                        }
+                        else
+                        {
+                            sale.MontantEncaisse = 0;
+                            sale.MonnaieRendue = 0;
+                        }
+
                         await _context.SaveChangesAsync();
                     }
 
@@ -521,25 +533,82 @@ public class SalesController : Controller
                 .Where(m => m.SaleId == sale.Id && m.Type == StockMovementType.Sortie)
                 .ToListAsync();
 
-            foreach (var mouvement in sorties)
+            if (sorties.Count == 0)
             {
-                if (mouvement.Batch != null)
-                    mouvement.Batch.Quantity += mouvement.Quantity;
+                var productIds = sale.Lines.Select(l => l.ProductId).Distinct().ToList();
+                var from = sale.SoldAt.AddSeconds(-30);
+                var to = sale.SoldAt.AddSeconds(30);
+                var marker = $"#{sale.Id}";
+                sorties = await _context.StockMovements
+                    .Include(m => m.Batch)
+                    .Include(m => m.Product)
+                    .Where(m =>
+                        m.Type == StockMovementType.Sortie
+                        && productIds.Contains(m.ProductId)
+                        && m.OccurredAt >= from
+                        && m.OccurredAt <= to
+                        && (m.UserId == sale.UserId || sale.UserId == null)
+                        && (m.Reason == "Vente"
+                            || (m.Reason != null && m.Reason.Contains(marker))))
+                    .ToListAsync();
+            }
 
-                if (mouvement.Product != null)
-                    mouvement.Product.StockQuantity += mouvement.Quantity;
-
-                _context.StockMovements.Add(new StockMovement
+            if (sorties.Count > 0)
+            {
+                foreach (var mouvement in sorties)
                 {
-                    ProductId = mouvement.ProductId,
-                    BatchId = mouvement.BatchId,
-                    Type = StockMovementType.Entree,
-                    Quantity = mouvement.Quantity,
-                    Reason = $"Annulation vente #{id} par {nomUser}",
-                    OccurredAt = DateTime.Now,
-                    UserId = userId,
-                    SaleId = sale.Id
-                });
+                    if (mouvement.Batch != null)
+                        mouvement.Batch.Quantity += mouvement.Quantity;
+
+                    if (mouvement.Product != null)
+                        mouvement.Product.StockQuantity += mouvement.Quantity;
+
+                    _context.StockMovements.Add(new StockMovement
+                    {
+                        ProductId = mouvement.ProductId,
+                        BatchId = mouvement.BatchId,
+                        Type = StockMovementType.Entree,
+                        Quantity = mouvement.Quantity,
+                        Reason = $"Restitution stock — Annulation vente #{id} par {nomUser}",
+                        OccurredAt = DateTime.Now,
+                        UserId = userId,
+                        SaleId = sale.Id
+                    });
+                }
+            }
+            else
+            {
+                foreach (var ligne in sale.Lines)
+                {
+                    var product = await _context.Products
+                        .FirstOrDefaultAsync(p => p.Id == ligne.ProductId);
+                    if (product == null)
+                        continue;
+
+                    product.StockQuantity += ligne.Quantity;
+
+                    var lot = await _context.ProductBatches
+                        .Where(b => b.ProductId == ligne.ProductId)
+                        .OrderBy(b => b.ExpirationDate)
+                        .ThenBy(b => b.Id)
+                        .FirstOrDefaultAsync();
+
+                    if (lot != null)
+                    {
+                        lot.Quantity += ligne.Quantity;
+                        _context.StockMovements.Add(new StockMovement
+                        {
+                            ProductId = ligne.ProductId,
+                            BatchId = lot.Id,
+                            Type = StockMovementType.Entree,
+                            Quantity = ligne.Quantity,
+                            Reason = $"Restitution stock — Annulation vente #{sale.Id}",
+                            OccurredAt = DateTime.Now,
+                            UserId = userId,
+                            SaleId = sale.Id
+                        });
+                    }
+                }
             }
 
             await _context.SaveChangesAsync();

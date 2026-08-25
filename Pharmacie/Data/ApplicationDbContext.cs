@@ -126,6 +126,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
                 .WithMany(v => v.Sales)
                 .HasForeignKey(s => s.VendeurId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.Property(s => s.MontantEncaisse).HasColumnType("decimal(18,2)");
+            entity.Property(s => s.MonnaieRendue).HasColumnType("decimal(18,2)");
         });
 
         builder.Entity<Vendeur>(entity =>

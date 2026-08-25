@@ -148,6 +148,8 @@
     </div>
 </div>
 
+@await Html.PartialAsync("_RepartitionPaiements")
+
 @if (qteTableau1 > 0 || qteTableau2 > 0)
 {
     <div class="card border-warning mb-3">

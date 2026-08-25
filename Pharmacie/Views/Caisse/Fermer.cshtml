@@ -58,6 +58,24 @@
                 {
                     <text>| Autres : @caAutre.ToString("N0") FCFA</text>
                 }
+                @{
+                    decimal fw = ViewBag.TotalFreemoney != null ? (decimal)ViewBag.TotalFreemoney : 0m;
+                    decimal fy = ViewBag.TotalYasMoney != null ? (decimal)ViewBag.TotalYasMoney : 0m;
+                    decimal fc = ViewBag.TotalCheque != null ? (decimal)ViewBag.TotalCheque : 0m;
+                    decimal ft = ViewBag.TotalTPE != null ? (decimal)ViewBag.TotalTPE : 0m;
+                    decimal fv = ViewBag.TotalVirement != null ? (decimal)ViewBag.TotalVirement : 0m;
+                }
+                @if (fw + fy + fc + ft + fv > 0)
+                {
+                    <br />
+                    <span class="small">
+                        @if (fw > 0) { <text>Freemoney @fw.ToString("N0") F · </text> }
+                        @if (fy > 0) { <text>Yas Money @fy.ToString("N0") F · </text> }
+                        @if (fc > 0) { <text>Chèque @fc.ToString("N0") F · </text> }
+                        @if (ft > 0) { <text>TPE @ft.ToString("N0") F · </text> }
+                        @if (fv > 0) { <text>Virement @fv.ToString("N0") F</text> }
+                    </span>
+                }
                 <br />
                 Dépôts déjà effectués : @(((decimal)(ViewBag.TotalDepots ?? 0m)).ToString("N0")) FCFA<br />
                 <strong>Attendu en caisse (fond + espèces − dépôts) :</strong> @attendu.ToString("N0") FCFA

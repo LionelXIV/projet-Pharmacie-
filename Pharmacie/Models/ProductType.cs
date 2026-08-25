@@ -11,5 +11,8 @@ public enum ProductType
     Medicament = 1,
 
     [Display(Name = "Parapharmacie")]
-    Parapharmacie = 2
+    Parapharmacie = 2,
+
+    [Display(Name = "Autre")]
+    Autre = 5
 }

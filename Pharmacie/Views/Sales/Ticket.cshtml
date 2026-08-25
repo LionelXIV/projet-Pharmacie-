@@ -201,6 +201,21 @@
             <span>Paiement</span>
             <span>@PaymentMethodDisplay.Format(Model.PaymentMethod, Model.PaymentMethodAutre)</span>
         </div>
+        @if (Model.PaymentMethod == PaymentMethod.Especes && Model.MontantEncaisse > 0)
+        {
+            <div class="info-row">
+                <span>Total à payer</span>
+                <span>@total.ToString("N0") F</span>
+            </div>
+            <div class="info-row">
+                <span>Montant encaissé</span>
+                <span>@Model.MontantEncaisse.ToString("N0") F</span>
+            </div>
+            <div class="info-row bold">
+                <span>Monnaie rendue</span>
+                <span>@Model.MonnaieRendue.ToString("N0") F</span>
+            </div>
+        }
     </div>
 
     <div class="double-separator"></div>
