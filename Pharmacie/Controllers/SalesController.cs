@@ -76,6 +76,12 @@ public class SalesController : Controller
         if (!string.IsNullOrEmpty(filter.UserId))
             q = q.Where(s => s.UserId == filter.UserId);
 
+        if (filter.VendeurId is > 0)
+            q = q.Where(s => s.VendeurId == filter.VendeurId.Value);
+
+        if (filter.PaymentMethod.HasValue)
+            q = q.Where(s => s.PaymentMethod == filter.PaymentMethod.Value);
+
         var totalCount = await q.CountAsync();
         var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)IndexPageSize);
         if (page > totalPages)
@@ -93,8 +99,54 @@ public class SalesController : Controller
         ViewBag.TotalPages = totalPages;
         ViewBag.TotalCount = totalCount;
         ViewBag.UserLabels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, list.Select(s => s.UserId));
+        ViewBag.From = filter.From?.ToString("yyyy-MM-dd");
+        ViewBag.To = filter.To?.ToString("yyyy-MM-dd");
+        ViewBag.VendeurId = filter.VendeurId;
+        ViewBag.PaymentMethod = filter.PaymentMethod?.ToString();
         await PopulateSaleFilterUsersAsync(filter.UserId);
+        await PopulateSaleFilterLookupsAsync(filter.VendeurId);
         return View(new SaleIndexPageViewModel { Filter = filter, Sales = list });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportSalesPdf([FromQuery] SaleListFilters? filter)
+    {
+        filter ??= new SaleListFilters();
+
+        var q = _context.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines).ThenInclude(l => l.Product!)
+            .Include(s => s.Vendeur)
+            .AsQueryable();
+
+        DateTime? fromDay = filter.From?.Date;
+        DateTime? toDay = filter.To?.Date;
+        if (fromDay.HasValue && toDay.HasValue && fromDay > toDay)
+            (fromDay, toDay) = (toDay, fromDay);
+
+        if (fromDay.HasValue)
+            q = q.Where(s => s.SoldAt >= fromDay.Value);
+
+        if (toDay.HasValue)
+            q = q.Where(s => s.SoldAt < toDay.Value.AddDays(1));
+
+        if (!string.IsNullOrEmpty(filter.UserId))
+            q = q.Where(s => s.UserId == filter.UserId);
+
+        if (filter.VendeurId is > 0)
+            q = q.Where(s => s.VendeurId == filter.VendeurId.Value);
+
+        if (filter.PaymentMethod.HasValue)
+            q = q.Where(s => s.PaymentMethod == filter.PaymentMethod.Value);
+
+        var list = await q
+            .OrderByDescending(s => s.SoldAt)
+            .ThenByDescending(s => s.Id)
+            .ToListAsync();
+
+        ViewBag.Filter = filter;
+        ViewBag.UserLabels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, list.Select(s => s.UserId));
+        return View(list);
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -995,5 +1047,20 @@ public class SalesController : Controller
             .ToList();
 
         ViewData["FilterUserId"] = userItems;
+    }
+
+    private async Task PopulateSaleFilterLookupsAsync(int? selectedVendeurId)
+    {
+        ViewBag.Vendeurs = await _context.Vendeurs
+            .AsNoTracking()
+            .Where(v => v.IsActif)
+            .OrderBy(v => v.Nom)
+            .ToListAsync();
+
+        ViewBag.PaymentMethods = Enum.GetValues<PaymentMethod>()
+            .Select(p => new { Value = p.ToString(), Text = PaymentMethodDisplay.GetName(p) })
+            .ToList();
+
+        ViewBag.SelectedVendeurId = selectedVendeurId;
     }
 }

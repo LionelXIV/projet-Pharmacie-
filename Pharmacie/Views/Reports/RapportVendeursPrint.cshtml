@@ -1,7 +1,8 @@
 @model IEnumerable<VendeurRapportViewModel>
 @{
     Layout = null;
-    var dateRapport = (DateTime)(ViewBag.DateRapport ?? DateTime.Today);
+    var periodeLabel = ViewBag.PeriodeLabel as string
+        ?? ((DateTime)(ViewBag.DateRapport ?? DateTime.Today)).ToString("dd/MM/yyyy");
     var totalJour = (decimal)(ViewBag.TotalJour ?? 0m);
     var totalVentes = (int)(ViewBag.TotalVentes ?? 0);
     var list = Model.ToList();
@@ -11,7 +12,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Performance vendeurs — @dateRapport.ToString("dd/MM/yyyy")</title>
+    <title>Performance vendeurs — @periodeLabel</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; font-size: 11px; color: #000; padding: 15mm; }
@@ -44,12 +45,12 @@
 
     <div class="header">
         <h1>PHARMACIE SAINT JEAN PAUL II PNR</h1>
-        <h2>PERFORMANCE VENDEURS — @dateRapport.ToString("dd/MM/yyyy")</h2>
+        <h2>PERFORMANCE VENDEURS — @periodeLabel</h2>
         <div>Généré le @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</div>
     </div>
 
     <div class="kpi-grid">
-        <div class="kpi-box"><div class="kpi-value">@totalJour.ToString("N0") F</div><div class="kpi-label">CA du jour</div></div>
+        <div class="kpi-box"><div class="kpi-value">@totalJour.ToString("N0") F</div><div class="kpi-label">CA de la période</div></div>
         <div class="kpi-box"><div class="kpi-value">@totalVentes</div><div class="kpi-label">Nb ventes</div></div>
     </div>
 

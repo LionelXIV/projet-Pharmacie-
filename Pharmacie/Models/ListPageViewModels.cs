@@ -61,6 +61,11 @@ public class SaleListFilters
 
     /// <summary>Identifiant Identity de l’utilisateur ayant enregistré la vente.</summary>
     public string? UserId { get; set; }
+
+    /// <summary>Vendeur ticket (entité Vendeur), pas le compte Identity.</summary>
+    public int? VendeurId { get; set; }
+
+    public PaymentMethod? PaymentMethod { get; set; }
 }
 
 public class SaleIndexPageViewModel

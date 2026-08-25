@@ -3,7 +3,6 @@
     ViewData["Title"] = "Vos documents";
     var dateDebut = (string)(ViewBag.DateDebut ?? DateTime.Today.AddDays(-29).ToString("yyyy-MM-dd"));
     var dateFin = (string)(ViewBag.DateFin ?? DateTime.Today.ToString("yyyy-MM-dd"));
-    var dateJour = (string)(ViewBag.DateJour ?? DateTime.Today.ToString("yyyy-MM-dd"));
     var showStock = AppRoles.CanAccessStockReports(User);
     var showOperational = AppRoles.CanAccessOperationalReports(User);
     var showPatients = AppRoles.CanAccessPatientsRead(User);
@@ -100,11 +99,11 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h3 class="h6"><i class="bi bi-bar-chart-steps me-1 text-success"></i>Performance vendeurs</h3>
-                    <p class="small text-muted mb-3">CA du jour par vendeur (CSV).</p>
+                    <p class="small text-muted mb-3">CA par vendeur sur la période (CSV).</p>
                     <a class="btn btn-sm btn-success"
                        asp-controller="Reports" asp-action="ExportVendeursCsv"
-                       asp-route-date="@dateJour">
-                        <i class="bi bi-download me-1"></i>Télécharger CSV
+                       asp-route-dateDebut="@dateDebut" asp-route-dateFin="@dateFin">
+                        <i class="bi bi-download me-1"></i>CSV (période sélectionnée)
                     </a>
                 </div>
             </div>
@@ -220,24 +219,26 @@
             <div class="col-md-6 col-xl-4">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body">
-                        <h3 class="h6"><i class="bi bi-receipt me-1"></i>Historique ventes</h3>
-                        <p class="small text-muted mb-3">Dernières ventes (CSV).</p>
-                        <a class="btn btn-sm btn-outline-primary"
-                           asp-controller="Reports" asp-action="SalesHistoryCsv">
-                            <i class="bi bi-download me-1"></i>Télécharger CSV
-                        </a>
+                    <h3 class="h6"><i class="bi bi-receipt me-1"></i>Historique ventes</h3>
+                    <p class="small text-muted mb-3">Ventes de la période (CSV).</p>
+                    <a class="btn btn-sm btn-outline-primary"
+                       asp-controller="Reports" asp-action="SalesHistoryCsv"
+                       asp-route-dateDebut="@dateDebut" asp-route-dateFin="@dateFin">
+                        <i class="bi bi-download me-1"></i>CSV (période sélectionnée)
+                    </a>
                     </div>
                 </div>
             </div>
             <div class="col-md-6 col-xl-4">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body">
-                        <h3 class="h6"><i class="bi bi-arrow-left-right me-1"></i>Historique mouvements</h3>
-                        <p class="small text-muted mb-3">Entrées / sorties stock (CSV).</p>
-                        <a class="btn btn-sm btn-outline-primary"
-                           asp-controller="Reports" asp-action="StockMovementsHistoryCsv">
-                            <i class="bi bi-download me-1"></i>Télécharger CSV
-                        </a>
+                    <h3 class="h6"><i class="bi bi-arrow-left-right me-1"></i>Historique mouvements</h3>
+                    <p class="small text-muted mb-3">Entrées / sorties stock de la période (CSV).</p>
+                    <a class="btn btn-sm btn-outline-primary"
+                       asp-controller="Reports" asp-action="StockMovementsHistoryCsv"
+                       asp-route-dateDebut="@dateDebut" asp-route-dateFin="@dateFin">
+                        <i class="bi bi-download me-1"></i>CSV (période sélectionnée)
+                    </a>
                     </div>
                 </div>
             </div>

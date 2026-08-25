@@ -146,9 +146,10 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.OperationalReportsAccess)]
-    public async Task<IActionResult> SalesHistoryCsv()
+    public async Task<IActionResult> SalesHistoryCsv(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
-        var rows = await LoadSalesHistoryRowsAsync();
+        var (debut, fin) = ResolveInclusiveDates(dateDebut, dateFin, defaultDaysBack: 30);
+        var rows = await LoadSalesHistoryRowsAsync(debut, fin, take: null);
         var sb = ReportCsvFormatter.CreateBuilder();
         sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Date vente"),
@@ -179,9 +180,10 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.OperationalReportsAccess)]
-    public async Task<IActionResult> StockMovementsHistoryCsv()
+    public async Task<IActionResult> StockMovementsHistoryCsv(DateTime? dateDebut = null, DateTime? dateFin = null)
     {
-        var rows = await LoadStockMovementsHistoryRowsAsync();
+        var (debut, fin) = ResolveInclusiveDates(dateDebut, dateFin, defaultDaysBack: 30);
+        var rows = await LoadStockMovementsHistoryRowsAsync(debut, fin, take: null);
         var sb = ReportCsvFormatter.CreateBuilder();
         sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Date"),
@@ -342,16 +344,27 @@ public class ReportsController : Controller
         }).ToList();
     }
 
-    private async Task<List<ReportSaleHistoryRowViewModel>> LoadSalesHistoryRowsAsync()
+    private async Task<List<ReportSaleHistoryRowViewModel>> LoadSalesHistoryRowsAsync(
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null,
+        int? take = ReportLimits.MaxSalesRows)
     {
-        var sales = await _db.Sales
+        var q = _db.Sales
             .AsNoTracking()
             .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
             .Where(s => !s.IsAnnulee && !s.IsAdminTest)
-            .OrderByDescending(s => s.SoldAt)
-            .ThenByDescending(s => s.Id)
-            .Take(ReportLimits.MaxSalesRows)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (fromInclusive.HasValue)
+            q = q.Where(s => s.SoldAt >= fromInclusive.Value.Date);
+        if (toInclusive.HasValue)
+            q = q.Where(s => s.SoldAt < toInclusive.Value.Date.AddDays(1));
+
+        q = q.OrderByDescending(s => s.SoldAt).ThenByDescending(s => s.Id);
+        if (take.HasValue)
+            q = q.Take(take.Value);
+
+        var sales = await q.ToListAsync();
 
         return sales.Select(s =>
         {
@@ -627,32 +640,42 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
-    public async Task<IActionResult> VendeursDuJour(DateTime? date = null)
+    public async Task<IActionResult> VendeursDuJour(DateTime? dateDebut = null, DateTime? dateFin = null, DateTime? date = null)
     {
-        var targetDate = (date ?? DateTime.Today).Date;
-        var rapport = await BuildVendeurRapportAsync(targetDate);
-        ViewBag.DateRapport = targetDate;
+        var (debut, fin) = ResolveInclusiveDates(dateDebut, dateFin, date);
+        var rapport = await BuildVendeurRapportAsync(debut, fin);
+        ViewBag.DateDebut = debut.ToString("yyyy-MM-dd");
+        ViewBag.DateFin = fin.ToString("yyyy-MM-dd");
+        ViewBag.PeriodeLabel = debut == fin
+            ? debut.ToString("dd/MM/yyyy")
+            : $"Du {debut:dd/MM/yyyy} au {fin:dd/MM/yyyy}";
+        ViewBag.DateRapport = debut;
         ViewBag.TotalJour = rapport.Sum(r => r.ChiffreAffaires);
         ViewBag.TotalVentes = rapport.Sum(r => r.NombreVentes);
         return View(rapport);
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
-    public async Task<IActionResult> ImprimerRapportVendeurs(DateTime? date = null)
+    public async Task<IActionResult> ImprimerRapportVendeurs(DateTime? dateDebut = null, DateTime? dateFin = null, DateTime? date = null)
     {
-        var targetDate = (date ?? DateTime.Today).Date;
-        var rapport = await BuildVendeurRapportAsync(targetDate);
-        ViewBag.DateRapport = targetDate;
+        var (debut, fin) = ResolveInclusiveDates(dateDebut, dateFin, date);
+        var rapport = await BuildVendeurRapportAsync(debut, fin);
+        ViewBag.DateDebut = debut.ToString("yyyy-MM-dd");
+        ViewBag.DateFin = fin.ToString("yyyy-MM-dd");
+        ViewBag.PeriodeLabel = debut == fin
+            ? debut.ToString("dd/MM/yyyy")
+            : $"Du {debut:dd/MM/yyyy} au {fin:dd/MM/yyyy}";
+        ViewBag.DateRapport = debut;
         ViewBag.TotalJour = rapport.Sum(r => r.ChiffreAffaires);
         ViewBag.TotalVentes = rapport.Sum(r => r.NombreVentes);
         return View("RapportVendeursPrint", rapport);
     }
 
     [Authorize(Roles = AppRoles.FinancesAccess)]
-    public async Task<IActionResult> ExportVendeursCsv(DateTime? date = null)
+    public async Task<IActionResult> ExportVendeursCsv(DateTime? dateDebut = null, DateTime? dateFin = null, DateTime? date = null)
     {
-        var targetDate = (date ?? DateTime.Today).Date;
-        var rapport = await BuildVendeurRapportAsync(targetDate);
+        var (debut, fin) = ResolveInclusiveDates(dateDebut, dateFin, date);
+        var rapport = await BuildVendeurRapportAsync(debut, fin);
         var sb = ReportCsvFormatter.CreateBuilder();
         sb.AppendLine(ReportCsvFormatter.Join(
             ReportCsvFormatter.Escape("Vendeur"),
@@ -681,13 +704,34 @@ public class ReportsController : Controller
             ReportCsvFormatter.IntInvariant(rapport.Sum(r => r.NombreArticles)),
             ""));
 
-        return ReportCsvFormatter.FileResult(this, sb.ToString(), $"performance_vendeurs_{targetDate:yyyyMMdd}");
+        return ReportCsvFormatter.FileResult(this, sb.ToString(), $"performance_vendeurs_{debut:yyyyMMdd}_{fin:yyyyMMdd}");
     }
 
-    private async Task<List<VendeurRapportViewModel>> BuildVendeurRapportAsync(DateTime targetDate)
+    private static (DateTime debut, DateTime fin) ResolveInclusiveDates(
+        DateTime? dateDebut,
+        DateTime? dateFin,
+        DateTime? date = null,
+        int? defaultDaysBack = null)
     {
-        var start = targetDate.Date;
-        var end = start.AddDays(1);
+        if (!dateDebut.HasValue && !dateFin.HasValue && date.HasValue)
+            return (date.Value.Date, date.Value.Date);
+
+        var fallbackFin = DateTime.Today;
+        var fallbackDebut = defaultDaysBack.HasValue
+            ? fallbackFin.AddDays(-defaultDaysBack.Value)
+            : fallbackFin;
+
+        var debut = (dateDebut ?? fallbackDebut).Date;
+        var fin = (dateFin ?? fallbackFin).Date;
+        if (fin < debut)
+            fin = debut;
+        return (debut, fin);
+    }
+
+    private async Task<List<VendeurRapportViewModel>> BuildVendeurRapportAsync(DateTime debut, DateTime fin)
+    {
+        var start = debut.Date;
+        var end = fin.Date.AddDays(1);
         var sales = await _db.Sales
             .AsNoTracking()
             .Include(s => s.Lines).ThenInclude(l => l.Product!).ThenInclude(p => p.Category)
@@ -722,19 +766,30 @@ public class ReportsController : Controller
             .ToList();
     }
 
-    private async Task<List<ReportMovementHistoryRowViewModel>> LoadStockMovementsHistoryRowsAsync()
+    private async Task<List<ReportMovementHistoryRowViewModel>> LoadStockMovementsHistoryRowsAsync(
+        DateTime? fromInclusive = null,
+        DateTime? toInclusive = null,
+        int? take = ReportLimits.MaxMovementRows)
     {
-        var movements = await _db.StockMovements
+        var q = _db.StockMovements
             .AsNoTracking()
             .Include(m => m.Product!).ThenInclude(p => p.Category)
             .Include(m => m.Batch)
             .Where(m => m.Product == null
                         || m.Product.Category == null
                         || !m.Product.Category.EstHorsSysteme)
-            .OrderByDescending(m => m.OccurredAt)
-            .ThenByDescending(m => m.Id)
-            .Take(ReportLimits.MaxMovementRows)
-            .ToListAsync();
+            .AsQueryable();
+
+        if (fromInclusive.HasValue)
+            q = q.Where(m => m.OccurredAt >= fromInclusive.Value.Date);
+        if (toInclusive.HasValue)
+            q = q.Where(m => m.OccurredAt < toInclusive.Value.Date.AddDays(1));
+
+        q = q.OrderByDescending(m => m.OccurredAt).ThenByDescending(m => m.Id);
+        if (take.HasValue)
+            q = q.Take(take.Value);
+
+        var movements = await q.ToListAsync();
 
         var labelsByUserId = await UserDisplayResolver.LoadLabelsByIdAsync(_db, movements.Select(m => m.UserId));
 

@@ -2,16 +2,14 @@ namespace Pharmacie.Models;
 
 public class AlertsIndexViewModel
 {
-    /// <summary>Default horizon (appsettings <c>Alerts:ExpirationHorizonDays</c>) for Dashboard, Batches, Reports.</summary>
-    public static int ExpirationHorizonDays => 90;
+    public int HorizonDays { get; set; } = 90;
+    public int? CategorieId { get; set; }
 
-    /// <summary>Effective horizon for the Alerts/Index page (may differ via query string).</summary>
-    public int HorizonDays { get; set; } = ExpirationHorizonDays;
-
-    public List<Product> LowStockProducts { get; set; } = new();
-
-    /// <summary>Lots avec stock restant et date d'expiration dans la fenêtre (ordonnés par date).</summary>
-    public List<ProductBatch> BatchesNearingExpiration { get; set; } = new();
+    public List<Product> Ruptures { get; set; } = new();
+    public List<Product> StockFaible { get; set; } = new();
+    public List<ProductBatch> LotsExpires { get; set; } = new();
+    public List<ProductBatch> PeremptionsProches { get; set; } = new();
+    public List<Category> Categories { get; set; } = new();
 
     public DateTime Today { get; set; } = DateTime.Today;
 }

@@ -19,100 +19,105 @@ public class AlertsController : Controller
         _configuration = configuration;
     }
 
-    public async Task<IActionResult> Index(
-        int? horizonDays = null,
-        int pageStock = 1,
-        int pageExpiration = 1,
-        int page = 1,
-        string? section = null)
+    public async Task<IActionResult> Index(int? horizon = null, int? horizonDays = null, int? categorieId = null)
     {
-        const int pageSize = 50;
+        var vm = await LoadAlertesAsync(horizon, horizonDays, categorieId);
+        PopulateAlertesViewBag(vm);
+        return View(vm);
+    }
 
-        if (section == "stock")
-            pageStock = page;
-        else if (section == "expiration")
-            pageExpiration = page;
+    public async Task<IActionResult> ExportAlertesPdf(int? horizon = null, int? horizonDays = null, int? categorieId = null)
+    {
+        var vm = await LoadAlertesAsync(horizon, horizonDays, categorieId);
+        PopulateAlertesViewBag(vm);
+        return View(vm);
+    }
 
-        if (pageStock < 1)
-            pageStock = 1;
-        if (pageExpiration < 1)
-            pageExpiration = 1;
-
+    private async Task<AlertsIndexViewModel> LoadAlertesAsync(int? horizon, int? horizonDays, int? categorieId)
+    {
         var defaultHorizon = _configuration.GetValue<int>("Alerts:ExpirationHorizonDays", 90);
-        var effectiveHorizon = Math.Clamp(horizonDays ?? defaultHorizon, 7, 365);
-
+        var effectiveHorizon = Math.Clamp(horizon ?? horizonDays ?? defaultHorizon, 7, 365);
         var today = DateTime.Today;
-        var horizon = today.AddDays(effectiveHorizon);
+        var dateHorizon = today.AddDays(effectiveHorizon);
 
-        var lowStockQuery = _context.Products
+        var productsQuery = _context.Products
             .AsNoTracking()
-            .Where(p => p.IsActive && p.StockQuantity <= p.AlertThreshold);
+            .Include(p => p.Category)
+            .Include(p => p.Supplier)
+            .Where(p => p.IsActive && (p.Category == null || !p.Category.EstHorsSysteme));
 
-        var stockTotalCount = await lowStockQuery.CountAsync();
-        var stockTotalPages = stockTotalCount == 0 ? 1 : (int)Math.Ceiling(stockTotalCount / (double)pageSize);
-        if (pageStock > stockTotalPages)
-            pageStock = stockTotalPages;
+        if (categorieId is > 0)
+            productsQuery = productsQuery.Where(p => p.CategoryId == categorieId.Value);
 
-        var lowStock = await lowStockQuery
+        var ruptures = await productsQuery
+            .Where(p => p.StockQuantity == 0)
+            .OrderBy(p => p.CommercialName)
+            .ToListAsync();
+
+        var stockFaible = await productsQuery
+            .Where(p => p.StockQuantity > 0
+                        && p.AlertThreshold > 0
+                        && p.StockQuantity <= p.AlertThreshold)
             .OrderBy(p => p.StockQuantity)
             .ThenBy(p => p.CommercialName)
-            .Skip((pageStock - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync();
 
-        var expirationQuery = _context.ProductBatches
+        var batchesQuery = _context.ProductBatches
             .AsNoTracking()
-            .Include(b => b.Product)
-            .Where(b => b.Quantity > 0 && b.ExpirationDate <= horizon);
+            .Include(b => b.Product!)
+                .ThenInclude(p => p.Category)
+            .Where(b =>
+                b.Quantity > 0
+                && b.Product != null
+                && b.Product.IsActive
+                && (b.Product.Category == null || !b.Product.Category.EstHorsSysteme));
 
-        var expirationTotalCount = await expirationQuery.CountAsync();
-        var expirationTotalPages = expirationTotalCount == 0 ? 1 : (int)Math.Ceiling(expirationTotalCount / (double)pageSize);
-        if (pageExpiration > expirationTotalPages)
-            pageExpiration = expirationTotalPages;
+        if (categorieId is > 0)
+            batchesQuery = batchesQuery.Where(b => b.Product!.CategoryId == categorieId.Value);
 
-        var batches = await expirationQuery
+        var lotsExpires = await batchesQuery
+            .Where(b => b.ExpirationDate < today)
             .OrderBy(b => b.ExpirationDate)
             .ThenBy(b => b.Product!.CommercialName)
-            .ThenBy(b => b.LotNumber)
-            .Skip((pageExpiration - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync();
 
-        ViewBag.HorizonDays = effectiveHorizon;
-        ViewBag.DefaultHorizonDays = defaultHorizon;
+        var peremptionsProches = await batchesQuery
+            .Where(b => b.ExpirationDate >= today && b.ExpirationDate <= dateHorizon)
+            .OrderBy(b => b.ExpirationDate)
+            .ThenBy(b => b.Product!.CommercialName)
+            .ToListAsync();
 
-        ViewBag.StockCurrentPage = pageStock;
-        ViewBag.StockTotalPages = stockTotalPages;
-        ViewBag.StockTotalCount = stockTotalCount;
+        var categories = await _context.Categories
+            .AsNoTracking()
+            .Where(c => !c.EstHorsSysteme)
+            .OrderBy(c => c.Name)
+            .ToListAsync();
 
-        ViewBag.ExpirationCurrentPage = pageExpiration;
-        ViewBag.ExpirationTotalPages = expirationTotalPages;
-        ViewBag.ExpirationTotalCount = expirationTotalCount;
-
-        var paginationRoutesStock = new Dictionary<string, string>
+        return new AlertsIndexViewModel
         {
-            ["horizonDays"] = effectiveHorizon.ToString(),
-            ["pageExpiration"] = pageExpiration.ToString(),
-            ["section"] = "stock"
+            HorizonDays = effectiveHorizon,
+            CategorieId = categorieId is > 0 ? categorieId : null,
+            Ruptures = ruptures,
+            StockFaible = stockFaible,
+            LotsExpires = lotsExpires,
+            PeremptionsProches = peremptionsProches,
+            Categories = categories,
+            Today = today
         };
-        ViewBag.PaginationRoutesStock = paginationRoutesStock;
+    }
 
-        var paginationRoutesExpiration = new Dictionary<string, string>
-        {
-            ["horizonDays"] = effectiveHorizon.ToString(),
-            ["pageStock"] = pageStock.ToString(),
-            ["section"] = "expiration"
-        };
-        ViewBag.PaginationRoutesExpiration = paginationRoutesExpiration;
-
-        var vm = new AlertsIndexViewModel
-        {
-            LowStockProducts = lowStock,
-            BatchesNearingExpiration = batches,
-            Today = today,
-            HorizonDays = effectiveHorizon
-        };
-
-        return View(vm);
+    private void PopulateAlertesViewBag(AlertsIndexViewModel vm)
+    {
+        ViewBag.Ruptures = vm.Ruptures;
+        ViewBag.StockFaible = vm.StockFaible;
+        ViewBag.LotsExpires = vm.LotsExpires;
+        ViewBag.PeremptionsProches = vm.PeremptionsProches;
+        ViewBag.NbRuptures = vm.Ruptures.Count;
+        ViewBag.NbFaible = vm.StockFaible.Count;
+        ViewBag.NbExpires = vm.LotsExpires.Count;
+        ViewBag.NbProches = vm.PeremptionsProches.Count;
+        ViewBag.Categories = vm.Categories;
+        ViewBag.Horizon = vm.HorizonDays;
+        ViewBag.CategorieId = vm.CategorieId;
     }
 }

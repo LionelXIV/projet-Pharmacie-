@@ -36,7 +36,8 @@
         <h2 class="h6 text-uppercase text-muted mb-3"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Filtres</h2>
         <p class="small text-muted mb-3">
             <strong>Du / Au</strong> : plage sur la <em>date-heure de vente</em> (inclusif sur les jours calendaires choisis).
-            <strong>Utilisateur</strong> : restreint aux ventes enregistrées par ce compte (liste dérivée des ventes existantes).
+            <strong>Utilisateur</strong> : compte ayant enregistré la vente.
+            <strong>Vendeur</strong> : vendeur ticket. <strong>Paiement</strong> : mode d’encaissement.
         </p>
         <form method="get" asp-action="Index" class="row g-2 align-items-end">
             <div class="col-md-4 col-lg-2">
@@ -47,7 +48,7 @@
                 <label class="form-label small mb-0" for="To">Au</label>
                 <input type="date" name="To" id="To" value="@(Model.Filter.To?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" data-flatpickr-ignore="true" />
             </div>
-            <div class="col-md-4 col-lg-4">
+            <div class="col-md-4 col-lg-2">
                 <label class="form-label small mb-0" for="UserId">Utilisateur</label>
                 <select name="UserId" id="UserId" class="form-select form-select-sm">
                     @if (string.IsNullOrEmpty(Model.Filter.UserId))
@@ -74,9 +75,59 @@
                     }
                 </select>
             </div>
+            <div class="col-md-4 col-lg-2">
+                <label class="form-label small fw-bold mb-0" for="VendeurId">Vendeur</label>
+                <select name="VendeurId" id="VendeurId" class="form-select form-select-sm">
+                    <option value="">Tous</option>
+                    @if (ViewBag.Vendeurs is IEnumerable<Vendeur> vendeurs)
+                    {
+                        foreach (var v in vendeurs)
+                        {
+                            if (Model.Filter.VendeurId == v.Id)
+                            {
+                                <option value="@v.Id" selected>@v.Nom</option>
+                            }
+                            else
+                            {
+                                <option value="@v.Id">@v.Nom</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-4 col-lg-2">
+                <label class="form-label small fw-bold mb-0" for="PaymentMethod">Paiement</label>
+                <select name="PaymentMethod" id="PaymentMethod" class="form-select form-select-sm">
+                    <option value="">Tous</option>
+                    @if (ViewBag.PaymentMethods != null)
+                    {
+                        foreach (var p in ViewBag.PaymentMethods)
+                        {
+                            if (Model.Filter.PaymentMethod?.ToString() == (string)p.Value)
+                            {
+                                <option value="@p.Value" selected>@p.Text</option>
+                            }
+                            else
+                            {
+                                <option value="@p.Value">@p.Text</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
             <div class="col-12 col-lg-auto d-flex flex-wrap gap-2 pt-1 pt-lg-0">
                 <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1" aria-hidden="true"></i>Filtrer</button>
                 <a class="btn btn-outline-secondary btn-sm" asp-action="Index">Réinitialiser</a>
+                <a asp-action="ExportSalesPdf"
+                   asp-route-From="@(Model.Filter.From?.ToString("yyyy-MM-dd"))"
+                   asp-route-To="@(Model.Filter.To?.ToString("yyyy-MM-dd"))"
+                   asp-route-UserId="@Model.Filter.UserId"
+                   asp-route-VendeurId="@Model.Filter.VendeurId"
+                   asp-route-PaymentMethod="@Model.Filter.PaymentMethod"
+                   target="_blank"
+                   class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-file-pdf me-1"></i>PDF
+                </a>
             </div>
         </form>
     </div>
@@ -281,6 +332,10 @@
                     paginationRoutes["To"] = Model.Filter.To.Value.ToString("yyyy-MM-dd");
                 if (!string.IsNullOrEmpty(Model.Filter.UserId))
                     paginationRoutes["UserId"] = Model.Filter.UserId;
+                if (Model.Filter.VendeurId is > 0)
+                    paginationRoutes["VendeurId"] = Model.Filter.VendeurId.Value.ToString();
+                if (Model.Filter.PaymentMethod.HasValue)
+                    paginationRoutes["PaymentMethod"] = Model.Filter.PaymentMethod.Value.ToString();
                 ViewBag.PaginationRoutes = paginationRoutes;
             }
             <partial name="_Pagination" />

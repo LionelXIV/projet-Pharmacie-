@@ -2,209 +2,263 @@
 @{
     ViewData["Title"] = "Alertes";
     var today = Model.Today;
+    var horizonOptions = new[] { 7, 30, 90, 180, 365 };
 }
 
 <div class="page-header">
     <h1 class="page-title">Alertes</h1>
-    <p class="page-lead mb-0">Produits sous le seuil d'alerte et lots proches ou après la date de péremption (fenêtre <strong>@ViewBag.HorizonDays</strong> jours).</p>
+    <p class="page-lead mb-0">Ruptures, stock faible, lots expirés et péremptions proches (fenêtre <strong>@Model.HorizonDays</strong> jours).</p>
 </div>
 
-<form method="get" asp-action="Index"
-      class="d-flex flex-wrap align-items-center gap-2 mb-3">
-    <label class="text-muted small fw-semibold mb-0" for="horizonDays">
-        <i class="bi bi-calendar-event" aria-hidden="true"></i>
-        Alertes péremption dans moins de
-    </label>
-    <input type="number" name="horizonDays" id="horizonDays"
-           value="@ViewBag.HorizonDays"
-           min="7" max="365"
-           class="form-control form-control-sm"
-           style="width: 80px"
-           title="Nombre de jours">
-    <span class="text-muted small">jours</span>
-    <button type="submit" class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-funnel" aria-hidden="true"></i> Appliquer
-    </button>
-    @if ((int)ViewBag.HorizonDays != (int)ViewBag.DefaultHorizonDays)
-    {
-        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-x-circle" aria-hidden="true"></i> Réinitialiser
-        </a>
-    }
-</form>
-
-<div class="row g-4 mb-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <span class="fw-semibold d-flex align-items-center gap-2">
-                    <i class="bi bi-exclamation-triangle text-warning fs-5" aria-hidden="true"></i>
-                    Stock bas
-                </span>
-                @if (Model.LowStockProducts.Count > 0)
-                {
-                    <span class="badge text-bg-warning">@Model.LowStockProducts.Count</span>
-                }
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-danger text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-danger">@ViewBag.NbRuptures</div>
+                <div class="small text-muted">Ruptures de stock</div>
             </div>
-            @if (Model.LowStockProducts.Count == 0)
-            {
-                <div class="card-body">
-                    <div class="app-empty-state app-empty-state--compact border-0 mb-0" role="status">
-                        <i class="bi bi-check-circle text-success" aria-hidden="true"></i>
-                        <p class="app-empty-state-title mb-1">Stock bas — rien à signaler</p>
-                        <p class="mb-0 small">Aucun produit actif sous son seuil d'alerte.</p>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Urgence</th>
-                                <th>Produit</th>
-                                <th class="text-end">Stock</th>
-                                <th class="text-end">Seuil</th>
-                                <th class="text-end"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var p in Model.LowStockProducts)
-                            {
-                                var isOut = p.StockQuantity == 0;
-                                <tr>
-                                    <td>
-                                        @if (isOut)
-                                        {
-                                            <span class="badge text-bg-danger"><i class="bi bi-x-octagon me-1" aria-hidden="true"></i>Rupture</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge text-bg-warning"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>Faible</span>
-                                        }
-                                    </td>
-                                    <td class="fw-medium">@p.CommercialName</td>
-                                    <td class="text-end">
-                                        <span class="badge @(isOut ? "text-bg-danger" : "text-bg-warning")">@p.StockQuantity</span>
-                                    </td>
-                                    <td class="text-end text-muted">@p.AlertThreshold</td>
-                                    <td class="text-end">
-                                        <a class="btn btn-sm btn-outline-primary" asp-controller="Products" asp-action="Edit" asp-route-id="@p.Id" title="Ouvrir la fiche produit" data-bs-toggle="tooltip">
-                                            <i class="bi bi-capsule" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Fiche</span>
-                                        </a>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="card-footer bg-white border-top small text-muted">@Model.LowStockProducts.Count produit(s) concerné(s).</div>
-                {
-                    ViewBag.CurrentPage = ViewBag.StockCurrentPage;
-                    ViewBag.TotalPages = ViewBag.StockTotalPages;
-                    ViewBag.PaginationRoutes = ViewBag.PaginationRoutesStock;
-                }
-                <partial name="_Pagination" />
-            }
         </div>
     </div>
-
-    <div class="col-12">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <span class="fw-semibold d-flex align-items-center gap-2">
-                    <i class="bi bi-hourglass-split text-danger fs-5" aria-hidden="true"></i>
-                    Péremption des lots
-                </span>
-                @if (Model.BatchesNearingExpiration.Count > 0)
-                {
-                    <span class="badge text-bg-danger">@Model.BatchesNearingExpiration.Count</span>
-                }
+    <div class="col-md-3">
+        <div class="card border-warning text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold text-warning">@ViewBag.NbFaible</div>
+                <div class="small text-muted">Stock faible</div>
             </div>
-            @if (Model.BatchesNearingExpiration.Count == 0)
-            {
-                <div class="card-body">
-                    <div class="app-empty-state app-empty-state--compact border-0 mb-0" role="status">
-                        <i class="bi bi-calendar-check text-success" aria-hidden="true"></i>
-                        <p class="app-empty-state-title mb-1">Péremption — RAS</p>
-                        <p class="mb-0 small">Aucun lot avec stock dans la fenêtre de péremption.</p>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Statut</th>
-                                <th>Produit</th>
-                                <th>Lot</th>
-                                <th>Péremption</th>
-                                <th class="text-end">Qté</th>
-                                <th class="text-end"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var b in Model.BatchesNearingExpiration)
-                            {
-                                var exp = b.ExpirationDate.Date;
-                                var days = (exp - today).Days;
-                                string badgeClass;
-                                string label;
-                                string rowClass = "";
-                                if (days < 0)
-                                {
-                                    badgeClass = "text-bg-danger";
-                                    label = $"Expiré ({-days} j.)";
-                                    rowClass = "table-danger-subtle";
-                                }
-                                else if (days <= 30)
-                                {
-                                    badgeClass = "text-bg-warning";
-                                    label = days == 0 ? "Expire aujourd'hui" : $"≤ 30 j. ({days} j.)";
-                                    rowClass = "table-warning-subtle";
-                                }
-                                else
-                                {
-                                    badgeClass = "text-bg-info";
-                                    label = $"{days} j.";
-                                }
-                                <tr class="@rowClass">
-                                    <td><span class="badge @badgeClass">@label</span></td>
-                                    <td class="fw-medium">@b.Product?.CommercialName</td>
-                                    <td><span class="font-monospace small">@b.LotNumber</span></td>
-                                    <td class="text-nowrap">@ExpirationMonth.Format(exp)</td>
-                                    <td class="text-end"><span class="badge text-bg-light border">@b.Quantity</span></td>
-                                    <td class="text-end">
-                                        <a class="btn btn-sm btn-outline-secondary" asp-controller="Batches" asp-action="Details" asp-route-id="@b.Id" title="Voir le lot" data-bs-toggle="tooltip">
-                                            <i class="bi bi-layers" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Lot</span>
-                                        </a>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="card-footer bg-white border-top small text-muted">@Model.BatchesNearingExpiration.Count lot(s) dans la fenêtre.</div>
-                {
-                    ViewBag.CurrentPage = ViewBag.ExpirationCurrentPage;
-                    ViewBag.TotalPages = ViewBag.ExpirationTotalPages;
-                    ViewBag.PaginationRoutes = ViewBag.PaginationRoutesExpiration;
-                }
-                <partial name="_Pagination" />
-            }
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-dark text-center">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold">@ViewBag.NbExpires</div>
+                <div class="small text-muted">Lots expirés</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center" style="border-color:#F97316 !important">
+            <div class="card-body py-3">
+                <div class="fs-2 fw-bold" style="color:#F97316">@ViewBag.NbProches</div>
+                <div class="small text-muted">Péremptions proches</div>
+            </div>
         </div>
     </div>
 </div>
 
-@section Scripts {
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
-          new bootstrap.Tooltip(el);
-        });
-      });
-    </script>
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" asp-action="Index" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold" for="categorieId">Catégorie</label>
+                <select name="categorieId" id="categorieId" class="form-select form-select-sm">
+                    <option value="">Toutes les catégories</option>
+                    @foreach (var cat in Model.Categories)
+                    {
+                        if (Model.CategorieId == cat.Id)
+                        {
+                            <option value="@cat.Id" selected>@cat.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold" for="horizon">Horizon péremption</label>
+                <select name="horizon" id="horizon" class="form-select form-select-sm">
+                    @foreach (var h in horizonOptions)
+                    {
+                        if (Model.HorizonDays == h)
+                        {
+                            <option value="@h" selected>@h jours</option>
+                        }
+                        else
+                        {
+                            <option value="@h">@h jours</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="bi bi-search me-1"></i>Filtrer
+                </button>
+            </div>
+            <div class="col-md-3">
+                <a asp-action="ExportAlertesPdf"
+                   asp-route-categorieId="@Model.CategorieId"
+                   asp-route-horizon="@Model.HorizonDays"
+                   class="btn btn-outline-success btn-sm w-100"
+                   target="_blank">
+                    <i class="bi bi-file-pdf me-1"></i>Exporter PDF
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Ruptures.Count > 0)
+{
+    <div class="card border-danger mb-3">
+        <div class="card-header bg-danger text-white d-flex justify-content-between">
+            <span>
+                <i class="bi bi-x-circle me-1"></i>
+                Ruptures de stock (@ViewBag.NbRuptures)
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>Catégorie</th>
+                        <th>Fournisseur</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Ruptures)
+                    {
+                        <tr>
+                            <td class="fw-bold text-danger">@p.CommercialName</td>
+                            <td>@(p.Category?.Name ?? "—")</td>
+                            <td>@(p.Supplier?.Name ?? "—")</td>
+                            <td>
+                                <a asp-controller="Products" asp-action="Edit" asp-route-id="@p.Id"
+                                   class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:11px">Ajuster</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.StockFaible.Count > 0)
+{
+    <div class="card border-warning mb-3">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between">
+            <span>
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Stock faible (@ViewBag.NbFaible)
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>Catégorie</th>
+                        <th class="text-center">Stock actuel</th>
+                        <th class="text-center">Seuil alerte</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.StockFaible)
+                    {
+                        <tr>
+                            <td>@p.CommercialName</td>
+                            <td>@(p.Category?.Name ?? "—")</td>
+                            <td class="text-center fw-bold text-warning">@p.StockQuantity</td>
+                            <td class="text-center text-muted">@p.AlertThreshold</td>
+                            <td>
+                                <a asp-controller="Products" asp-action="Edit" asp-route-id="@p.Id"
+                                   class="btn btn-sm btn-outline-warning py-0 px-2" style="font-size:11px">Ajuster</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.LotsExpires.Count > 0)
+{
+    <div class="card border-dark mb-3">
+        <div class="card-header bg-dark text-white">
+            <i class="bi bi-slash-circle me-1"></i>
+            Lots expirés — à retirer (@ViewBag.NbExpires)
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>N° Lot</th>
+                        <th class="text-center">Quantité</th>
+                        <th>Date expiration</th>
+                        <th>Expiré depuis</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.LotsExpires)
+                    {
+                        var joursEcoules = (today - b.ExpirationDate.Date).Days;
+                        <tr>
+                            <td class="fw-bold">@(b.Product?.CommercialName ?? "—")</td>
+                            <td class="text-muted small">@b.LotNumber</td>
+                            <td class="text-center">@b.Quantity</td>
+                            <td class="text-danger fw-bold">@b.ExpirationDate.ToString("dd/MM/yyyy")</td>
+                            <td class="text-danger small">@joursEcoules j.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.PeremptionsProches.Count > 0)
+{
+    <div class="card mb-3" style="border-color:#F97316">
+        <div class="card-header text-white" style="background:#F97316">
+            <i class="bi bi-clock-history me-1"></i>
+            Péremptions proches — dans @ViewBag.Horizon jours (@ViewBag.NbProches)
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>N° Lot</th>
+                        <th class="text-center">Quantité</th>
+                        <th>Date expiration</th>
+                        <th>Jours restants</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.PeremptionsProches)
+                    {
+                        var joursRestants = (b.ExpirationDate.Date - today).Days;
+                        var couleur = joursRestants <= 30
+                            ? "text-danger"
+                            : joursRestants <= 60
+                                ? "text-warning"
+                                : "text-success";
+                        <tr>
+                            <td>@(b.Product?.CommercialName ?? "—")</td>
+                            <td class="text-muted small">@b.LotNumber</td>
+                            <td class="text-center">@b.Quantity</td>
+                            <td>@b.ExpirationDate.ToString("dd/MM/yyyy")</td>
+                            <td class="fw-bold @couleur">@joursRestants j.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.Ruptures.Count == 0 && Model.StockFaible.Count == 0 && Model.LotsExpires.Count == 0 && Model.PeremptionsProches.Count == 0)
+{
+    <div class="app-empty-state my-3" role="status">
+        <i class="bi bi-check-circle text-success" aria-hidden="true"></i>
+        <p class="app-empty-state-title mb-1">Aucune alerte</p>
+        <p class="mb-0 small">Rien à signaler pour ces critères.</p>
+    </div>
 }
