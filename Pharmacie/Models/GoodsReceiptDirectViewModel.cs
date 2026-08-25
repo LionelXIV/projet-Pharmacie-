@@ -86,6 +86,8 @@ public class GoodsReceiptEditViewModel
     public string? Notes { get; set; }
 
     public List<GoodsReceiptEditLigneViewModel> Lignes { get; set; } = new();
+
+    public string? FournisseurNom { get; set; }
 }
 
 public class GoodsReceiptEditLigneViewModel
@@ -94,6 +96,7 @@ public class GoodsReceiptEditLigneViewModel
     public int? ProductId { get; set; }
     public string NomProduit { get; set; } = "";
     public int QuantiteRecue { get; set; }
+    public int StockActuel { get; set; }
 
     [StringLength(80)]
     [Display(Name = "N° lot")]

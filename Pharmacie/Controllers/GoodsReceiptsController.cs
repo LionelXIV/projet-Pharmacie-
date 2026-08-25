@@ -533,6 +533,7 @@ public class GoodsReceiptsController : Controller
     public async Task<IActionResult> Edit(int id)
     {
         var receipt = await _context.GoodsReceipts
+            .Include(r => r.Supplier)
             .Include(r => r.Lines)
             .ThenInclude(l => l.Product)
             .FirstOrDefaultAsync(r => r.Id == id);
@@ -540,6 +541,7 @@ public class GoodsReceiptsController : Controller
             return NotFound();
 
         await PopulateSuppliersAsync(receipt.SupplierId);
+        ViewBag.CanDeleteLines = CanDeleteReceiptLines(User);
         return View(MapEditViewModel(receipt));
     }
 
@@ -558,8 +560,6 @@ public class GoodsReceiptsController : Controller
             return NotFound();
 
         model.Lignes ??= new List<GoodsReceiptEditLigneViewModel>();
-        if (model.Lignes.Count == 0)
-            ModelState.AddModelError(string.Empty, "Le BL n'a aucune ligne à modifier.");
 
         if (model.SupplierId.HasValue
             && !await _context.Suppliers.AnyAsync(s => s.Id == model.SupplierId.Value))
@@ -568,6 +568,7 @@ public class GoodsReceiptsController : Controller
         if (!ModelState.IsValid)
         {
             await PopulateSuppliersAsync(model.SupplierId);
+            ViewBag.CanDeleteLines = CanDeleteReceiptLines(User);
             RestoreEditLineLabels(receipt, model);
             return View(model);
         }
@@ -627,9 +628,188 @@ public class GoodsReceiptsController : Controller
             await tx.RollbackAsync();
             ModelState.AddModelError(string.Empty, ex.Message);
             await PopulateSuppliersAsync(model.SupplierId);
+            ViewBag.CanDeleteLines = CanDeleteReceiptLines(User);
             RestoreEditLineLabels(receipt, model);
             return View(model);
         }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AjouterLigne(
+        int goodsReceiptId,
+        int productId,
+        int quantityReceived,
+        string? lotNumber,
+        DateTime? expirationDate)
+    {
+        if (quantityReceived < 1)
+        {
+            TempData["Error"] = "La quantité reçue doit être au moins 1.";
+            return RedirectToAction(nameof(Edit), new { id = goodsReceiptId });
+        }
+
+        var receipt = await _context.GoodsReceipts.FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
+        if (receipt == null)
+            return NotFound();
+
+        var product = await _context.Products.FirstOrDefaultAsync(p => p.Id == productId);
+        if (product == null)
+        {
+            TempData["Error"] = "Produit introuvable.";
+            return RedirectToAction(nameof(Edit), new { id = goodsReceiptId });
+        }
+
+        if (product.ParentProductId.HasValue)
+        {
+            TempData["Error"] =
+                $"« {product.CommercialName} » est un produit unité — réceptionnez la boîte parente.";
+            return RedirectToAction(nameof(Edit), new { id = goodsReceiptId });
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var lot = string.IsNullOrWhiteSpace(lotNumber)
+            ? $"BL-{receipt.Id}-{product.Id}-{DateTime.Now:HHmmss}"
+            : lotNumber.Trim();
+        var expiration = ExpirationMonth.EndOfMonth(expirationDate ?? DateTime.Today.AddYears(2));
+        var reason = $"BL Direct #{receipt.Id}"
+            + (string.IsNullOrWhiteSpace(receipt.Reference) ? "" : $" — {receipt.Reference}")
+            + " — ajout ligne";
+
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var (ok, err, _) = await _inventory.StageEntreeAsync(
+                product.Id, lot, expiration, quantityReceived, reason, userId);
+            if (!ok)
+            {
+                await tx.RollbackAsync();
+                TempData["Error"] = err ?? "Entrée stock impossible.";
+                return RedirectToAction(nameof(Edit), new { id = goodsReceiptId });
+            }
+
+            _context.GoodsReceiptLines.Add(new GoodsReceiptLine
+            {
+                GoodsReceiptId = receipt.Id,
+                PurchaseOrderLineId = null,
+                ProductId = product.Id,
+                QuantityReceived = quantityReceived,
+                LotNumber = lot,
+                ExpirationDate = expiration
+            });
+
+            await _context.SaveChangesAsync();
+            await tx.CommitAsync();
+            TempData["Success"] = $"{product.CommercialName} ajouté au BL. Stock mis à jour.";
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            TempData["Error"] = "Erreur : " + ex.Message;
+        }
+
+        return RedirectToAction(nameof(Edit), new { id = goodsReceiptId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = $"{AppRoles.PharmacienTitulaire},{AppRoles.Pharmacien},{AppRoles.Administrateur}")]
+    public async Task<IActionResult> SupprimerLigne(int ligneId, int goodsReceiptId)
+    {
+        var receipt = await _context.GoodsReceipts
+            .Include(r => r.Lines)
+            .ThenInclude(l => l.Product)
+            .FirstOrDefaultAsync(r => r.Id == goodsReceiptId);
+        if (receipt == null)
+            return NotFound();
+
+        var ligne = receipt.Lines.FirstOrDefault(l => l.Id == ligneId);
+        if (ligne == null)
+            return NotFound();
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        await using var tx = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var (ok, error) = await ReverseReceiptLineStockAsync(receipt, ligne, userId);
+            if (!ok)
+            {
+                await tx.RollbackAsync();
+                TempData["Error"] = error ?? "Suppression de la ligne impossible.";
+                return RedirectToAction(nameof(Edit), new { id = goodsReceiptId });
+            }
+
+            if (receipt.PurchaseOrderId is int orderId && ligne.PurchaseOrderLineId is int poLineId)
+            {
+                var poLine = await _context.PurchaseOrderLines
+                    .FirstOrDefaultAsync(l => l.Id == poLineId && l.PurchaseOrderId == orderId);
+                if (poLine != null)
+                    poLine.QuantityReceived = Math.Max(0, poLine.QuantityReceived - ligne.QuantityReceived);
+            }
+
+            _context.GoodsReceiptLines.Remove(ligne);
+            await _context.SaveChangesAsync();
+            await tx.CommitAsync();
+            TempData["Success"] = "Ligne supprimée. Stock restitué.";
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync();
+            TempData["Error"] = "Erreur : " + ex.Message;
+        }
+
+        return RedirectToAction(nameof(Edit), new { id = goodsReceiptId });
+    }
+
+    private static bool CanDeleteReceiptLines(ClaimsPrincipal user) =>
+        user.IsInRole(AppRoles.PharmacienTitulaire)
+        || user.IsInRole(AppRoles.Pharmacien)
+        || user.IsInRole(AppRoles.Administrateur);
+
+    private async Task<(bool Ok, string? Error)> ReverseReceiptLineStockAsync(
+        GoodsReceipt receipt,
+        GoodsReceiptLine ligne,
+        string? userId)
+    {
+        if (ligne.ProductId is not > 0 || ligne.QuantityReceived <= 0)
+            return (true, null);
+
+        var productId = ligne.ProductId.Value;
+        var productName = ligne.Product?.CommercialName ?? $"#{productId}";
+        var lot = (ligne.LotNumber ?? "").Trim();
+        var exp = ligne.ExpirationDate.Date;
+        var reverseReason = $"Suppression ligne BL #{receipt.Id}";
+
+        var batch = await _context.ProductBatches
+            .Include(b => b.Product)
+            .Where(b => b.ProductId == productId
+                        && b.LotNumber == lot
+                        && b.ExpirationDate.Date == exp)
+            .OrderByDescending(b => b.Id)
+            .FirstOrDefaultAsync();
+
+        if (batch?.Product == null)
+            return (false, $"Lot de stock introuvable pour « {productName} » (lot {lot}).");
+
+        var soldOnBatch = await _context.StockMovements.AnyAsync(m =>
+            m.BatchId == batch.Id && m.SaleId != null);
+        if (soldOnBatch)
+            return (false,
+                $"Impossible de supprimer la ligne : du stock de « {productName} » (lot {lot}) a déjà été vendu.");
+
+        if (batch.Quantity < ligne.QuantityReceived)
+            return (false,
+                $"Impossible de supprimer la ligne : le stock restant de « {productName} » est inférieur à la quantité reçue.");
+
+        var (ok, err) = _inventory.StageSortie(
+            batch,
+            ligne.QuantityReceived,
+            reverseReason,
+            userId);
+        if (!ok)
+            return (false, err ?? "Restitution du stock impossible.");
+
+        return (true, null);
     }
 
     private async Task PopulateSuppliersAsync(int? selectedId = null)
@@ -646,6 +826,7 @@ public class GoodsReceiptsController : Controller
         Id = receipt.Id,
         Reference = receipt.Reference,
         SupplierId = receipt.SupplierId,
+        FournisseurNom = receipt.Supplier?.Name,
         DateReception = receipt.ReceivedAt.Date,
         Notes = receipt.Notes,
         Lignes = receipt.Lines
@@ -656,6 +837,7 @@ public class GoodsReceiptsController : Controller
                 ProductId = l.ProductId,
                 NomProduit = l.Product?.CommercialName ?? $"#{l.ProductId}",
                 QuantiteRecue = l.QuantityReceived,
+                StockActuel = l.Product?.StockQuantity ?? 0,
                 NumeroLot = l.LotNumber,
                 DatePeremption = l.ExpirationDate
             })
@@ -671,6 +853,7 @@ public class GoodsReceiptsController : Controller
                 continue;
             posted.NomProduit = line.Product?.CommercialName ?? $"#{line.ProductId}";
             posted.QuantiteRecue = line.QuantityReceived;
+            posted.StockActuel = line.Product?.StockQuantity ?? 0;
             posted.ProductId = line.ProductId;
         }
     }

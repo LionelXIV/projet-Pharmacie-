@@ -2,14 +2,18 @@
 @{
     ViewData["Title"] = "Modifier le BL #" + Model.Id;
     var fournisseurs = ViewBag.Fournisseurs as IEnumerable<Supplier> ?? Enumerable.Empty<Supplier>();
+    var canDeleteLines = ViewBag.CanDeleteLines as bool? == true;
+    var titreBl = string.IsNullOrWhiteSpace(Model.Reference)
+        ? $"BL #{Model.Id}"
+        : $"BL N° {Model.Reference}";
 }
 
 @await Html.PartialAsync("_BackButton")
 
 <div class="page-header mb-3">
-    <h1 class="page-title">Modifier le BL #@Model.Id</h1>
+    <h1 class="page-title">Modifier @titreBl</h1>
     <p class="page-lead mb-0">
-        Corrigez le n° de lot et la péremption. Les quantités et les produits ne changent pas (le stock resterait faux).
+        Corrigez l’en-tête, les lots et la péremption. Ajoutez ou (pharmacien) retirez des lignes — le stock est mis à jour tout de suite.
     </p>
 </div>
 
@@ -20,17 +24,26 @@
     </div>
 }
 
-<form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post" id="form-edit-bl">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
+    <input type="hidden" name="goodsReceiptId" value="@Model.Id" />
 
     <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white py-3 border-bottom fw-semibold">Informations générales</div>
+        <div class="card-header bg-white py-3 border-bottom fw-semibold">
+            <i class="bi bi-truck text-primary me-1" aria-hidden="true"></i>
+            @titreBl
+            @if (!string.IsNullOrWhiteSpace(Model.FournisseurNom))
+            {
+                <span class="text-muted fw-normal">— @Model.FournisseurNom</span>
+            }
+            <span class="text-muted fw-normal">— @Model.DateReception.ToString("dd/MM/yyyy")</span>
+        </div>
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label asp-for="SupplierId" class="form-label"></label>
-                    <select asp-for="SupplierId" class="form-select">
+                    <label asp-for="SupplierId" class="form-label fw-bold small"></label>
+                    <select asp-for="SupplierId" class="form-select form-select-sm">
                         <option value="">— Fournisseur —</option>
                         @foreach (var s in fournisseurs)
                         {
@@ -39,45 +52,63 @@
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label asp-for="Reference" class="form-label"></label>
-                    <input asp-for="Reference" class="form-control" />
+                    <label asp-for="Reference" class="form-label fw-bold small"></label>
+                    <input asp-for="Reference" class="form-control form-control-sm" />
                 </div>
                 <div class="col-md-4">
-                    <label asp-for="DateReception" class="form-label"></label>
-                    <input asp-for="DateReception" class="form-control" type="date" data-flatpickr-ignore="true" />
+                    <label asp-for="DateReception" class="form-label fw-bold small"></label>
+                    <input asp-for="DateReception" class="form-control form-control-sm" type="date" data-flatpickr-ignore="true" />
                 </div>
                 <div class="col-12">
-                    <label asp-for="Notes" class="form-label"></label>
-                    <input asp-for="Notes" class="form-control" />
+                    <label asp-for="Notes" class="form-label small"></label>
+                    <input asp-for="Notes" class="form-control form-control-sm" />
                 </div>
             </div>
         </div>
     </div>
 
     <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white py-3 border-bottom fw-semibold">Lignes</div>
+        <div class="card-header bg-white py-3 border-bottom fw-semibold d-flex justify-content-between align-items-center">
+            <span>
+                <i class="bi bi-list-ul me-1" aria-hidden="true"></i>
+                Produits (@Model.Lignes.Count)
+            </span>
+        </div>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Produit</th>
-                        <th class="text-end">Qté</th>
+                        <th class="text-center">Qté reçue</th>
                         <th>N° lot</th>
                         <th>Péremption</th>
+                        <th class="text-center">Stock actuel</th>
+                        @if (canDeleteLines)
+                        {
+                            <th class="text-end">Action</th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
+                    @if (Model.Lignes.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="@(canDeleteLines ? 6 : 5)" class="text-muted small py-3">
+                                Aucune ligne. Ajoutez un produit ci-dessous.
+                            </td>
+                        </tr>
+                    }
                     @for (var i = 0; i < Model.Lignes.Count; i++)
                     {
                         <tr>
-                            <td>
+                            <td class="fw-medium">
                                 @Model.Lignes[i].NomProduit
                                 <input type="hidden" asp-for="Lignes[i].Id" />
                                 <input type="hidden" asp-for="Lignes[i].ProductId" />
                                 <input type="hidden" asp-for="Lignes[i].NomProduit" />
                                 <input type="hidden" asp-for="Lignes[i].QuantiteRecue" />
                             </td>
-                            <td class="text-end">@Model.Lignes[i].QuantiteRecue</td>
+                            <td class="text-center">@Model.Lignes[i].QuantiteRecue</td>
                             <td style="min-width:9rem">
                                 <input asp-for="Lignes[i].NumeroLot" class="form-control form-control-sm" />
                             </td>
@@ -86,6 +117,24 @@
                                        type="month" data-flatpickr-ignore="true"
                                        value="@ExpirationMonth.ToInputValue(Model.Lignes[i].DatePeremption)" />
                             </td>
+                            <td class="text-center">
+                                <span class="badge text-bg-light border">@Model.Lignes[i].StockActuel</span>
+                            </td>
+                            @if (canDeleteLines)
+                            {
+                                <td class="text-end">
+                                    <button type="submit"
+                                            formaction="@Url.Action("SupprimerLigne")"
+                                            formmethod="post"
+                                            name="ligneId"
+                                            value="@Model.Lignes[i].Id"
+                                            class="btn btn-sm btn-outline-danger py-0 px-2"
+                                            title="Supprimer cette ligne et restituer le stock"
+                                            data-confirm="Supprimer cette ligne ? Le stock sera restitué.">
+                                        <i class="bi bi-trash3" aria-hidden="true"></i>
+                                    </button>
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>
@@ -93,14 +142,74 @@
         </div>
     </div>
 
-    <div class="d-flex flex-wrap gap-2">
+    <div class="d-flex flex-wrap gap-2 mb-3">
         <button type="submit" class="btn btn-success">
-            <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Enregistrer
+            <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Enregistrer l’en-tête et les lots
         </button>
-        <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Annuler</a>
+        <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Voir le détail</a>
     </div>
 </form>
-<form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="mt-3">
+
+<div class="card border-success shadow-sm mb-3">
+    <div class="card-header bg-white py-3 border-bottom fw-semibold text-success">
+        <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>
+        Ajouter un produit à ce BL
+    </div>
+    <div class="card-body">
+        <form asp-action="AjouterLigne" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="goodsReceiptId" value="@Model.Id" />
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold small" for="productId">Produit *</label>
+                    <select id="productId"
+                            name="productId"
+                            class="form-select form-select-sm"
+                            data-tomselect-product
+                            data-url="/Products/Search"
+                            required>
+                        <option value="">Chercher un produit...</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold small" for="quantityReceived">Qté reçue *</label>
+                    <input type="number"
+                           id="quantityReceived"
+                           name="quantityReceived"
+                           class="form-control form-control-sm text-center"
+                           min="1"
+                           value="1"
+                           required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small" for="lotNumber">N° Lot</label>
+                    <input type="text"
+                           id="lotNumber"
+                           name="lotNumber"
+                           class="form-control form-control-sm"
+                           placeholder="LOT-2026-001"
+                           maxlength="80">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold small" for="expirationDate">Date péremption</label>
+                    <input type="date"
+                           id="expirationDate"
+                           name="expirationDate"
+                           class="form-control form-control-sm"
+                           data-flatpickr-ignore="true">
+                </div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>
+                    Ajouter au BL
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="mt-2">
     @Html.AntiForgeryToken()
     <button type="submit"
             class="btn btn-outline-danger"
@@ -108,3 +217,31 @@
         <i class="bi bi-trash me-1" aria-hidden="true"></i>Supprimer ce BL et retirer le stock
     </button>
 </form>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var select = document.querySelector('[data-tomselect-product]');
+            if (!window.TomSelect || !select || select.tomselect) return;
+            new TomSelect(select, {
+                valueField: 'value',
+                labelField: 'text',
+                searchField: ['text'],
+                placeholder: 'Chercher un produit...',
+                maxOptions: 25,
+                preload: false,
+                create: false,
+                loadThrottle: 300,
+                dropdownParent: 'body',
+                load: function (query, callback) {
+                    if (!query || query.length < 2) { callback(); return; }
+                    var url = (select.dataset.url || '/Products/Search') + '?term=' + encodeURIComponent(query);
+                    fetch(url)
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) { callback(data); })
+                        .catch(function () { callback(); });
+                }
+            });
+        });
+    </script>
+}
