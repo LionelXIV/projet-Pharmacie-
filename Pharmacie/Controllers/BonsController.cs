@@ -89,8 +89,14 @@ public class BonsController : Controller
     public async Task<IActionResult> Create()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-        var isAdmin = User.IsInRole(AppRoles.Administrateur);
-        if (!isAdmin)
+        var isAdminPur =
+            User.IsInRole(AppRoles.Administrateur)
+            && !User.IsInRole(AppRoles.PharmacienTitulaire)
+            && !User.IsInRole(AppRoles.Pharmacien)
+            && !User.IsInRole(AppRoles.Caissier)
+            && !User.IsInRole(AppRoles.AssistantPharmacien)
+            && !User.IsInRole(AppRoles.Vendeur);
+        if (!isAdminPur)
         {
             var sessionOuverte = await _caisseService.GetSessionOuverteAsync(userId);
             if (sessionOuverte == null)
@@ -156,8 +162,14 @@ public class BonsController : Controller
             }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-            var isAdmin = User.IsInRole(AppRoles.Administrateur);
-            if (!isAdmin)
+            var isAdminPur =
+                User.IsInRole(AppRoles.Administrateur)
+                && !User.IsInRole(AppRoles.PharmacienTitulaire)
+                && !User.IsInRole(AppRoles.Pharmacien)
+                && !User.IsInRole(AppRoles.Caissier)
+                && !User.IsInRole(AppRoles.AssistantPharmacien)
+                && !User.IsInRole(AppRoles.Vendeur);
+            if (!isAdminPur)
             {
                 var sessionOuverte = await _caisseService.GetSessionOuverteAsync(userId);
                 if (sessionOuverte == null)

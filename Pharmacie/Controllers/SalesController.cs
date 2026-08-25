@@ -269,9 +269,9 @@ public class SalesController : Controller
     public async Task<IActionResult> Create()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-        var isAdmin = User.IsInRole(AppRoles.Administrateur);
+        var isAdminTest = EstVenteTestAdmin();
 
-        if (!isAdmin)
+        if (!isAdminTest)
         {
             var session = await _caisseService.GetSessionOuverteAsync(userId);
             if (session == null)
@@ -306,9 +306,9 @@ public class SalesController : Controller
         try
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-            var isAdmin = User.IsInRole(AppRoles.Administrateur);
+            var isAdminTest = EstVenteTestAdmin();
             var session = await _caisseService.GetSessionOuverteAsync(userId);
-            if (!isAdmin && session == null)
+            if (!isAdminTest && session == null)
             {
                 TempData["Warning"] = "Ouvrez une caisse avant de faire une vente.";
                 return RedirectToAction("Index", "Caisse");
@@ -470,13 +470,13 @@ public class SalesController : Controller
                             sale.MonnaieRendue = 0;
                         }
 
-                        if (EstVenteTestAdmin())
+                        if (isAdminTest)
                             sale.IsAdminTest = true;
 
                         await _context.SaveChangesAsync();
                     }
 
-                    if (session != null && !isAdmin)
+                    if (session != null && !isAdminTest)
                         await _caisseService.LierVenteAsync(session.Id, saleId.Value);
 
                     TempData["NewSale"] = true;
@@ -686,9 +686,9 @@ public class SalesController : Controller
                 discountType = string.IsNullOrEmpty(l.DiscountType) ? "percent" : l.DiscountType
             }));
 
-        var isAdmin = User.IsInRole(AppRoles.Administrateur);
+        var isAdminTest = EstVenteTestAdmin();
         var session = await _caisseService.GetSessionOuverteAsync(userId);
-        if (!isAdmin && session == null)
+        if (!isAdminTest && session == null)
         {
             TempData["Warning"] = "Ouvrez une caisse avant de modifier une vente.";
             return RedirectToAction("Index", "Caisse");
@@ -841,13 +841,19 @@ public class SalesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private bool EstVenteTestAdmin() =>
-        User.IsInRole(AppRoles.Administrateur)
-        && !User.IsInRole(AppRoles.PharmacienTitulaire)
-        && !User.IsInRole(AppRoles.Pharmacien)
-        && !User.IsInRole(AppRoles.Caissier)
-        && !User.IsInRole(AppRoles.AssistantPharmacien)
-        && !User.IsInRole(AppRoles.Vendeur);
+    /// <summary>
+    /// True uniquement pour un Administrateur pur, sans aucun rôle métier.
+    /// Un PharmacienTitulaire qui a encore le rôle legacy Administrateur n'est pas en mode test.
+    /// </summary>
+    private bool EstVenteTestAdmin()
+    {
+        return User.IsInRole(AppRoles.Administrateur)
+            && !User.IsInRole(AppRoles.PharmacienTitulaire)
+            && !User.IsInRole(AppRoles.Pharmacien)
+            && !User.IsInRole(AppRoles.Caissier)
+            && !User.IsInRole(AppRoles.AssistantPharmacien)
+            && !User.IsInRole(AppRoles.Vendeur);
+    }
 
     private void ValiderPaiementFractionne(SaleCreateViewModel model, List<SaleLineSlotViewModel> slots)
     {

@@ -383,7 +383,15 @@ public class CaisseController : Controller
     [Authorize]
     public async Task<IActionResult> VerifierCaisseOuverte()
     {
-        if (User.IsInRole(AppRoles.Administrateur))
+        var isAdminPur =
+            User.IsInRole(AppRoles.Administrateur)
+            && !User.IsInRole(AppRoles.PharmacienTitulaire)
+            && !User.IsInRole(AppRoles.Pharmacien)
+            && !User.IsInRole(AppRoles.Caissier)
+            && !User.IsInRole(AppRoles.AssistantPharmacien)
+            && !User.IsInRole(AppRoles.Vendeur);
+
+        if (isAdminPur)
             return Json(new { ouverte = false });
 
         var userId = CurrentUserId;
