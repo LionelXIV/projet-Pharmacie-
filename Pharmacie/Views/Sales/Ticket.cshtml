@@ -141,6 +141,13 @@
             <span>@Model.Vendeur.Nom</span>
         </div>
     }
+    @if (!string.IsNullOrEmpty(Model.NomClient))
+    {
+        <div class="info-row">
+            <span>Client</span>
+            <span class="bold">@Model.NomClient</span>
+        </div>
+    }
 
     <div class="separator"></div>
 
@@ -197,11 +204,30 @@
             <span>TOTAL</span>
             <span>@total.ToString("N0") FCFA</span>
         </div>
-        <div class="info-row">
-            <span>Paiement</span>
-            <span>@PaymentMethodDisplay.Format(Model.PaymentMethod, Model.PaymentMethodAutre)</span>
-        </div>
-        @if (Model.PaymentMethod == PaymentMethod.Especes && Model.MontantEncaisse > 0)
+        @if (Model.PaiementFractionne)
+        {
+            <div class="info-row">
+                <span>@PaymentMethodDisplay.GetName(Model.PaymentMethod)</span>
+                <span>@Model.MontantPaiement1.ToString("N0") F</span>
+            </div>
+            @if (Model.PaymentMethod2.HasValue)
+            {
+                <div class="info-row">
+                    <span>@PaymentMethodDisplay.GetName(Model.PaymentMethod2.Value)</span>
+                    <span>@Model.MontantPaiement2.ToString("N0") F</span>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="info-row">
+                <span>Paiement</span>
+                <span>@PaymentMethodDisplay.Format(Model.PaymentMethod, Model.PaymentMethodAutre)</span>
+            </div>
+        }
+        @if (Model.MontantEncaisse > 0
+             && (Model.PaymentMethod == PaymentMethod.Especes
+                 || Model.PaymentMethod2 == PaymentMethod.Especes))
         {
             <div class="info-row">
                 <span>Total à payer</span>

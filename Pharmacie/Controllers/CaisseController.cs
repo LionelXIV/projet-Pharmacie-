@@ -146,10 +146,10 @@ public class CaisseController : Controller
         var sales = session.Ventes.Select(v => v.Sale).Where(s => s != null).Cast<Sale>()
             .Where(s => !s.IsAnnulee && !s.IsAdminTest)
             .ToList();
-        var caEspeces = sales.Where(s => s.PaymentMethod == PaymentMethod.Especes).Sum(CaisseService.CalculerTotalSale);
+        FillPaymentBreakdown(sales);
+        var caEspeces = (decimal)ViewBag.TotalEspeces;
         ViewBag.NbVentes = sales.Count;
         ViewBag.CaEspeces = caEspeces;
-        FillPaymentBreakdown(sales);
 
         var totalDepots = await _context.DepotCaisses
             .Where(d => d.SessionCaisseId == id)
@@ -200,8 +200,8 @@ public class CaisseController : Controller
             .Where(s => !s.IsAnnulee && !s.IsAdminTest)
             .OrderBy(s => s.SoldAt).ToList();
 
-        var caEspeces = sales.Where(s => s.PaymentMethod == PaymentMethod.Especes).Sum(CaisseService.CalculerTotalSale);
         FillPaymentBreakdown(sales);
+        var caEspeces = (decimal)ViewBag.TotalEspeces;
         var caWave = (decimal)ViewBag.TotalWave;
         var caOM = (decimal)ViewBag.TotalOrangeMoney;
         var caAutre = (decimal)ViewBag.TotalAutresPaiements
@@ -444,8 +444,25 @@ public class CaisseController : Controller
 
     private void FillPaymentBreakdown(IReadOnlyCollection<Sale> sales)
     {
-        decimal Sum(PaymentMethod pm) =>
-            sales.Where(s => s.PaymentMethod == pm).Sum(CaisseService.CalculerTotalSale);
+        decimal Sum(PaymentMethod pm)
+        {
+            decimal total = 0;
+            foreach (var s in sales)
+            {
+                if (s.PaiementFractionne)
+                {
+                    if (s.PaymentMethod == pm)
+                        total += s.MontantPaiement1;
+                    if (s.PaymentMethod2 == pm)
+                        total += s.MontantPaiement2;
+                }
+                else if (s.PaymentMethod == pm)
+                {
+                    total += CaisseService.CalculerTotalSale(s);
+                }
+            }
+            return total;
+        }
 
         var totalWave = Sum(PaymentMethod.Wave);
         var totalOrangeMoney = Sum(PaymentMethod.OrangeMoney);
@@ -466,6 +483,7 @@ public class CaisseController : Controller
         ViewBag.TotalVirement = totalVirement;
         ViewBag.TotalTransfertInternational = totalTransfert;
         ViewBag.TotalAutres = totalAutres;
+        ViewBag.TotalEspeces = Sum(PaymentMethod.Especes);
         ViewBag.TotalAutresPaiements =
             totalWave + totalOrangeMoney + totalFreemoney + totalYasMoney
             + totalCheque + totalTpe + totalVirement + totalTransfert + totalAutres;
@@ -474,5 +492,68 @@ public class CaisseController : Controller
         ViewBag.CaOM = totalOrangeMoney;
         ViewBag.CaAutre = totalFreemoney + totalYasMoney + totalCheque + totalTpe
             + totalVirement + totalTransfert + totalAutres;
+    }
+
+    [HttpGet]
+    [Authorize(Roles = AppRoles.PharmacienTitulaire)]
+    public async Task<IActionResult> ModifierBilletage(int sessionId)
+    {
+        var session = await _context.SessionCaisses
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+        if (session == null)
+            return NotFound();
+
+        if (session.Statut != SessionCaisseStatut.Fermee)
+        {
+            TempData["Error"] = "Seul le billetage d'une session fermée peut être modifié.";
+            return RedirectToAction(nameof(Rapport), new { id = sessionId });
+        }
+
+        var billetage = string.IsNullOrEmpty(session.BilletageJson)
+            ? new BilletageDetail()
+            : JsonSerializer.Deserialize<BilletageDetail>(session.BilletageJson) ?? new BilletageDetail();
+
+        ViewBag.Billetage = billetage;
+        return View(session);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.PharmacienTitulaire)]
+    public async Task<IActionResult> ModifierBilletage(int sessionId, BilletageDetail model)
+    {
+        var session = await _context.SessionCaisses
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
+
+        if (session == null)
+            return NotFound();
+
+        if (session.Statut != SessionCaisseStatut.Fermee)
+        {
+            TempData["Error"] = "Seul le billetage d'une session fermée peut être modifié.";
+            return RedirectToAction(nameof(Rapport), new { id = sessionId });
+        }
+
+        model ??= new BilletageDetail();
+        var nom = User.Identity?.Name ?? CurrentUserId;
+        var labels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, new[] { CurrentUserId });
+        nom = UserDisplayResolver.Resolve(labels, CurrentUserId);
+
+        model.ModifiePar = nom;
+        model.ModifieAt = DateTime.Now;
+        model.RaisonModification =
+            $"Correction billetage par Pharmacien Titulaire le {DateTime.Now:dd/MM/yyyy HH:mm}";
+
+        session.BilletageJson = JsonSerializer.Serialize(model);
+        session.BilletageTotal = model.Total;
+        session.BilletageModifiePar = nom;
+        session.BilletageModifieAt = model.ModifieAt;
+        session.BilletageRaisonModification = model.RaisonModification;
+
+        await _context.SaveChangesAsync();
+
+        TempData["Success"] = "Billetage modifié avec succès. L'écart du rapport a été recalculé.";
+        return RedirectToAction(nameof(Rapport), new { id = sessionId });
     }
 }

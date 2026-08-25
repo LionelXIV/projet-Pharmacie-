@@ -25,6 +25,18 @@ public class SaleCreateViewModel
     [Display(Name = "Montant encaissé")]
     public decimal MontantEncaisse { get; set; }
 
+    public bool PaiementFractionne { get; set; }
+
+    public PaymentMethod? PaymentMethod2 { get; set; }
+
+    public decimal MontantPaiement1 { get; set; }
+
+    public decimal MontantPaiement2 { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Nom du client")]
+    public string? NomClient { get; set; }
+
     [Required(ErrorMessage = "Veuillez sélectionner le vendeur.")]
     [Display(Name = "Vendeur")]
     public int? VendeurId { get; set; }

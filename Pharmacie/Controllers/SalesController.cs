@@ -302,6 +302,9 @@ public class SalesController : Controller
                     if (sale != null)
                     {
                         sale.VendeurId = model.VendeurId;
+                        sale.NomClient = string.IsNullOrWhiteSpace(model.NomClient)
+                            ? null
+                            : model.NomClient.Trim();
                         sale.PaymentMethodAutre = model.PaymentMethod == PaymentMethod.Autre
                             ? model.PaymentMethodAutre?.Trim()
                             : null;
@@ -324,14 +327,52 @@ public class SalesController : Controller
                             }
                         }
 
-                        if (model.PaymentMethod == PaymentMethod.Especes && model.MontantEncaisse > 0)
+                        var totalVente = sale.Lines.Sum(CaisseService.LineTotal);
+
+                        if (model.PaiementFractionne)
                         {
-                            var totalVente = sale.Lines.Sum(CaisseService.LineTotal);
+                            var m1 = model.MontantPaiement1;
+                            var m2 = model.MontantPaiement2;
+                            if (m2 <= 0)
+                                m2 = Math.Max(0, totalVente - m1);
+
+                            sale.PaiementFractionne = true;
+                            sale.PaymentMethod2 = model.PaymentMethod2;
+                            sale.MontantPaiement1 = m1;
+                            sale.MontantPaiement2 = m2;
+
+                            var cashShare = 0m;
+                            if (sale.PaymentMethod == PaymentMethod.Especes)
+                                cashShare = m1;
+                            else if (sale.PaymentMethod2 == PaymentMethod.Especes)
+                                cashShare = m2;
+
+                            if (cashShare > 0 && model.MontantEncaisse > 0)
+                            {
+                                sale.MontantEncaisse = model.MontantEncaisse;
+                                sale.MonnaieRendue = Math.Max(0, model.MontantEncaisse - cashShare);
+                            }
+                            else
+                            {
+                                sale.MontantEncaisse = 0;
+                                sale.MonnaieRendue = 0;
+                            }
+                        }
+                        else if (model.PaymentMethod == PaymentMethod.Especes && model.MontantEncaisse > 0)
+                        {
+                            sale.PaiementFractionne = false;
+                            sale.PaymentMethod2 = null;
+                            sale.MontantPaiement1 = 0;
+                            sale.MontantPaiement2 = 0;
                             sale.MontantEncaisse = model.MontantEncaisse;
                             sale.MonnaieRendue = Math.Max(0, model.MontantEncaisse - totalVente);
                         }
                         else
                         {
+                            sale.PaiementFractionne = false;
+                            sale.PaymentMethod2 = null;
+                            sale.MontantPaiement1 = 0;
+                            sale.MontantPaiement2 = 0;
                             sale.MontantEncaisse = 0;
                             sale.MonnaieRendue = 0;
                         }

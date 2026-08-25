@@ -142,6 +142,25 @@
                         </tfoot>
                     </table>
                     </div>
+                    @if (User.IsInRole(AppRoles.PharmacienTitulaire)
+                         && Model.Statut == SessionCaisseStatut.Fermee)
+                    {
+                        <div class="p-2">
+                            <a asp-action="ModifierBilletage"
+                               asp-route-sessionId="@Model.Id"
+                               class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-pencil me-1"></i>
+                                Modifier le billetage
+                            </a>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.BilletageModifiePar))
+                    {
+                        <p class="small text-muted px-2 mb-2">
+                            Corrigé par @Model.BilletageModifiePar
+                            @(Model.BilletageModifieAt?.ToString("dd/MM/yyyy HH:mm"))
+                        </p>
+                    }
                 }
             </div>
         </div>

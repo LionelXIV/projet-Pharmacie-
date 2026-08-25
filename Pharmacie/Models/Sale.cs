@@ -54,5 +54,20 @@ public class Sale
     [Display(Name = "Monnaie rendue")]
     public decimal MonnaieRendue { get; set; }
 
+    public bool PaiementFractionne { get; set; }
+
+    [Display(Name = "2e moyen de paiement")]
+    public PaymentMethod? PaymentMethod2 { get; set; }
+
+    [Display(Name = "Montant paiement 1")]
+    public decimal MontantPaiement1 { get; set; }
+
+    [Display(Name = "Montant paiement 2")]
+    public decimal MontantPaiement2 { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Nom du client")]
+    public string? NomClient { get; set; }
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

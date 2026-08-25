@@ -42,6 +42,14 @@ public class SessionCaisse
 
     public string? BilletageJson { get; set; }
 
+    [StringLength(200)]
+    public string? BilletageModifiePar { get; set; }
+
+    public DateTime? BilletageModifieAt { get; set; }
+
+    [StringLength(500)]
+    public string? BilletageRaisonModification { get; set; }
+
     public ICollection<VenteCaisse> Ventes { get; set; } = new List<VenteCaisse>();
     public ICollection<DepotCaisse> Depots { get; set; } = new List<DepotCaisse>();
 }

@@ -16,6 +16,10 @@ public class BilletageDetail
     public int Piece10 { get; set; }
     public int Piece5 { get; set; }
 
+    public string? ModifiePar { get; set; }
+    public DateTime? ModifieAt { get; set; }
+    public string? RaisonModification { get; set; }
+
     public decimal Total =>
         Billet10000 * 10000m +
         Billet5000 * 5000m +

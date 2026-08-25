@@ -156,6 +156,10 @@
         <input type="hidden" name="SoldAt" id="field-sold-at" value="@Model.SoldAt.ToString("yyyy-MM-ddTHH:mm")">
         <input type="hidden" name="PaymentMethod" id="field-payment-method" value="@((int)Model.PaymentMethod)">
         <input type="hidden" id="field-montant-encaisse" name="MontantEncaisse" value="0">
+        <input type="hidden" id="field-paiement-fractionne" name="PaiementFractionne" value="false">
+        <input type="hidden" id="field-mode-2" name="PaymentMethod2" value="">
+        <input type="hidden" id="field-montant-paiement-1" name="MontantPaiement1" value="0">
+        <input type="hidden" id="field-montant-paiement-2" name="MontantPaiement2" value="0">
         <input type="hidden" name="Notes" id="field-notes" value="@Model.Notes">
         @Html.AntiForgeryToken()
     </div>
@@ -212,6 +216,91 @@
             <label class="form-label fw-bold">
                 <i class="bi bi-credit-card" aria-hidden="true"></i> Mode de paiement
             </label>
+            <div class="d-flex gap-2 mb-3">
+                <button type="button" id="btn-paiement-simple" class="btn btn-sm btn-success active">
+                    <i class="bi bi-credit-card me-1"></i>
+                    Paiement simple
+                </button>
+                <button type="button" id="btn-paiement-fractionne" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-layout-split me-1"></i>
+                    Paiement fractionné
+                </button>
+            </div>
+
+            <div id="section-fractionne" style="display:none">
+                <div class="card border-success mb-3">
+                    <div class="card-header bg-success text-white fw-bold py-2">
+                        <i class="bi bi-layout-split me-1"></i>
+                        Paiement en 2 parties
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2 mb-2">
+                            <div class="col-5">
+                                <label class="form-label small fw-bold" for="mode-paiement-1">Mode 1</label>
+                                <select id="mode-paiement-1" class="form-select form-select-sm">
+                                    <option value="0">Espèces</option>
+                                    <option value="1">Wave</option>
+                                    <option value="2">Orange Money</option>
+                                    <option value="6">Yas Money</option>
+                                    <option value="8">Freemoney</option>
+                                    <option value="3">Chèque</option>
+                                    <option value="5">TPE</option>
+                                    <option value="4">Virement</option>
+                                </select>
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label small fw-bold" for="montant-1">Montant 1</label>
+                                <input type="number" id="montant-1" class="form-control form-control-sm text-end"
+                                       min="0" step="100" placeholder="0">
+                            </div>
+                            <div class="col-2 d-flex align-items-end">
+                                <button type="button" id="btn-montant-max" class="btn btn-sm btn-outline-success w-100">Max</button>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-5">
+                                <label class="form-label small fw-bold" for="mode-paiement-2">Mode 2</label>
+                                <select id="mode-paiement-2" class="form-select form-select-sm">
+                                    <option value="1">Wave</option>
+                                    <option value="0">Espèces</option>
+                                    <option value="2">Orange Money</option>
+                                    <option value="6">Yas Money</option>
+                                    <option value="8">Freemoney</option>
+                                    <option value="3">Chèque</option>
+                                    <option value="5">TPE</option>
+                                    <option value="4">Virement</option>
+                                </select>
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label small fw-bold" for="montant-2">
+                                    Montant 2
+                                    <span class="text-muted fw-normal">(calculé auto)</span>
+                                </label>
+                                <input type="number" id="montant-2" class="form-control form-control-sm text-end bg-light" readonly>
+                            </div>
+                        </div>
+                        <div id="resume-fractionne" class="p-2 rounded bg-light text-center">
+                            <span class="text-muted small">Saisissez le montant 1</span>
+                        </div>
+                        <div id="rendu-fractionne" class="mt-2 p-2 rounded" style="display:none;background:#f0faf5">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold" for="encaisse-frac-input">Montant encaissé (espèces)</label>
+                                <input type="number" id="encaisse-frac-input" class="form-control form-control-sm text-end"
+                                       min="0" step="100" placeholder="0">
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="small fw-bold">Part espèces</span>
+                                <span id="encaisse-frac" class="small fw-bold"></span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="small fw-bold text-success">Monnaie rendue</span>
+                                <span id="rendu-frac" class="small fw-bold text-success"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="row g-2" id="payment-buttons">
                 @foreach (var pm in paymentModes)
                 {
@@ -291,6 +380,21 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label small fw-bold" for="nom-client">
+                <i class="bi bi-person me-1"></i>
+                Nom du client
+                <span class="text-muted fw-normal">(optionnel — pour le ticket)</span>
+            </label>
+            <input type="text"
+                   name="NomClient"
+                   id="nom-client"
+                   class="form-control form-control-sm"
+                   placeholder="Ex: DR DIALLO — CLINIQUE DU SOLEIL"
+                   maxlength="100">
+            <div class="form-text">Apparaîtra sur le ticket imprimé.</div>
         </div>
 
         <div class="mb-3">
@@ -630,6 +734,10 @@
     document.getElementById('summary-count').textContent = String(articleCount);
     document.getElementById('summary-subtotal').textContent = formatFcfa(subtotal);
     document.getElementById('summary-total').textContent = formatFcfa(total);
+    if (typeof paiementMode !== 'undefined' && paiementMode === 'fractionne'
+        && typeof updateFractionne === 'function') {
+      updateFractionne();
+    }
   }
 
   function hideSearchResults() {
@@ -764,6 +872,99 @@
   document.getElementById('especes-encaisse').addEventListener('input', calculerRendu);
   document.getElementById('btn-confirmer-especes').addEventListener('click', confirmerEspeces);
 
+  var paiementMode = 'simple';
+  var paymentLabels = {
+    '0': 'Espèces', '1': 'Wave', '2': 'Orange Money', '3': 'Chèque',
+    '4': 'Virement', '5': 'TPE', '6': 'Yas Money', '8': 'Freemoney'
+  };
+
+  function setPaiementMode(mode) {
+    paiementMode = mode;
+    var isF = mode === 'fractionne';
+    document.getElementById('section-fractionne').style.display = isF ? 'block' : 'none';
+    document.getElementById('field-paiement-fractionne').value = isF ? 'true' : 'false';
+    document.getElementById('btn-paiement-simple').className = isF
+      ? 'btn btn-sm btn-outline-success'
+      : 'btn btn-sm btn-success active';
+    document.getElementById('btn-paiement-fractionne').className = isF
+      ? 'btn btn-sm btn-success active'
+      : 'btn btn-sm btn-outline-success';
+    document.querySelectorAll('.payment-btn').forEach(function (b) {
+      var col = b.closest('.col-6');
+      if (col) col.style.display = isF ? 'none' : '';
+    });
+    if (isF) {
+      resetModeCredit();
+      updateFractionne();
+    }
+  }
+
+  function updateFractionne() {
+    var total = calculerTotal();
+    var m1 = parseFloat(document.getElementById('montant-1').value) || 0;
+    var m2 = Math.max(0, total - m1);
+    document.getElementById('montant-2').value = m2 > 0 ? m2 : '';
+    document.getElementById('field-montant-paiement-1').value = String(m1);
+    document.getElementById('field-montant-paiement-2').value = String(m2);
+    document.getElementById('field-mode-2').value = document.getElementById('mode-paiement-2').value;
+    document.getElementById('field-payment-method').value = document.getElementById('mode-paiement-1').value;
+
+    var mode1 = document.getElementById('mode-paiement-1').value;
+    var mode2 = document.getElementById('mode-paiement-2').value;
+    var resume = document.getElementById('resume-fractionne');
+    var renduDiv = document.getElementById('rendu-fractionne');
+
+    if (m1 <= 0) {
+      resume.innerHTML = '<span class="text-muted small">Saisissez le montant 1</span>';
+      renduDiv.style.display = 'none';
+      return;
+    }
+
+    var ok = Math.abs(m1 + m2 - total) < 1 && mode1 !== mode2 && m2 > 0;
+    var l1 = paymentLabels[mode1] || mode1;
+    var l2 = paymentLabels[mode2] || mode2;
+    if (mode1 === mode2) {
+      resume.innerHTML = '<span class="text-danger">Choisissez deux modes différents.</span>';
+    } else if (ok) {
+      resume.innerHTML = '<span class="text-success fw-bold">' +
+        m1.toLocaleString('fr-FR') + ' F (' + l1 + ') + ' +
+        m2.toLocaleString('fr-FR') + ' F (' + l2 + ')</span>';
+    } else {
+      resume.innerHTML = '<span class="text-danger">Total : ' +
+        (m1 + m2).toLocaleString('fr-FR') + ' / ' + total.toLocaleString('fr-FR') + ' F</span>';
+    }
+
+    var especes1 = mode1 === '0';
+    var especes2 = mode2 === '0';
+    if (especes1 || especes2) {
+      var partEsp = especes1 ? m1 : m2;
+      renduDiv.style.display = 'block';
+      document.getElementById('encaisse-frac').textContent =
+        partEsp.toLocaleString('fr-FR') + ' F';
+      var encaisse = parseFloat(document.getElementById('encaisse-frac-input').value) || 0;
+      if (encaisse <= 0) encaisse = partEsp;
+      document.getElementById('rendu-frac').textContent =
+        Math.max(0, encaisse - partEsp).toLocaleString('fr-FR') + ' F';
+      document.getElementById('field-montant-encaisse').value = String(encaisse);
+    } else {
+      renduDiv.style.display = 'none';
+      document.getElementById('field-montant-encaisse').value = '0';
+    }
+  }
+
+  function mettreTotal1() {
+    document.getElementById('montant-1').value = String(calculerTotal());
+    updateFractionne();
+  }
+
+  document.getElementById('btn-paiement-simple').addEventListener('click', function () { setPaiementMode('simple'); });
+  document.getElementById('btn-paiement-fractionne').addEventListener('click', function () { setPaiementMode('fractionne'); });
+  document.getElementById('mode-paiement-1').addEventListener('change', updateFractionne);
+  document.getElementById('mode-paiement-2').addEventListener('change', updateFractionne);
+  document.getElementById('montant-1').addEventListener('input', updateFractionne);
+  document.getElementById('btn-montant-max').addEventListener('click', mettreTotal1);
+  document.getElementById('encaisse-frac-input').addEventListener('input', updateFractionne);
+
   document.getElementById('remise-globale').addEventListener('input', updateSummary);
 
   document.getElementById('notes-input').addEventListener('input', function () {
@@ -812,7 +1013,28 @@
       notifyError('Ajoutez au moins un produit.');
       return;
     }
-    if (selectedPayment === 0) {
+    if (paiementMode === 'fractionne') {
+      var totalF = calculerTotal();
+      var m1f = parseFloat(document.getElementById('montant-1').value) || 0;
+      var m2f = Math.max(0, totalF - m1f);
+      var md1 = document.getElementById('mode-paiement-1').value;
+      var md2 = document.getElementById('mode-paiement-2').value;
+      if (m1f <= 0 || m2f <= 0) {
+        notifyError('Saisissez un montant 1 inférieur au total.');
+        return;
+      }
+      if (md1 === md2) {
+        notifyError('Choisissez deux modes de paiement différents.');
+        return;
+      }
+      if (Math.abs(m1f + m2f - totalF) >= 1) {
+        notifyError('La somme des 2 paiements doit égaler le total.');
+        return;
+      }
+      selectedPayment = parseInt(md1, 10);
+      document.getElementById('field-payment-method').value = md1;
+      updateFractionne();
+    } else if (selectedPayment === 0) {
       var encaisse = parseFloat(document.getElementById('field-montant-encaisse').value) || 0;
       if (encaisse <= 0) {
         ouvrirModalEspeces();
@@ -909,6 +1131,11 @@
     addHidden('Notes', document.getElementById('notes-input').value || '');
     addHidden('VendeurId', vendeurId);
     addHidden('MontantEncaisse', document.getElementById('field-montant-encaisse')?.value || '0');
+    addHidden('NomClient', document.getElementById('nom-client')?.value || '');
+    addHidden('PaiementFractionne', paiementMode === 'fractionne' ? 'true' : 'false');
+    addHidden('PaymentMethod2', document.getElementById('field-mode-2')?.value || '');
+    addHidden('MontantPaiement1', document.getElementById('field-montant-paiement-1')?.value || '0');
+    addHidden('MontantPaiement2', document.getElementById('field-montant-paiement-2')?.value || '0');
 
     // Lignes du panier
     cart.forEach(function (item, i) {

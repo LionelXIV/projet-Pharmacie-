@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pharmacie.Data;
 
@@ -11,9 +12,11 @@ using Pharmacie.Data;
 namespace Pharmacie.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260825050656_Step31_AddPaiementFractionne")]
+    partial class Step31_AddPaiementFractionne
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1257,17 +1260,6 @@ namespace Pharmacie.Data.Migrations
 
                     b.Property<string>("BilletageJson")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("BilletageModifieAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("BilletageModifiePar")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("BilletageRaisonModification")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<decimal?>("BilletageTotal")
                         .HasColumnType("decimal(18,2)");

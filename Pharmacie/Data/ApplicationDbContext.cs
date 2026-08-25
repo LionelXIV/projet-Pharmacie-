@@ -129,6 +129,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
 
             entity.Property(s => s.MontantEncaisse).HasColumnType("decimal(18,2)");
             entity.Property(s => s.MonnaieRendue).HasColumnType("decimal(18,2)");
+            entity.Property(s => s.MontantPaiement1).HasColumnType("decimal(18,2)");
+            entity.Property(s => s.MontantPaiement2).HasColumnType("decimal(18,2)");
+            entity.Property(s => s.NomClient).HasMaxLength(100);
         });
 
         builder.Entity<Vendeur>(entity =>
