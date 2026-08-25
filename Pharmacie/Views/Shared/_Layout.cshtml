@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] — Pharmacie Saint Jean Paul II</title>
     <link rel="icon" href="~/favicon.svg" type="image/svg+xml" asp-append-version="true" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Inter+Tight:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap" rel="stylesheet">
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" crossorigin="anonymous" />
@@ -347,11 +347,11 @@
                         </small>
                         <button type="button"
                                 id="btn-terminer-session"
+                                onclick="verifierAvantDeconnexion()"
                                 class="btn btn-sm btn-outline-danger px-2 py-1"
-                                style="font-size: 12px;"
-                                title="Terminer ma session et déconnecter"
-                                onclick="verifierAvantDeconnexion()">
-                            <i class="bi bi-power me-1" aria-hidden="true"></i>
+                                style="font-size:12px"
+                                title="Terminer ma session et déconnecter">
+                            <i class="bi bi-power me-1"></i>
                             Déconnexion
                         </button>
                         <form id="form-deconnexion"

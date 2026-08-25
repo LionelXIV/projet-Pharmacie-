@@ -1,17 +1,18 @@
 @page
 @model EmailModel
 @{
-    ViewData["Title"] = "Adresse email";
+    ViewData["Title"] = "Gérer l'email";
 }
 
 <div class="container-fluid px-4">
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
+            <partial name="_ManageNav" />
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-success text-white">
+                <div class="card-header">
                     <h5 class="mb-0">
                         <i class="bi bi-envelope me-2"></i>
-                        Adresse email
+                        Gérer l'email
                     </h5>
                 </div>
                 <div class="card-body">
@@ -25,9 +26,9 @@
                     }
                     else
                     {
-                        <p class="text-muted small mb-3">Pour modifier l'adresse, contactez un administrateur.</p>
+                        <p class="text-muted small mb-3">Pour modifier l'email, contactez un administrateur.</p>
                     }
-                    <a class="btn btn-outline-secondary" asp-page="./Index">Annuler</a>
+                    <a class="btn btn-outline-secondary" asp-page="./Index">Retour au profil</a>
                 </div>
             </div>
         </div>

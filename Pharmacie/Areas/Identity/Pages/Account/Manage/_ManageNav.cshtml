@@ -1,0 +1,15 @@
+@{
+    var pageName = ViewContext.RouteData.Values["page"] as string ?? "";
+    bool IsPage(string name) => pageName.EndsWith(name, StringComparison.OrdinalIgnoreCase);
+}
+<ul class="nav nav-pills flex-column flex-sm-row gap-1 mb-3">
+    <li class="nav-item">
+        <a class="nav-link @(IsPage("/Account/Manage/Index") ? "active" : null)" asp-page="./Index">Mon profil</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(IsPage("/Account/Manage/Email") ? "active" : null)" asp-page="./Email">Email</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(IsPage("/Account/Manage/ChangePassword") ? "active" : null)" asp-page="./ChangePassword">Mot de passe</a>
+    </li>
+</ul>

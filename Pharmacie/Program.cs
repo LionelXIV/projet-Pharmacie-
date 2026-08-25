@@ -106,6 +106,8 @@ builder.Services.AddScoped<UserActivityReportService>();
 builder.Services.AddScoped<BonService>();
 builder.Services.AddScoped<AvoirService>();
 builder.Services.AddScoped<CaisseService>();
+builder.Services.AddHttpClient();
+builder.Services.AddHostedService<KeepAliveService>();
 
 var app = builder.Build();
 
@@ -182,7 +184,7 @@ if (args.Contains("--reset-data", StringComparer.OrdinalIgnoreCase))
                      "PrixModifications", "UserActivityReports"
                  })
         {
-            await context.Database.ExecuteSqlRawAsync($"DBCC CHECKIDENT ('{table}', RESEED, 0)");
+            await context.Database.ExecuteSqlRawAsync("DBCC CHECKIDENT ('" + table + "', RESEED, 0)");
         }
 
         await transaction.CommitAsync();
@@ -287,6 +289,13 @@ app.MapControllerRoute(
 
 app.MapRazorPages()
     .WithStaticAssets();
+
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "healthy",
+    time = DateTime.UtcNow,
+    app = "Pharmacie SJP2"
+}));
 
 app.MapPost("/logout-silent", async (HttpContext ctx, SignInManager<ApplicationUser> signInManager) =>
 {

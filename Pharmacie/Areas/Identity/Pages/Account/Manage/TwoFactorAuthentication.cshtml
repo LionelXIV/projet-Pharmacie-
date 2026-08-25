@@ -7,26 +7,18 @@
 <div class="container-fluid px-4">
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-shield-lock me-2"></i>
-                        Authentification à deux facteurs
-                    </h5>
+            <partial name="_ManageNav" />
+            <div class="card shadow-sm">
+                <div class="card-header fw-bold">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    Authentification à deux facteurs
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info py-2">
                         <i class="bi bi-info-circle me-1"></i>
-                        L'authentification à deux facteurs n'est pas activée sur ce compte.
+                        L'authentification à deux facteurs n'est pas disponible sur cette version du logiciel.
                     </div>
-
-                    @if (false) // Désactivé temporairement
-                    {
-                        <a class="btn btn-success" asp-page="./EnableAuthenticator">Activer l'authentification à deux facteurs</a>
-                        <button type="button" class="btn btn-outline-secondary">Réinitialiser les codes de récupération</button>
-                    }
-
-                    <a class="btn btn-outline-secondary" asp-page="./Index">Annuler</a>
+                    <a class="btn btn-outline-secondary" asp-page="./Index">Retour au profil</a>
                 </div>
             </div>
         </div>
