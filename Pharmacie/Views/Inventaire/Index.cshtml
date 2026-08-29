@@ -1,0 +1,191 @@
+@model List<InventaireItemViewModel>
+@{
+    ViewData["Title"] = "Inventaire physique";
+    var categories = ViewBag.Categories as IEnumerable<Category> ?? Enumerable.Empty<Category>();
+    var categorieId = ViewBag.CategorieId as int?;
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="bi bi-clipboard-check me-2"></i>
+            Inventaire physique
+        </h1>
+        <p class="page-lead mb-0">Comptez les produits en rayon et corrigez les écarts.</p>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold" for="categorieId">Filtrer par catégorie</label>
+                <select name="categorieId" id="categorieId" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Toutes les catégories</option>
+                    @foreach (var cat in categories)
+                    {
+                        if (categorieId == cat.Id)
+                        {
+                            <option value="@cat.Id" selected>@cat.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold" for="search-inventaire">Recherche</label>
+                <input type="text"
+                       id="search-inventaire"
+                       class="form-control form-control-sm"
+                       placeholder="Rechercher un produit..."
+                       oninput="filtrerInventaire(this.value)">
+            </div>
+            <div class="col-md-4 text-md-end">
+                <span class="badge bg-primary fs-6">@Model.Count produits</span>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-info py-2 mb-3">
+    <i class="bi bi-info-circle me-1"></i>
+    <strong>Mode inventaire :</strong>
+    saisissez le stock physique compté pour chaque produit.
+    Les écarts sont surlignés en rouge (manquant) ou en vert (surplus).
+    Cliquez <strong>Valider</strong> pour appliquer les corrections.
+</div>
+
+<form asp-action="ValiderInventaire" method="post" id="form-inventaire">
+    @Html.AntiForgeryToken()
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="fw-bold">
+                <i class="bi bi-list-check me-1"></i>
+                Liste des produits
+            </span>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="remplirTousEgaux()">
+                    <i class="bi bi-check-all me-1"></i>
+                    Stock OK partout
+                </button>
+                <button type="submit" class="btn btn-sm btn-success" onclick="return confirmerInventaire()">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Valider les corrections
+                </button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle" id="table-inventaire">
+                <thead class="table-light">
+                    <tr>
+                        <th>Produit</th>
+                        <th>CIP</th>
+                        <th>Catégorie</th>
+                        <th class="text-center">Stock logiciel</th>
+                        <th class="text-center" style="width:140px">
+                            Stock physique
+                            <span class="text-muted fw-normal small">(compté)</span>
+                        </th>
+                        <th class="text-center">Écart</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Count; i++)
+                    {
+                        var item = Model[i];
+                        <tr class="inventaire-row" data-nom="@item.Nom.ToLowerInvariant()" data-cip="@(item.Cip ?? "")">
+                            <td class="fw-bold small">
+                                <input type="hidden" name="ajustements[@i].ProductId" value="@item.ProductId" />
+                                <input type="hidden" name="ajustements[@i].StockLogiciel" value="@item.StockLogiciel" />
+                                @item.Nom
+                            </td>
+                            <td class="text-muted small">@(item.Cip ?? "—")</td>
+                            <td class="small">@item.Categorie</td>
+                            <td class="text-center fw-bold">@item.StockLogiciel</td>
+                            <td class="text-center">
+                                <input type="number"
+                                       name="ajustements[@i].StockPhysique"
+                                       class="form-control form-control-sm text-center stock-physique"
+                                       min="0"
+                                       placeholder="—"
+                                       data-logiciel="@item.StockLogiciel"
+                                       oninput="calculerEcart(this)" />
+                            </td>
+                            <td class="text-center fw-bold" id="ecart-@item.ProductId">—</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+      function calculerEcart(input) {
+        var logiciel = parseInt(input.dataset.logiciel, 10) || 0;
+        var physique = parseInt(input.value, 10);
+        var row = input.closest('tr');
+        var ecartCell = row.querySelector('[id^="ecart-"]');
+
+        if (isNaN(physique)) {
+          ecartCell.textContent = '—';
+          row.classList.remove('table-danger', 'table-success', 'table-warning');
+          return;
+        }
+
+        var ecart = physique - logiciel;
+        ecartCell.textContent = (ecart > 0 ? '+' : '') + ecart;
+        row.classList.remove('table-danger', 'table-success', 'table-warning');
+        if (ecart < 0) row.classList.add('table-danger');
+        else if (ecart > 0) row.classList.add('table-success');
+        else row.classList.add('table-warning');
+      }
+
+      function remplirTousEgaux() {
+        document.querySelectorAll('.stock-physique').forEach(function (input) {
+          input.value = input.dataset.logiciel;
+          calculerEcart(input);
+        });
+      }
+
+      function filtrerInventaire(terme) {
+        terme = (terme || '').toLowerCase();
+        document.querySelectorAll('.inventaire-row').forEach(function (row) {
+          var nom = row.dataset.nom || '';
+          var cip = (row.dataset.cip || '').toLowerCase();
+          row.style.display = nom.indexOf(terme) >= 0 || cip.indexOf(terme) >= 0 ? '' : 'none';
+        });
+      }
+
+      function confirmerInventaire() {
+        var modifies = Array.from(document.querySelectorAll('.stock-physique'))
+          .filter(function (i) { return i.value !== ''; });
+
+        if (modifies.length === 0) {
+          if (window.toastr) toastr.warning('Aucun stock physique saisi.');
+          else alert('Aucun stock physique saisi.');
+          return false;
+        }
+
+        var avecEcart = modifies.filter(function (i) {
+          return parseInt(i.value, 10) !== parseInt(i.dataset.logiciel, 10);
+        });
+
+        if (avecEcart.length === 0) {
+          if (window.toastr) toastr.info('Aucun écart détecté.');
+          else alert('Aucun écart détecté.');
+          return false;
+        }
+
+        return confirm(avecEcart.length + ' écart(s) détecté(s). Confirmer les corrections ?');
+      }
+    </script>
+}

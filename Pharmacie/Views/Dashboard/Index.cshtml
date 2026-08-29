@@ -226,6 +226,7 @@
                     <div class="ph-chart-container" style="height: 250px;">
                         <canvas id="chart-categories" aria-label="CA par catégorie sur 30 jours" role="img"></canvas>
                     </div>
+                    <p class="small text-muted mb-0 mt-2">Cliquez une barre pour voir le détail des produits.</p>
                 </div>
             </div>
         </div>
@@ -269,7 +270,7 @@
                 <div class="ph-chart-container" style="height: 280px;">
                     <canvas id="stockChart" aria-label="Répartition de la valeur du stock par catégorie" role="img"></canvas>
                 </div>
-                <p class="small text-muted mb-0 mt-2">Estimation : stock × prix de vente (8 principales catégories).</p>
+                <p class="small text-muted mb-0 mt-2">Estimation : stock × prix de vente (8 principales catégories). Cliquez une part pour le détail.</p>
             </div>
         </div>
     </div>
@@ -399,9 +400,95 @@
     </div>
 </div>
 
+<div class="modal fade" id="modal-detail-chart" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modal-detail-titre">Détail</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body" id="modal-detail-body"></div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+      function setChartCursor(event, elements) {
+        var canvas = event && event.native && event.native.target
+          ? event.native.target
+          : (event && event.chart ? event.chart.canvas : null);
+        if (canvas && canvas.style)
+          canvas.style.cursor = elements && elements.length > 0 ? 'pointer' : 'default';
+      }
+
+      function showDetailModal(title) {
+        document.getElementById('modal-detail-titre').textContent = title;
+        document.getElementById('modal-detail-body').innerHTML =
+          '<div class="text-center py-3"><div class="spinner-border"></div></div>';
+        var modal = new bootstrap.Modal(document.getElementById('modal-detail-chart'));
+        modal.show();
+      }
+
+      function ouvrirDetailCategorie(categorie) {
+        showDetailModal('CA — ' + categorie);
+        fetch('@Url.Action("DetailCategorie", "Dashboard")?categorie=' + encodeURIComponent(categorie), {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin'
+        })
+          .then(function (r) { if (!r.ok) throw new Error('load'); return r.json(); })
+          .then(function (data) {
+            var html = '<table class="table table-sm mb-0"><thead><tr>' +
+              '<th>Produit</th><th class="text-center">Qté</th><th class="text-end">CA</th>' +
+              '</tr></thead><tbody>';
+            if (!data || !data.length) {
+              html += '<tr><td colspan="3" class="text-muted text-center">Aucun produit.</td></tr>';
+            } else {
+              data.forEach(function (p) {
+                html += '<tr><td>' + (p.nom || '') + '</td>' +
+                  '<td class="text-center">' + p.quantite + '</td>' +
+                  '<td class="text-end fw-bold">' + Number(p.ca || 0).toLocaleString('fr-FR') + ' F</td></tr>';
+              });
+            }
+            html += '</tbody></table>';
+            document.getElementById('modal-detail-body').innerHTML = html;
+          })
+          .catch(function () {
+            document.getElementById('modal-detail-body').innerHTML =
+              '<p class="text-danger mb-0">Erreur de chargement.</p>';
+          });
+      }
+
+      function ouvrirDetailStockCategorie(categorie) {
+        showDetailModal('Stock — ' + categorie);
+        fetch('@Url.Action("DetailStockCategorie", "Dashboard")?categorie=' + encodeURIComponent(categorie), {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin'
+        })
+          .then(function (r) { if (!r.ok) throw new Error('load'); return r.json(); })
+          .then(function (data) {
+            var html = '<table class="table table-sm mb-0"><thead><tr>' +
+              '<th>Produit</th><th class="text-center">Stock</th><th class="text-end">Valeur</th>' +
+              '</tr></thead><tbody>';
+            if (!data || !data.length) {
+              html += '<tr><td colspan="3" class="text-muted text-center">Aucun produit.</td></tr>';
+            } else {
+              data.forEach(function (p) {
+                html += '<tr><td>' + (p.nom || '') + '</td>' +
+                  '<td class="text-center">' + p.stock + '</td>' +
+                  '<td class="text-end">' + Number(p.valeur || 0).toLocaleString('fr-FR') + ' F</td></tr>';
+              });
+            }
+            html += '</tbody></table>';
+            document.getElementById('modal-detail-body').innerHTML = html;
+          })
+          .catch(function () {
+            document.getElementById('modal-detail-body').innerHTML =
+              '<p class="text-danger mb-0">Erreur de chargement.</p>';
+          });
+      }
+
       document.addEventListener('DOMContentLoaded', function () {
         if (!window.Chart) return;
 
@@ -467,6 +554,12 @@
               responsive: true,
               maintainAspectRatio: false,
               cutout: '65%',
+              onClick: function (event, elements, chart) {
+                if (!elements.length) return;
+                var categorie = chart.data.labels[elements[0].index];
+                if (categorie) ouvrirDetailStockCategorie(categorie);
+              },
+              onHover: setChartCursor,
               plugins: {
                 legend: {
                   position: 'bottom',
@@ -499,6 +592,12 @@
             options: {
               responsive: true,
               maintainAspectRatio: false,
+              onClick: function (event, elements, chart) {
+                if (!elements.length) return;
+                var categorie = chart.data.labels[elements[0].index];
+                if (categorie) ouvrirDetailCategorie(categorie);
+              },
+              onHover: setChartCursor,
               plugins: {
                 legend: { display: false },
                 tooltip: {

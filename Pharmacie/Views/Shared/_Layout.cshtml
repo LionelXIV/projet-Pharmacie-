@@ -39,7 +39,7 @@
     var isHome = IsCtrl("Home") && IsAction("Index");
     var isDashboard = IsCtrl("Dashboard");
     var isReports = IsCtrl("Reports");
-    var isCatalog = IsCtrlAny("Products", "Batches", "StockMovements", "ProductImports");
+    var isCatalog = IsCtrlAny("Products", "Batches", "StockMovements", "ProductImports", "Inventaire");
     var isPurchasing = IsCtrlAny("PurchaseOrders", "Categories", "Suppliers", "GoodsReceipts", "BLImport");
     var isSales = IsCtrl("Sales");
     var isBons = IsCtrl("Bons");
@@ -166,6 +166,12 @@
                         <a class="nav-link @(IsCtrl("StockMovements") ? "active" : null)" asp-controller="StockMovements" asp-action="Index" aria-current="@(IsCtrl("StockMovements") ? "page" : null)">
                             <i class="bi bi-arrow-down-up" aria-hidden="true"></i>Mouvements
                         </a>
+                        @if (User!.IsInRole(AppRoles.PharmacienTitulaire) || User.IsInRole(AppRoles.Pharmacien))
+                        {
+                            <a class="nav-link @(IsCtrl("Inventaire") ? "active" : null)" asp-controller="Inventaire" asp-action="Index" aria-current="@(IsCtrl("Inventaire") ? "page" : null)">
+                                <i class="bi bi-clipboard-check" aria-hidden="true"></i>Inventaire
+                            </a>
+                        }
                     </div>
                 }
 

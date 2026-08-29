@@ -359,4 +359,66 @@ public class DashboardController : Controller
 
         return View(vm);
     }
+
+    [HttpGet]
+    [Authorize(Roles = AppRoles.DashboardAccess)]
+    public async Task<IActionResult> DetailCategorie(string categorie)
+    {
+        if (string.IsNullOrWhiteSpace(categorie))
+            return Json(Array.Empty<object>());
+
+        var trente = DateTime.Today.AddDays(-30);
+        var sansCategorie = string.Equals(categorie, "Sans catégorie", StringComparison.OrdinalIgnoreCase);
+        var data = await _db.SaleLines
+            .AsNoTracking()
+            .Where(sl =>
+                sl.Product != null
+                && (sansCategorie
+                    ? sl.Product.Category == null
+                    : sl.Product.Category != null && sl.Product.Category.Name == categorie)
+                && sl.Sale != null
+                && sl.Sale.SoldAt >= trente
+                && !sl.Sale.IsAnnulee
+                && !sl.Sale.IsAdminTest)
+            .GroupBy(sl => sl.Product!.CommercialName)
+            .Select(g => new
+            {
+                nom = g.Key,
+                quantite = g.Sum(sl => sl.Quantity),
+                ca = g.Sum(sl => sl.UnitPrice * sl.Quantity)
+            })
+            .OrderByDescending(x => x.ca)
+            .Take(20)
+            .ToListAsync();
+
+        return Json(data);
+    }
+
+    [HttpGet]
+    [Authorize(Roles = AppRoles.DashboardAccess)]
+    public async Task<IActionResult> DetailStockCategorie(string categorie)
+    {
+        if (string.IsNullOrWhiteSpace(categorie))
+            return Json(Array.Empty<object>());
+
+        var sansCategorie = string.Equals(categorie, "Sans catégorie", StringComparison.OrdinalIgnoreCase);
+        var data = await _db.Products
+            .AsNoTracking()
+            .Where(p =>
+                p.IsActive
+                && (sansCategorie
+                    ? p.Category == null
+                    : p.Category != null && p.Category.Name == categorie))
+            .Select(p => new
+            {
+                nom = p.CommercialName,
+                stock = p.StockQuantity,
+                valeur = p.StockQuantity * p.PurchasePrice
+            })
+            .OrderByDescending(x => x.valeur)
+            .Take(20)
+            .ToListAsync();
+
+        return Json(data);
+    }
 }
