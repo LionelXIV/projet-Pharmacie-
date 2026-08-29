@@ -262,6 +262,27 @@ public class GoodsReceiptsController : Controller
             return View(model);
         }
 
+        if (!string.IsNullOrWhiteSpace(model.Reference))
+        {
+            var reference = model.Reference.Trim();
+            var doublon = await _context.GoodsReceipts
+                .AsNoTracking()
+                .AnyAsync(gr =>
+                    gr.SupplierId == model.SupplierId
+                    && gr.Reference != null
+                    && gr.Reference.Trim() == reference);
+
+            if (doublon)
+            {
+                ModelState.AddModelError(
+                    nameof(model.Reference),
+                    $"Un bon de livraison avec le numéro « {reference} » existe déjà pour ce fournisseur.");
+                TempData["Warning"] =
+                    $"BL N° {reference} déjà enregistré pour ce fournisseur. Vérifiez avant de continuer.";
+                return View(model);
+            }
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var displayName = User.Identity?.Name
             ?? User.FindFirstValue(ClaimTypes.Name)

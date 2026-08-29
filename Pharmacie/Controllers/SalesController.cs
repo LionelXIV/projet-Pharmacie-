@@ -171,6 +171,22 @@ public class SalesController : Controller
         return View(sale);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> DetailPartial(int id)
+    {
+        var sale = await _context.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+                .ThenInclude(l => l.Product)
+            .Include(s => s.Vendeur)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (sale == null)
+            return NotFound();
+
+        return PartialView("_SaleDetailPartial", sale);
+    }
+
     public async Task<IActionResult> Ticket(int id)
     {
         var sale = await _context.Sales

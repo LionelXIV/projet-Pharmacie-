@@ -237,9 +237,13 @@
                             <a class="btn btn-sm btn-outline-dark" asp-action="FicheVente" asp-route-id="@s.Id" target="_blank" title="Fiche A4" data-bs-toggle="tooltip">
                                 <i class="bi bi-file-text" aria-hidden="true"></i>
                             </a>
-                            <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@s.Id" title="Voir le détail" data-bs-toggle="tooltip">
+                            <button class="btn btn-sm btn-outline-primary"
+                                    type="button"
+                                    onclick="toggleDetail(@s.Id)"
+                                    id="btn-detail-@s.Id"
+                                    title="Voir le détail">
                                 <i class="bi bi-eye" aria-hidden="true"></i><span class="d-none d-md-inline ms-1">Détail</span>
-                            </a>
+                            </button>
                             @{
                                 var peutModifierVente = !s.IsAnnulee && (
                                     User.IsInRole("PharmacienTitulaire")
@@ -316,6 +320,16 @@
                             }
                         </td>
                     </tr>
+                    <tr id="detail-row-@s.Id" style="display:none" class="detail-row">
+                        <td colspan="8" class="p-0 border-0">
+                            <div id="detail-content-@s.Id" class="p-3 bg-light border-top">
+                                <div class="text-center text-muted py-2">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    Chargement...
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
                 }
             </tbody>
         </table>
@@ -359,5 +373,40 @@
           new bootstrap.Tooltip(el);
         });
       });
+
+      function toggleDetail(saleId) {
+        var row = document.getElementById('detail-row-' + saleId);
+        var content = document.getElementById('detail-content-' + saleId);
+        var btn = document.getElementById('btn-detail-' + saleId);
+        if (!row || !content || !btn) return;
+
+        if (row.style.display === 'none') {
+          row.style.display = 'table-row';
+          btn.classList.remove('btn-outline-primary');
+          btn.classList.add('btn-primary');
+
+          if (content.dataset.loaded !== 'true') {
+            fetch('@Url.Action("DetailPartial", "Sales")/' + saleId, {
+              headers: { 'Accept': 'text/html' },
+              credentials: 'same-origin'
+            })
+              .then(function (r) {
+                if (!r.ok) throw new Error('load');
+                return r.text();
+              })
+              .then(function (html) {
+                content.innerHTML = html;
+                content.dataset.loaded = 'true';
+              })
+              .catch(function () {
+                content.innerHTML = '<p class="text-danger mb-0">Erreur de chargement.</p>';
+              });
+          }
+        } else {
+          row.style.display = 'none';
+          btn.classList.add('btn-outline-primary');
+          btn.classList.remove('btn-primary');
+        }
+      }
     </script>
 }

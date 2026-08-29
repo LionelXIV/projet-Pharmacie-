@@ -96,6 +96,7 @@
                     <th>Produit</th>
                     <th class="d-none d-lg-table-cell">Lot</th>
                     <th>Impact</th>
+                    <th class="text-center">Stock actuel</th>
                     <th class="d-none d-xl-table-cell">Responsable</th>
                     <th class="d-none d-lg-table-cell">Vente</th>
                     <th class="d-none d-xl-table-cell">Motif</th>
@@ -141,6 +142,17 @@
                         <td class="small d-none d-lg-table-cell">@item.Batch?.LotNumber</td>
                         <td>
                             <span class="@quantityClass">@quantityPrefix@item.Quantity</span>
+                        </td>
+                        <td class="text-center">
+                            @{
+                                var stocksActuels = ViewBag.StocksActuels as Dictionary<int, int>;
+                                var stock = stocksActuels != null && stocksActuels.TryGetValue(item.ProductId, out var stockVal)
+                                    ? stockVal
+                                    : (item.Product?.StockQuantity ?? 0);
+                            }
+                            <span class="badge @(stock <= 0 ? "bg-danger" : stock <= 5 ? "bg-warning text-dark" : "bg-success")">
+                                @stock
+                            </span>
                         </td>
                         <td class="small d-none d-xl-table-cell">@UserDisplayResolver.Resolve(userLabels, item.UserId)</td>
                         <td class="small text-nowrap d-none d-lg-table-cell">

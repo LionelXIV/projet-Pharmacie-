@@ -1,0 +1,96 @@
+@model Sale
+@using Pharmacie.Services
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Informations</h6>
+                <table class="table table-sm table-borderless mb-0">
+                    <tr>
+                        <td class="text-muted small">N° Vente</td>
+                        <td class="fw-bold">#@Model.Id</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small">Date</td>
+                        <td>@Model.SoldAt.ToString("dd/MM/yyyy HH:mm")</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small">Vendeur</td>
+                        <td>@(Model.Vendeur?.Nom ?? "—")</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted small">Paiement</td>
+                        <td>@PaymentMethodDisplay.Format(Model.PaymentMethod, Model.PaymentMethodAutre)</td>
+                    </tr>
+                    @if (!string.IsNullOrEmpty(Model.NomClient))
+                    {
+                        <tr>
+                            <td class="text-muted small">Client</td>
+                            <td>@Model.NomClient</td>
+                        </tr>
+                    }
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Produits</h6>
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Produit</th>
+                            <th class="text-center">Qté</th>
+                            <th class="text-end">Prix</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ligne in Model.Lines)
+                        {
+                            <tr>
+                                <td class="small">@ligne.Product?.CommercialName</td>
+                                <td class="text-center">@ligne.Quantity</td>
+                                <td class="text-end">@ligne.UnitPrice.ToString("N0")</td>
+                                <td class="text-end fw-bold">@CaisseService.LineTotal(ligne).ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-success">
+                            <td colspan="3" class="fw-bold">TOTAL</td>
+                            <td class="text-end fw-bold">
+                                @Model.Lines.Sum(CaisseService.LineTotal).ToString("N0") FCFA
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3">Actions</h6>
+                <div class="d-grid gap-2">
+                    <a asp-action="Ticket" asp-route-id="@Model.Id" target="_blank" class="btn btn-success btn-sm">
+                        <i class="bi bi-printer me-1"></i>
+                        Imprimer ticket
+                    </a>
+                    <a asp-action="FicheVente" asp-route-id="@Model.Id" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-file-text me-1"></i>
+                        Fiche A4
+                    </a>
+                    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>
+                        Page complète
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

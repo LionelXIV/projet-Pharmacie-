@@ -70,6 +70,12 @@ public class StockMovementsController : Controller
         ViewBag.TotalCount = totalCount;
         ViewBag.UserLabels = await UserDisplayResolver.LoadLabelsByIdAsync(_context, list.Select(m => m.UserId));
 
+        var productIds = list.Select(m => m.ProductId).Distinct().ToList();
+        ViewBag.StocksActuels = await _context.Products
+            .AsNoTracking()
+            .Where(p => productIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.StockQuantity);
+
         var products = await _context.Products
             .AsNoTracking()
             .Where(p => p.IsActive)
