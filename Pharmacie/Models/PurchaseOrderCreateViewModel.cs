@@ -27,4 +27,7 @@ public class PurchaseOrderLineSlotViewModel
     [Display(Name = "Quantité")]
     [Range(0, int.MaxValue)]
     public int QuantityOrdered { get; set; }
+
+    /// <summary>Libellé pour préremplir TomSelect (suggestion après caisse).</summary>
+    public string? ProductName { get; set; }
 }

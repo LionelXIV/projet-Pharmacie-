@@ -175,7 +175,96 @@ public class CaisseController : Controller
         }
 
         TempData["Success"] = "Caisse fermée avec succès.";
+        var peutSuggérer = User.IsInRole(AppRoles.PharmacienTitulaire)
+            || User.IsInRole(AppRoles.Pharmacien)
+            || User.IsInRole(AppRoles.Administrateur);
+        if (peutSuggérer)
+            return RedirectToAction(nameof(SuggestionCommande), new { sessionId = SessionId });
         return RedirectToAction(nameof(Rapport), new { id = SessionId });
+    }
+
+    [HttpGet]
+    [Authorize(Roles = AppRoles.PharmacienTitulaire + "," + AppRoles.Pharmacien + "," + AppRoles.Administrateur)]
+    public async Task<IActionResult> SuggestionCommande(int sessionId)
+    {
+        var session = await _context.SessionCaisses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == sessionId);
+        if (session == null)
+            return NotFound();
+
+        var produitsACommander = await _context.Products
+            .AsNoTracking()
+            .Include(p => p.Supplier)
+            .Include(p => p.Category)
+            .Where(p =>
+                p.IsActive
+                && p.StockQuantity <= p.AlertThreshold
+                && (p.Category == null || !p.Category.EstHorsSysteme))
+            .OrderBy(p => p.StockQuantity <= 0 ? 0 : 1)
+            .ThenBy(p => p.CommercialName)
+            .Select(p => new SuggestionCommandeItem
+            {
+                ProductId = p.Id,
+                ProductName = p.CommercialName,
+                StockActuel = p.StockQuantity,
+                StockMinimum = p.AlertThreshold,
+                QuantiteConseillee = Math.Max(p.AlertThreshold * 2 - p.StockQuantity, 1),
+                SupplierId = p.SupplierId,
+                SupplierName = p.Supplier != null ? p.Supplier.Name : "Non défini",
+                Statut = p.StockQuantity <= 0 ? "Rupture" : "Stock faible",
+                Selectionne = true
+            })
+            .ToListAsync();
+
+        var parFournisseur = produitsACommander
+            .GroupBy(p => new { p.SupplierId, p.SupplierName })
+            .OrderBy(g => g.Key.SupplierName)
+            .Select(g => new SuggestionFournisseurGroupe
+            {
+                SupplierId = g.Key.SupplierId,
+                SupplierName = g.Key.SupplierName ?? "Non défini",
+                Items = g.ToList()
+            })
+            .ToList();
+
+        ViewBag.SessionId = sessionId;
+        ViewBag.ParFournisseur = parFournisseur;
+        ViewBag.NbProduits = produitsACommander.Count;
+        ViewBag.NbRuptures = produitsACommander.Count(p => p.Statut == "Rupture");
+
+        return View(produitsACommander);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.PharmacienTitulaire + "," + AppRoles.Pharmacien + "," + AppRoles.Administrateur)]
+    public IActionResult CreateFromSuggestion(int sessionId, List<SuggestionCommandeItem> items)
+    {
+        var selection = (items ?? new List<SuggestionCommandeItem>())
+            .Where(i => i.Selectionne && i.ProductId > 0 && i.QuantiteConseillee > 0)
+            .ToList();
+
+        if (selection.Count == 0)
+        {
+            TempData["Error"] = "Sélectionnez au moins un produit à commander.";
+            return RedirectToAction(nameof(SuggestionCommande), new { sessionId });
+        }
+
+        var supplierIds = selection.Select(i => i.SupplierId ?? 0).Distinct().ToList();
+        if (supplierIds.Count > 1)
+        {
+            TempData["Error"] = "Sélectionnez les produits d'un seul fournisseur pour créer la commande.";
+            return RedirectToAction(nameof(SuggestionCommande), new { sessionId });
+        }
+
+        var payload = JsonSerializer.Serialize(selection);
+        HttpContext.Session.SetString("SuggestionLignes", payload);
+        TempData["SuggestionLignes"] = "1";
+        if (supplierIds[0] > 0)
+            TempData["SuggestionSupplierId"] = supplierIds[0];
+        TempData["SuggestionSessionId"] = sessionId;
+        return RedirectToAction("Create", "PurchaseOrders");
     }
 
     [HttpGet]

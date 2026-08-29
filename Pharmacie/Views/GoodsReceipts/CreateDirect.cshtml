@@ -615,13 +615,150 @@
         }
       });
 
+      var DRAFT_KEY_BL = 'draft_bl';
+      var skipBlDraft = new URLSearchParams(window.location.search).get('pdf') === '1';
+
+      function saveDraftBL() {
+        try {
+          var data = {
+            supplierId: document.getElementById('SupplierId')?.value,
+            reference: document.getElementById('Reference')?.value,
+            receivedAt: document.getElementById('DateReception')?.value,
+            notes: document.getElementById('Notes')?.value,
+            lignes: [],
+            savedAt: new Date().toISOString()
+          };
+          document.querySelectorAll('tr.bl-ligne').forEach(function (row) {
+            var sel = row.querySelector('[name*="ProductId"]');
+            var productId = sel && sel.tomselect ? sel.tomselect.getValue() : (sel && sel.value);
+            var productText = '';
+            if (sel && sel.tomselect && productId && sel.tomselect.options[productId])
+              productText = sel.tomselect.options[productId].text || '';
+            data.lignes.push({
+              productId: productId || '',
+              productText: productText,
+              qty: row.querySelector('[name*="QuantiteLivree"]')?.value,
+              prixAchat: row.querySelector('[name*="PrixAchat"]')?.value,
+              prixVente: row.querySelector('[name*="PrixVente"]')?.value,
+              lot: row.querySelector('[name*="NumeroLot"]')?.value,
+              exp: row.querySelector('.bl-exp-month')?.value,
+              tauxTVA: row.querySelector('[name*="TauxTVA"]')?.value,
+              estUG: !!(row.querySelector('.bl-ug-check') && row.querySelector('.bl-ug-check').checked),
+              nbUG: row.querySelector('[name*="NbUG"]')?.value
+            });
+          });
+          localStorage.setItem(DRAFT_KEY_BL, JSON.stringify(data));
+        } catch (e) { /* ignore quota */ }
+      }
+
+      function clearDraftBL() {
+        try { localStorage.removeItem(DRAFT_KEY_BL); } catch (e) { /* ignore */ }
+      }
+
+      function restoreDraftBL(draft) {
+        if (draft.supplierId) {
+          var sup = document.getElementById('SupplierId');
+          if (sup) sup.value = draft.supplierId;
+        }
+        if (draft.reference) {
+          var ref = document.getElementById('Reference');
+          if (ref) ref.value = draft.reference;
+        }
+        if (draft.receivedAt) {
+          var rec = document.getElementById('DateReception');
+          if (rec) rec.value = draft.receivedAt;
+        }
+        if (draft.notes) {
+          var notes = document.getElementById('Notes');
+          if (notes) notes.value = draft.notes;
+        }
+        var lignes = (draft.lignes || []).filter(function (l) {
+          return l && (l.productId || l.qty || l.lot);
+        });
+        tbody.querySelectorAll('tr.bl-ligne').forEach(function (tr) { tr.remove(); });
+        ligneCount = 0;
+        if (lignes.length === 0) {
+          addLigne();
+        } else {
+          lignes.forEach(function (l) {
+            addLigne({
+              productId: l.productId,
+              productText: l.productText,
+              quantite: parseFloat(l.qty) || 1,
+              prixAchat: l.prixAchat,
+              prixVente: l.prixVente,
+              numeroLot: l.lot,
+              datePeremption: l.exp,
+              tauxTVA: l.tauxTVA,
+              estUG: l.estUG,
+              nbUG: parseFloat(l.nbUG) || 0
+            });
+          });
+        }
+        updateTotals();
+        if (window.toastr) toastr.success('BL restauré !');
+      }
+
+      function loadDraftBL(onEmptyReady) {
+        if (skipBlDraft) {
+          onEmptyReady();
+          return;
+        }
+        try {
+          var saved = localStorage.getItem(DRAFT_KEY_BL);
+          if (!saved) {
+            onEmptyReady();
+            return;
+          }
+          var draft = JSON.parse(saved);
+          if (!draft) {
+            onEmptyReady();
+            return;
+          }
+          var savedAt = new Date(draft.savedAt);
+          if ((new Date() - savedAt) / 3600000 > 48) {
+            localStorage.removeItem(DRAFT_KEY_BL);
+            onEmptyReady();
+            return;
+          }
+          if (!window.Swal) {
+            onEmptyReady();
+            return;
+          }
+          Swal.fire({
+            icon: 'question',
+            title: 'Brouillon BL trouvé',
+            html: '<p>Un bon de livraison non validé a été trouvé (BL N° ' +
+              (draft.reference || '?') + ').</p>',
+            showCancelButton: true,
+            confirmButtonText: 'Restaurer',
+            cancelButtonText: 'Nouveau BL',
+            confirmButtonColor: '#4CAF82'
+          }).then(function (result) {
+            if (result.isConfirmed) {
+              restoreDraftBL(draft);
+            } else {
+              localStorage.removeItem(DRAFT_KEY_BL);
+              onEmptyReady();
+            }
+          });
+        } catch (e) {
+          onEmptyReady();
+        }
+      }
+
       document.getElementById('form-bl-direct').addEventListener('submit', function () {
         reindexLignes();
+        clearDraftBL();
       });
-      document.getElementById('btn-add-ligne').addEventListener('click', function () { addLigne(); });
-      document.getElementById('btn-add-ligne-bas').addEventListener('click', function () { addLigne(); });
-      document.addEventListener('DOMContentLoaded', function () { addLigne(); });
-      if (new URLSearchParams(window.location.search).get('pdf') === '1') {
+      document.getElementById('btn-add-ligne').addEventListener('click', function () { addLigne(); saveDraftBL(); });
+      document.getElementById('btn-add-ligne-bas').addEventListener('click', function () { addLigne(); saveDraftBL(); });
+      document.getElementById('form-bl-direct').addEventListener('change', saveDraftBL);
+      document.getElementById('form-bl-direct').addEventListener('input', saveDraftBL);
+      document.addEventListener('DOMContentLoaded', function () {
+        loadDraftBL(function () { addLigne(); });
+      });
+      if (skipBlDraft) {
         setTimeout(function () { fileInput.click(); }, 400);
       }
     })();

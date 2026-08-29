@@ -510,6 +510,8 @@
   var postUrl = '@(modificationId.HasValue ? Url.Action("Modifier", "Sales", new { id = modificationId.Value }) : Url.Action("Create", "Sales"))';
   var peutModifierPrix = @(peutModifierPrix ? "true" : "false");
   var cart = [];
+  var isModification = @(modificationId.HasValue ? "true" : "false");
+  var DRAFT_KEY_POS = 'draft_pos_cart';
   var searchTimer = null;
   var selectedPayment = @((int)Model.PaymentMethod);
   var modeCredit = false;
@@ -587,12 +589,14 @@
     updateSummary();
     document.getElementById('product-search-input').value = '';
     hideSearchResults();
+    saveDraftPOS();
   }
 
   window.removeFromCart = function (index) {
     cart.splice(index, 1);
     renderCart();
     updateSummary();
+    saveDraftPOS();
   };
 
   window.updateQty = function (index, delta) {
@@ -603,6 +607,7 @@
     }
     renderCart();
     updateSummary();
+    saveDraftPOS();
   };
 
   window.modifierPrixLigne = function (index, newPrice) {
@@ -615,6 +620,7 @@
     cart[index].prixModifie = true;
     renderCart();
     updateSummary();
+    saveDraftPOS();
   };
 
   function getLineTotal(item) {
@@ -628,6 +634,7 @@
     cart[index].discountValue = parseFloat(input.value) || 0;
     renderCart();
     updateSummary();
+    saveDraftPOS();
   };
 
   window.toggleDiscountType = function (index, btn) {
@@ -641,6 +648,7 @@
     cart[index].discountType = btn.dataset.type;
     renderCart();
     updateSummary();
+    saveDraftPOS();
   };
 
   function renderCart() {
@@ -1185,6 +1193,7 @@
         '<div style="color:#fff;font-size:1.1rem;font-weight:600;">Création du bon...</div>';
       document.body.appendChild(overlayBon);
       document.body.appendChild(formBon);
+      clearDraftPOS();
       formBon.submit();
       return;
     }
@@ -1253,6 +1262,7 @@
     document.body.appendChild(overlay);
 
     document.body.appendChild(form);
+    clearDraftPOS();
     form.submit();
   });
 
@@ -1468,6 +1478,86 @@
   var initialCartJson = @Html.Raw(ViewBag.InitialCartJson as string ?? "[]");
   if (Array.isArray(initialCartJson) && initialCartJson.length > 0) {
     cart = initialCartJson;
+  }
+
+  function saveDraftPOS() {
+    if (isModification) return;
+    try {
+      var draftData = {
+        cart: cart,
+        vendeurId: document.getElementById('vendeur-select')?.value,
+        nomClient: document.getElementById('nom-client')?.value,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(DRAFT_KEY_POS, JSON.stringify(draftData));
+    } catch (e) { /* ignore quota */ }
+  }
+
+  function clearDraftPOS() {
+    try { localStorage.removeItem(DRAFT_KEY_POS); } catch (e) { /* ignore */ }
+  }
+
+  function loadDraftPOS() {
+    if (isModification || cart.length > 0) return;
+    try {
+      var saved = localStorage.getItem(DRAFT_KEY_POS);
+      if (!saved) return;
+      var draft = JSON.parse(saved);
+      if (!draft || !draft.cart || draft.cart.length === 0) return;
+
+      var savedAt = new Date(draft.savedAt);
+      var diffH = (new Date() - savedAt) / 3600000;
+      if (diffH > 24) {
+        localStorage.removeItem(DRAFT_KEY_POS);
+        return;
+      }
+
+      if (!window.Swal) return;
+      Swal.fire({
+        icon: 'question',
+        title: 'Brouillon trouvé',
+        html: '<p>Un panier non validé a été trouvé (' +
+          draft.cart.length +
+          ' produit(s)).</p>' +
+          '<p class="text-muted small">Sauvegardé le ' +
+          savedAt.toLocaleString('fr-FR') +
+          '</p>',
+        showCancelButton: true,
+        confirmButtonText: 'Restaurer le panier',
+        cancelButtonText: 'Nouveau panier',
+        confirmButtonColor: '#4CAF82'
+      }).then(function (result) {
+        if (result.isConfirmed) {
+          cart = draft.cart;
+          renderCart();
+          updateSummary();
+          if (draft.vendeurId) {
+            var vs = document.getElementById('vendeur-select');
+            if (vs) vs.value = draft.vendeurId;
+          }
+          if (draft.nomClient) {
+            var nc = document.getElementById('nom-client');
+            if (nc) nc.value = draft.nomClient;
+          }
+          if (window.toastr) toastr.success('Panier restauré !');
+        } else {
+          localStorage.removeItem(DRAFT_KEY_POS);
+        }
+      });
+    } catch (e) { /* ignore */ }
+  }
+
+  var vsEl = document.getElementById('vendeur-select');
+  if (vsEl) vsEl.addEventListener('change', saveDraftPOS);
+  var ncEl = document.getElementById('nom-client');
+  if (ncEl) {
+    ncEl.addEventListener('input', saveDraftPOS);
+    ncEl.addEventListener('change', saveDraftPOS);
+  }
+
+  if (!isModification) {
+    setInterval(saveDraftPOS, 30000);
+    loadDraftPOS();
   }
 
   renderCart();

@@ -170,6 +170,11 @@
         });
         var pa = document.getElementById('purchase-price-input');
         if (pa) pa.addEventListener('input', previewSalePrice);
+        var venteMoy = document.getElementById('vente-moy-jour');
+        if (venteMoy)
+          venteMoy.value = '@(ViewBag.VenteMoyenneJour ?? 0)';
+        if (typeof updateIndicateurs === 'function')
+          updateIndicateurs();
       });
     })();
     </script>

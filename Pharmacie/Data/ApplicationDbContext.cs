@@ -62,6 +62,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
             entity.Property(p => p.ProductType)
                 .HasDefaultValue(ProductType.Inconnu);
 
+            entity.Property(p => p.ClasseABC)
+                .HasMaxLength(1)
+                .HasDefaultValue("C");
+
+            entity.Property(p => p.StockMaximum)
+                .HasDefaultValue(0);
+
             entity.HasIndex(p => p.Cip)
                 .IsUnique()
                 .HasFilter("[Cip] IS NOT NULL AND [Cip] <> ''");

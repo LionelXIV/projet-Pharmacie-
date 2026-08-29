@@ -18,7 +18,7 @@
                 <span class="fw-semibold">Commande fournisseur</span>
             </div>
             <div class="card-body p-3 p-md-4">
-                <form asp-action="Create" novalidate>
+                <form asp-action="Create" novalidate id="form-commande">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     <p class="form-section-title">En-tête</p>
                     <div class="row mb-3">
@@ -63,7 +63,15 @@
                                                             data-tomselect-product
                                                             data-val="false"
                                                             data-url="@Url.Action("Search", "Products")">
-                                                        <option value="0"></option>
+                                                            <option value="0"></option>
+                                                        @if (Model.Lines[i].ProductId > 0)
+                                                        {
+                                                            <option value="@Model.Lines[i].ProductId" selected>
+                                                                @(string.IsNullOrWhiteSpace(Model.Lines[i].ProductName)
+                                                                    ? ("#" + Model.Lines[i].ProductId)
+                                                                    : Model.Lines[i].ProductName)
+                                                            </option>
+                                                        }
                                                     </select>
                                                     <button type="button"
                                                             class="btn btn-outline-success btn-sm flex-shrink-0"
@@ -288,6 +296,113 @@
         });
 
         updateOrderSummary();
+
+        var DRAFT_KEY_PO = 'draft_commande';
+        var skipPoDraft = @(ViewBag.HasSuggestion == true ? "true" : "false");
+
+        function saveDraftPO() {
+          try {
+            var data = {
+              supplierId: document.getElementById('SupplierId')?.value,
+              orderDate: document.getElementById('OrderDate')?.value,
+              notes: document.getElementById('Notes')?.value,
+              lignes: [],
+              savedAt: new Date().toISOString()
+            };
+            document.querySelectorAll('.order-line-row').forEach(function (row) {
+              var sel = row.querySelector('select[name$=".ProductId"]');
+              var qty = row.querySelector('input[name$=".QuantityOrdered"]');
+              var productId = sel ? sel.value : '';
+              if (!productId || productId === '0') return;
+              var text = '';
+              if (sel && sel.tomselect && sel.tomselect.options[productId])
+                text = sel.tomselect.options[productId].text || '';
+              else if (sel && sel.selectedOptions[0])
+                text = sel.selectedOptions[0].text || '';
+              data.lignes.push({
+                productId: productId,
+                qty: qty ? qty.value : '',
+                productText: text
+              });
+            });
+            localStorage.setItem(DRAFT_KEY_PO, JSON.stringify(data));
+          } catch (e) { /* ignore quota */ }
+        }
+
+        function clearDraftPO() {
+          try { localStorage.removeItem(DRAFT_KEY_PO); } catch (e) { /* ignore */ }
+        }
+
+        function loadDraftPO() {
+          if (skipPoDraft) return;
+          try {
+            var saved = localStorage.getItem(DRAFT_KEY_PO);
+            if (!saved) return;
+            var draft = JSON.parse(saved);
+            if (!draft) return;
+            var savedAt = new Date(draft.savedAt);
+            if ((new Date() - savedAt) / 3600000 > 48) {
+              localStorage.removeItem(DRAFT_KEY_PO);
+              return;
+            }
+            var hasLines = Array.isArray(draft.lignes) && draft.lignes.length > 0;
+            if (!hasLines && !draft.supplierId) return;
+
+            if (!window.Swal) return;
+            Swal.fire({
+              icon: 'question',
+              title: 'Brouillon commande trouvé',
+              html: '<p>Une commande non validée a été trouvée'
+                + (hasLines ? ' (' + draft.lignes.length + ' ligne(s))' : '')
+                + '.</p>',
+              showCancelButton: true,
+              confirmButtonText: 'Restaurer',
+              cancelButtonText: 'Nouvelle commande',
+              confirmButtonColor: '#4CAF82'
+            }).then(function (result) {
+              if (!result.isConfirmed) {
+                localStorage.removeItem(DRAFT_KEY_PO);
+                return;
+              }
+              if (draft.supplierId) {
+                var sup = document.getElementById('SupplierId');
+                if (sup) sup.value = draft.supplierId;
+              }
+              if (draft.orderDate) {
+                var od = document.getElementById('OrderDate');
+                if (od) od.value = draft.orderDate;
+              }
+              if (draft.notes) {
+                var notes = document.getElementById('Notes');
+                if (notes) notes.value = draft.notes;
+              }
+              (draft.lignes || []).forEach(function (ligne, i) {
+                var rows = document.querySelectorAll('.order-line-row');
+                if (i >= rows.length) return;
+                var sel = rows[i].querySelector('select[name$=".ProductId"]');
+                var qty = rows[i].querySelector('input[name$=".QuantityOrdered"]');
+                if (qty && ligne.qty) qty.value = ligne.qty;
+                if (sel && ligne.productId && sel.tomselect) {
+                  sel.tomselect.addOption({
+                    value: String(ligne.productId),
+                    text: ligne.productText || ('#' + ligne.productId)
+                  });
+                  sel.tomselect.setValue(String(ligne.productId), true);
+                }
+              });
+              updateOrderSummary();
+              if (window.toastr) toastr.success('Commande restaurée !');
+            });
+          } catch (e) { /* ignore */ }
+        }
+
+        document.querySelectorAll('#form-commande input, #form-commande select, #form-commande textarea')
+          .forEach(function (el) {
+            el.addEventListener('change', saveDraftPO);
+            el.addEventListener('input', saveDraftPO);
+          });
+        document.getElementById('form-commande')?.addEventListener('submit', clearDraftPO);
+        loadDraftPO();
       });
     </script>
 }

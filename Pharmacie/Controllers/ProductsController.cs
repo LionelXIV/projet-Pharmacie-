@@ -264,7 +264,7 @@ public class ProductsController : Controller
     [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> Create(
         [Bind(
-            "CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive,TarifType")]
+            "CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,StockMaximum,ClasseABC,Location,IsActive,TarifType")]
         Product product)
     {
         if (ModelState.IsValid)
@@ -295,6 +295,7 @@ public class ProductsController : Controller
 
         ViewBag.Enfant = product.ChildProducts.OrderBy(c => c.Id).FirstOrDefault();
         await PopulateLookupsAsync(product.CategoryId, product.SupplierId);
+        await SetVenteMoyenneJourAsync(id.Value);
         return View(product);
     }
 
@@ -359,7 +360,7 @@ public class ProductsController : Controller
     [Authorize(Roles = AppRoles.CanModifyPrice)]
     public async Task<IActionResult> Edit(int id,
         [Bind(
-            "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,Location,IsActive,TarifType,Cip,ProductType")]
+            "Id,CommercialName,GenericName,CategoryId,Form,Dosage,SupplierId,PurchasePrice,SalePrice,AlertThreshold,StockMaximum,ClasseABC,Location,IsActive,TarifType,Cip,ProductType")]
         Product product,
         int? ajustementStock = null,
         string? ajustementRaison = null)
@@ -387,10 +388,13 @@ public class ProductsController : Controller
         {
             product.StockQuantity = existing.StockQuantity;
             await PopulateLookupsAsync(product.CategoryId, product.SupplierId);
+            await SetVenteMoyenneJourAsync(id);
             return View(product);
         }
 
         product.StockQuantity = existing.StockQuantity;
+        if (string.IsNullOrWhiteSpace(product.ClasseABC))
+            product.ClasseABC = string.IsNullOrWhiteSpace(existing.ClasseABC) ? "C" : existing.ClasseABC;
         product.Refha = existing.Refha;
         product.ReferencePurchasePrice = existing.ReferencePurchasePrice;
         product.RegulatedSalePrice = existing.RegulatedSalePrice;
@@ -1036,6 +1040,21 @@ public class ProductsController : Controller
             sansCategorie = list.Count(p => p.Category != null && p.Category.Name == CategorieACategoriser),
             total = list.Count
         };
+    }
+
+    private async Task SetVenteMoyenneJourAsync(int productId)
+    {
+        var trente = DateTime.Today.AddDays(-30);
+        var ventesMois = await _context.SaleLines
+            .AsNoTracking()
+            .Where(sl =>
+                sl.ProductId == productId
+                && sl.Sale != null
+                && sl.Sale.SoldAt >= trente
+                && !sl.Sale.IsAnnulee
+                && !sl.Sale.IsAdminTest)
+            .SumAsync(sl => (int?)sl.Quantity) ?? 0;
+        ViewBag.VenteMoyenneJour = Math.Round(ventesMois / 30.0, 1);
     }
 
     private async Task PopulateLookupsAsync(int? selectedCategoryId = null, int? selectedSupplierId = null)

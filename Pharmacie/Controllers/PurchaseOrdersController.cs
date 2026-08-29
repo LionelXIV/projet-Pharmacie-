@@ -96,6 +96,49 @@ public class PurchaseOrdersController : Controller
         {
             Lines = Enumerable.Range(0, 8).Select(_ => new PurchaseOrderLineSlotViewModel()).ToList()
         };
+
+        var json = HttpContext.Session.GetString("SuggestionLignes");
+        if (string.IsNullOrWhiteSpace(json)
+            && TempData["SuggestionLignes"] is string tdJson
+            && tdJson.Length > 2)
+            json = tdJson;
+        if (!string.IsNullOrWhiteSpace(json) && TempData["SuggestionLignes"] != null)
+        {
+            HttpContext.Session.Remove("SuggestionLignes");
+            try
+            {
+                var suggestion = System.Text.Json.JsonSerializer.Deserialize<List<SuggestionCommandeItem>>(json)
+                    ?? new List<SuggestionCommandeItem>();
+                var lignes = suggestion
+                    .Where(s => s.ProductId > 0 && s.QuantiteConseillee > 0)
+                    .Select(s => new PurchaseOrderLineSlotViewModel
+                    {
+                        ProductId = s.ProductId,
+                        QuantityOrdered = s.QuantiteConseillee,
+                        ProductName = s.ProductName
+                    })
+                    .ToList();
+                if (lignes.Count > 0)
+                {
+                    while (lignes.Count < 8)
+                        lignes.Add(new PurchaseOrderLineSlotViewModel());
+                    vm.Lines = lignes;
+                }
+
+                if (TempData["SuggestionSupplierId"] != null
+                    && int.TryParse(TempData["SuggestionSupplierId"]?.ToString(), out var sid)
+                    && sid > 0)
+                    vm.SupplierId = sid;
+                else if (suggestion.FirstOrDefault(s => s.SupplierId is > 0)?.SupplierId is int fromLine)
+                    vm.SupplierId = fromLine;
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // Brouillon serveur illisible : formulaire vide.
+            }
+        }
+
+        ViewBag.HasSuggestion = vm.Lines.Any(l => l.ProductId > 0);
         return View(vm);
     }
 

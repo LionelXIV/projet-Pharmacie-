@@ -56,6 +56,16 @@ public class Product
     [Range(0, int.MaxValue)]
     public int AlertThreshold { get; set; }
 
+    /// <summary>Plafond de stock souhaité (0 = non renseigné). Qté à commander = Max − stock actuel.</summary>
+    [Display(Name = "Stock maximum")]
+    [Range(0, int.MaxValue)]
+    public int StockMaximum { get; set; }
+
+    /// <summary>A = forte rotation, B = moyenne, C = faible, D = dormant.</summary>
+    [StringLength(1)]
+    [Display(Name = "Classe ABC")]
+    public string ClasseABC { get; set; } = "C";
+
     [StringLength(120)]
     [Display(Name = "Emplacement")]
     public string? Location { get; set; }

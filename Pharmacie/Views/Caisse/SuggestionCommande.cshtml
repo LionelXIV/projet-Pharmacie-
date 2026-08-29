@@ -1,0 +1,129 @@
+@model List<SuggestionCommandeItem>
+@{
+    ViewData["Title"] = "Suggestion de commande";
+    var sessionId = ViewBag.SessionId as int? ?? 0;
+    var nbProduits = ViewBag.NbProduits as int? ?? Model.Count;
+    var nbRuptures = ViewBag.NbRuptures as int? ?? Model.Count(p => p.Statut == "Rupture");
+    var groupes = ViewBag.ParFournisseur as List<SuggestionFournisseurGroupe>
+        ?? Model.GroupBy(p => new { p.SupplierId, p.SupplierName })
+            .Select(g => new SuggestionFournisseurGroupe
+            {
+                SupplierId = g.Key.SupplierId,
+                SupplierName = g.Key.SupplierName ?? "Non défini",
+                Items = g.ToList()
+            })
+            .ToList();
+    var idx = 0;
+}
+
+@await Html.PartialAsync("_BackButton")
+
+<div class="page-header mb-3">
+    <h1 class="page-title">Suggestion de commande après fermeture de caisse</h1>
+    <p class="page-lead mb-0">
+        @nbProduits produit(s) à commander dont <strong>@nbRuptures</strong> rupture(s).
+        Cochez les lignes d’un seul fournisseur puis créez la commande.
+    </p>
+</div>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @err
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+    </div>
+}
+
+@if (nbProduits == 0)
+{
+    <div class="alert alert-success">
+        Aucun produit sous le seuil d’alerte. Le stock est à jour.
+    </div>
+    <a class="btn btn-primary" asp-action="Rapport" asp-route-id="@sessionId">
+        Voir le rapport de caisse
+    </a>
+}
+else
+{
+    <form asp-action="CreateFromSuggestion" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="sessionId" value="@sessionId" />
+
+        @foreach (var groupe in groupes)
+        {
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white py-3 border-bottom fw-semibold d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="bi bi-truck text-primary me-1"></i>
+                        @(string.IsNullOrWhiteSpace(groupe.SupplierName) ? "Non défini" : groupe.SupplierName)
+                    </span>
+                    <span class="badge text-bg-secondary">@groupe.Items.Count produit(s)</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:2.5rem"></th>
+                                <th>Produit</th>
+                                <th class="text-center">Stock actuel</th>
+                                <th class="text-center">Seuil</th>
+                                <th class="text-center" style="width:8rem">Qté conseillée</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in groupe.Items)
+                            {
+                                <tr>
+                                    <td class="text-center">
+                                        <input type="hidden" name="items[@idx].ProductId" value="@item.ProductId" />
+                                        <input type="hidden" name="items[@idx].ProductName" value="@item.ProductName" />
+                                        <input type="hidden" name="items[@idx].SupplierId" value="@item.SupplierId" />
+                                        <input type="hidden" name="items[@idx].SupplierName" value="@item.SupplierName" />
+                                        <input type="hidden" name="items[@idx].Selectionne" value="false" />
+                                        <input class="form-check-input" type="checkbox" name="items[@idx].Selectionne" value="true" checked />
+                                    </td>
+                                    <td>@item.ProductName</td>
+                                    <td class="text-center">
+                                        <span class="badge @(item.StockActuel <= 0 ? "bg-danger" : "bg-warning text-dark")">
+                                            @item.StockActuel
+                                        </span>
+                                    </td>
+                                    <td class="text-center">@item.StockMinimum</td>
+                                    <td>
+                                        <input type="number"
+                                               name="items[@idx].QuantiteConseillee"
+                                               class="form-control form-control-sm text-center"
+                                               min="1"
+                                               value="@item.QuantiteConseillee" />
+                                    </td>
+                                    <td>
+                                        @if (item.Statut == "Rupture")
+                                        {
+                                            <span class="badge bg-danger">Rupture</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">Stock faible</span>
+                                        }
+                                    </td>
+                                </tr>
+                                idx++;
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-bag-plus me-1"></i>
+                Créer la commande
+            </button>
+            <a class="btn btn-outline-secondary" asp-action="Rapport" asp-route-id="@sessionId">
+                Ignorer et voir le rapport
+            </a>
+        </div>
+    </form>
+}

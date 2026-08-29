@@ -93,37 +93,104 @@
 </div>
 
 <h6 class="form-section-title">Stock &amp; emplacement</h6>
-<div class="row">
-    <div class="col-md-6 mb-3">
-        <label class="form-label">@Html.DisplayNameFor(m => m.StockQuantity)</label>
-        @if (Model.Id == 0)
-        {
-            <p class="form-control-plaintext mb-0">
-                0
-                <span class="text-muted small">(initialisé à zéro — alimenté par les lots et entrées de stock)</span>
-            </p>
-        }
-        else
-        {
-            <p class="form-control-plaintext mb-0">
-                @Model.StockQuantity
-                <span class="text-muted small">(lecture seule — géré par les lots et mouvements de stock)</span>
-            </p>
-        }
+<input type="hidden" id="StockQuantity" value="@Model.StockQuantity" />
+<div class="mb-3">
+    <label class="form-label">@Html.DisplayNameFor(m => m.StockQuantity)</label>
+    @if (Model.Id == 0)
+    {
+        <p class="form-control-plaintext mb-0">
+            0
+            <span class="text-muted small">(initialisé à zéro — alimenté par les lots et entrées de stock)</span>
+        </p>
+    }
+    else
+    {
+        <p class="form-control-plaintext mb-0">
+            @Model.StockQuantity
+            <span class="text-muted small">(lecture seule — géré par les lots et mouvements de stock)</span>
+        </p>
+    }
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header fw-bold">
+        <i class="bi bi-graph-up me-1"></i>
+        Gestion du stock
     </div>
-    <div class="col-md-6 mb-3">
-        <label asp-for="AlertThreshold" class="form-label"></label>
-        <input asp-for="AlertThreshold" class="form-control" type="number" min="0" step="1" list="alert-threshold-suggestions" />
-        <datalist id="alert-threshold-suggestions">
-            <option value="0"></option>
-            <option value="1"></option>
-            <option value="2"></option>
-            <option value="3"></option>
-            <option value="4"></option>
-            <option value="5"></option>
-        </datalist>
-        <div class="form-text">Suggestions 0 à 5 ; vous pouvez aussi saisir n’importe quel nombre (15, 30…).</div>
-        <span asp-validation-for="AlertThreshold" class="text-danger"></span>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label asp-for="AlertThreshold" class="form-label fw-bold small">
+                    Stock minimum
+                    <span class="text-muted fw-normal">(seuil alerte)</span>
+                </label>
+                <input asp-for="AlertThreshold"
+                       type="number"
+                       class="form-control form-control-sm text-center"
+                       min="0"
+                       list="alert-threshold-suggestions" />
+                <datalist id="alert-threshold-suggestions">
+                    <option value="0"></option>
+                    <option value="1"></option>
+                    <option value="2"></option>
+                    <option value="3"></option>
+                    <option value="4"></option>
+                    <option value="5"></option>
+                </datalist>
+                <span asp-validation-for="AlertThreshold" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="StockMaximum" class="form-label fw-bold small"></label>
+                <input asp-for="StockMaximum"
+                       type="number"
+                       class="form-control form-control-sm text-center"
+                       min="0" />
+                <div class="form-text">Qté à commander = Max − stock actuel</div>
+                <span asp-validation-for="StockMaximum" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="ClasseABC" class="form-label fw-bold small"></label>
+                <select asp-for="ClasseABC" class="form-select form-select-sm">
+                    <option value="A">A — Forte rotation</option>
+                    <option value="B">B — Rotation moyenne</option>
+                    <option value="C">C — Faible rotation</option>
+                    <option value="D">D — Dormant</option>
+                </select>
+                <span asp-validation-for="ClasseABC" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold small" for="vente-moy-jour">
+                    Vente moy./jour
+                    <span class="badge bg-secondary ms-1">Auto</span>
+                </label>
+                <input type="text"
+                       class="form-control form-control-sm text-center bg-light"
+                       readonly
+                       id="vente-moy-jour"
+                       value="@(ViewBag.VenteMoyenneJour != null ? ViewBag.VenteMoyenneJour.ToString() : "—")" />
+                <div class="form-text">Basé sur 30 derniers jours</div>
+            </div>
+        </div>
+        <div class="row g-2 mt-2">
+            <div class="col-md-4">
+                <div class="p-2 rounded bg-light text-center">
+                    <div class="small text-muted">Jours de couverture</div>
+                    <div class="fw-bold" id="jours-couverture">—</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-2 rounded bg-light text-center">
+                    <div class="small text-muted">Qté à commander</div>
+                    <div class="fw-bold text-success" id="qte-commander">—</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-2 rounded bg-light text-center">
+                    <div class="small text-muted">Statut</div>
+                    <div id="statut-stock">—</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 <div class="mb-3">
@@ -131,6 +198,38 @@
     <input asp-for="Location" class="form-control" />
     <span asp-validation-for="Location" class="text-danger"></span>
 </div>
+<script>
+function updateIndicateurs() {
+    var stock = parseInt(document.getElementById('StockQuantity')?.value, 10) || 0;
+    var max = parseInt(document.getElementById('StockMaximum')?.value, 10) || 0;
+    var min = parseInt(document.getElementById('AlertThreshold')?.value, 10) || 0;
+    var venteRaw = document.getElementById('vente-moy-jour')?.value;
+    var venteMoy = parseFloat(String(venteRaw || '').replace(',', '.')) || 0;
+
+    var joursEl = document.getElementById('jours-couverture');
+    if (joursEl)
+        joursEl.textContent = venteMoy > 0 ? Math.round(stock / venteMoy) + ' j.' : '—';
+
+    var qteEl = document.getElementById('qte-commander');
+    if (qteEl)
+        qteEl.textContent = max > 0 ? Math.max(0, max - stock) + ' unités' : '—';
+
+    var statutEl = document.getElementById('statut-stock');
+    if (statutEl) {
+        if (stock <= 0)
+            statutEl.innerHTML = '<span class="badge bg-danger">Rupture</span>';
+        else if (stock <= min)
+            statutEl.innerHTML = '<span class="badge bg-warning text-dark">Stock faible</span>';
+        else
+            statutEl.innerHTML = '<span class="badge bg-success">Normal</span>';
+    }
+}
+['StockMaximum', 'AlertThreshold'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateIndicateurs);
+});
+updateIndicateurs();
+</script>
 
 <h6 class="form-section-title">Statut</h6>
 <div class="mb-0 form-check">
