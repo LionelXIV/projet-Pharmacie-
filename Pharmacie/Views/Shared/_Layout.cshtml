@@ -342,6 +342,15 @@
                     }
                     @if (User?.Identity?.IsAuthenticated == true)
                     {
+                        <div id="alerte-session-ancienne" class="me-2" style="display:none">
+                            <a class="btn btn-sm btn-warning py-1 px-2"
+                               id="btn-alerte-session"
+                               href="@Url.Action("Index", "Caisse")"
+                               title="Session caisse ouverte depuis trop longtemps">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                <span id="alerte-session-text">Caisse ouverte</span>
+                            </a>
+                        </div>
                         <small class="text-muted d-none d-lg-inline me-2">
                             Cliquez ici avant de fermer →
                         </small>
@@ -715,6 +724,32 @@ function togglePassword(fieldId) {
 })();
     </script>
     <script>
+function checkSessionsAnciennes() {
+    fetch('@Url.Action("AlertesSessionsOuvertes", "Caisse")', {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+    })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+            var badge = document.getElementById('alerte-session-ancienne');
+            var text = document.getElementById('alerte-session-text');
+            if (!badge || !text || !data) return;
+            if (data.hasAlertes && data.sessions && data.sessions.length > 0) {
+                badge.style.display = 'block';
+                var s = data.sessions[0];
+                text.textContent = 'Caisse ' + s.numeroCaisse + ' ouverte depuis ' + s.dureeHeures + 'h !';
+            } else {
+                badge.style.display = 'none';
+            }
+        })
+        .catch(function () {});
+}
+
+if (document.getElementById('alerte-session-ancienne')) {
+    checkSessionsAnciennes();
+    setInterval(checkSessionsAnciennes, 30 * 60 * 1000);
+}
+
 async function verifierAvantDeconnexion() {
     try {
         var response = await fetch('@Url.Action("VerifierCaisseOuverte", "Caisse")', {
@@ -728,11 +763,28 @@ async function verifierAvantDeconnexion() {
         var data = await response.json();
 
         if (data.ouverte) {
-            document.getElementById('modal-nom-caisse').textContent = data.nomCaisse;
-            document.getElementById('modal-heure').textContent = data.heureOuverture;
-            document.getElementById('btn-fermer-caisse-modal').href = data.fermerUrl;
-
-            new bootstrap.Modal(document.getElementById('modal-caisse-ouverte')).show();
+            if (window.Swal) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Caisse ouverte',
+                    html: '<p>Vous avez une caisse ouverte.</p>' +
+                        '<p class="text-danger fw-bold">Veuillez fermer votre caisse avant de vous deconnecter.</p>',
+                    showCancelButton: true,
+                    confirmButtonText: 'Fermer la caisse',
+                    cancelButtonText: 'Rester connecte',
+                    confirmButtonColor: '#F59E0B',
+                    cancelButtonColor: '#6B7280'
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        window.location.href = data.fermerUrl || '@Url.Action("Index", "Caisse")';
+                    }
+                });
+            } else {
+                document.getElementById('modal-nom-caisse').textContent = data.nomCaisse;
+                document.getElementById('modal-heure').textContent = data.heureOuverture;
+                document.getElementById('btn-fermer-caisse-modal').href = data.fermerUrl;
+                new bootstrap.Modal(document.getElementById('modal-caisse-ouverte')).show();
+            }
         } else {
             document.getElementById('form-deconnexion').submit();
         }

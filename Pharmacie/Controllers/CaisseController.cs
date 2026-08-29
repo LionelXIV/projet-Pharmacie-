@@ -376,6 +376,30 @@ public class CaisseController : Controller
             .Where(s => s.PaymentMethod == PaymentMethod.Especes)
             .Sum(CaisseService.CalculerTotalSale);
 
+        var debut = d;
+        var finExclusive = d.AddDays(1);
+        var regularisations = await _context.Sales
+            .AsNoTracking()
+            .Include(s => s.Lines)
+                .ThenInclude(l => l.Product)
+            .Where(s =>
+                s.SoldAt >= debut
+                && s.SoldAt < finExclusive
+                && s.IsRegularisation
+                && !s.IsAnnulee
+                && !s.IsAdminTest)
+            .ToListAsync();
+
+        var caRegularisations = regularisations.Sum(CaisseService.CalculerTotalSale);
+        var caSessionsHorsRegul = ventesJour
+            .Where(s => !s.IsRegularisation)
+            .Sum(CaisseService.CalculerTotalSale);
+
+        ViewBag.Regularisations = regularisations;
+        ViewBag.CaRegularisations = caRegularisations;
+        ViewBag.NbRegularisations = regularisations.Count;
+        ViewBag.TotalGeneral = caSessionsHorsRegul + caRegularisations;
+
         return View();
     }
 
@@ -414,6 +438,33 @@ public class CaisseController : Controller
             nomCaisse = session.NomCaisse,
             heureOuverture = session.HeureOuverture.ToString("HH:mm"),
             fermerUrl = Url.Action(nameof(Fermer), "Caisse", new { id = session.Id })
+        });
+    }
+
+    [HttpGet]
+    [Authorize]
+    public async Task<IActionResult> AlertesSessionsOuvertes()
+    {
+        var seuil = DateTime.Now.AddHours(-20);
+        var sessionsAnciennes = await _context.SessionCaisses
+            .AsNoTracking()
+            .Where(sc =>
+                sc.Statut == SessionCaisseStatut.Ouverte
+                && sc.HeureOuverture <= seuil)
+            .Select(sc => new
+            {
+                sc.Id,
+                sc.NumeroCaisse,
+                sc.DateSession,
+                sc.HeureOuverture,
+                DureeHeures = (int)(DateTime.Now - sc.HeureOuverture).TotalHours
+            })
+            .ToListAsync();
+
+        return Json(new
+        {
+            hasAlertes = sessionsAnciennes.Count > 0,
+            sessions = sessionsAnciennes
         });
     }
 

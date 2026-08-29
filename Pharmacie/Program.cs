@@ -108,6 +108,7 @@ builder.Services.AddScoped<AvoirService>();
 builder.Services.AddScoped<CaisseService>();
 builder.Services.AddHttpClient();
 builder.Services.AddHostedService<KeepAliveService>();
+builder.Services.AddHostedService<SessionAutoCloseService>();
 
 var app = builder.Build();
 
