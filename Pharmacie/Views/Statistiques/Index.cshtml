@@ -12,6 +12,14 @@
     var comparaison = topVentes2 != null;
     var d1 = ViewBag.D1 as string;
     var f1 = ViewBag.F1 as string;
+    var d2 = ViewBag.D2 as string;
+    var f2 = ViewBag.F2 as string;
+    var totalCa2 = ViewBag.TotalCA2 as decimal? ?? 0m;
+    var totalMarge2 = ViewBag.TotalMarge2 as decimal? ?? 0m;
+    var totalQte2 = ViewBag.TotalQte2 as int? ?? 0;
+    var tauxMargeMoyen2 = totalCa2 > 0 ? Math.Round(totalMarge2 / totalCa2 * 100, 1) : 0m;
+    string FmtDate(string? iso) =>
+        DateTime.TryParse(iso, out var dt) ? dt.ToString("dd/MM/yyyy") : "—";
 }
 
 <style>
@@ -88,15 +96,37 @@
                     </button>
                 </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label small text-muted mb-1">Du</label>
-                <input type="date" name="debut1" value="@ViewBag.D1"
-                       class="form-control form-control-sm" data-flatpickr-ignore="true">
+            <div class="col-md-6">
+                <strong class="d-block mb-1">Période 1</strong>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label small text-muted mb-1">Du</label>
+                        <input type="date" name="debut1" value="@ViewBag.D1"
+                               class="form-control form-control-sm" data-flatpickr-ignore="true">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small text-muted mb-1">Au</label>
+                        <input type="date" name="fin1" value="@ViewBag.F1"
+                               class="form-control form-control-sm" data-flatpickr-ignore="true">
+                    </div>
+                </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label small text-muted mb-1">Au</label>
-                <input type="date" name="fin1" value="@ViewBag.F1"
-                       class="form-control form-control-sm" data-flatpickr-ignore="true">
+            <div id="bloc-periode2" class="col-md-6 @(vue == "stats" ? "" : "d-none")">
+                <strong class="d-block mb-1">Période 2
+                    <span class="text-muted fw-normal small">(comparaison)</span>
+                </strong>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label small text-muted mb-1">Du</label>
+                        <input type="date" name="debut2" value="@ViewBag.D2"
+                               class="form-control form-control-sm" data-flatpickr-ignore="true">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small text-muted mb-1">Au</label>
+                        <input type="date" name="fin2" value="@ViewBag.F2"
+                               class="form-control form-control-sm" data-flatpickr-ignore="true">
+                    </div>
+                </div>
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary btn-sm w-100">Analyser</button>
@@ -119,25 +149,6 @@
                 </a>
             </div>
 
-            <div id="bloc-periode2" class="col-12 @(vue == "stats" ? "" : "d-none")">
-                <div class="mt-2 mb-1">
-                    <strong>Période 2
-                        <span class="text-muted fw-normal small">(optionnel — comparaison)</span>
-                    </strong>
-                </div>
-                <div class="row g-2">
-                    <div class="col-md-3">
-                        <input type="date" name="debut2" value="@ViewBag.D2"
-                               class="form-control form-control-sm" data-flatpickr-ignore="true"
-                               placeholder="Début période 2">
-                    </div>
-                    <div class="col-md-3">
-                        <input type="date" name="fin2" value="@ViewBag.F2"
-                               class="form-control form-control-sm" data-flatpickr-ignore="true"
-                               placeholder="Fin période 2">
-                    </div>
-                </div>
-            </div>
         </form>
     </div>
 </div>
@@ -301,35 +312,74 @@
 @* ── Vue 3 — Statistiques + comparaison ── *@
 <div id="vue-stats" class="vue-panel @(vue == "stats" ? "" : "d-none")">
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 app-kpi-card">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
                 <div class="card-body">
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">CA période 1</div>
-                    <div class="fs-4 fw-bold text-success">@totalCa1.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <div class="text-success fw-bold text-uppercase small">Période 1</div>
+                            <div class="fw-semibold">@FmtDate(d1) → @FmtDate(f1)</div>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="text-muted small text-uppercase">CA</div>
+                            <div class="fs-5 fw-bold text-success">@totalCa1.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small text-uppercase">Marge</div>
+                            <div class="fs-5 fw-bold text-success">@totalMarge1.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small text-uppercase">Qté vendue</div>
+                            <div class="fs-5 fw-bold">@totalQte1</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted small text-uppercase">Taux de marge</div>
+                            <div class="fs-5 fw-bold">@tauxMargeMoyen.ToString("N1") %</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 app-kpi-card">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100 border-start border-info border-4">
                 <div class="card-body">
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">Marge période 1</div>
-                    <div class="fs-4 fw-bold text-success">@totalMarge1.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 app-kpi-card">
-                <div class="card-body">
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">Nb produits vendus</div>
-                    <div class="fs-4 fw-bold">@totalQte1</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 app-kpi-card">
-                <div class="card-body">
-                    <div class="text-muted small text-uppercase fw-semibold mb-1">Taux de marge moyen</div>
-                    <div class="fs-4 fw-bold">@tauxMargeMoyen.ToString("N1") %</div>
+                    @if (comparaison)
+                    {
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <div class="text-info fw-bold text-uppercase small">Période 2</div>
+                                <div class="fw-semibold">@FmtDate(d2) → @FmtDate(f2)</div>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="text-muted small text-uppercase">CA</div>
+                                <div class="fs-5 fw-bold text-info">@totalCa2.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted small text-uppercase">Marge</div>
+                                <div class="fs-5 fw-bold text-info">@totalMarge2.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted small text-uppercase">Qté vendue</div>
+                                <div class="fs-5 fw-bold">@totalQte2</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted small text-uppercase">Taux de marge</div>
+                                <div class="fs-5 fw-bold">@tauxMargeMoyen2.ToString("N1") %</div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-info fw-bold text-uppercase small mb-2">Période 2</div>
+                        <p class="text-muted mb-0">
+                            Renseignez les dates de la période 2 ci-dessus, puis cliquez sur
+                            <strong>Analyser</strong> pour comparer.
+                        </p>
+                    }
                 </div>
             </div>
         </div>
@@ -338,9 +388,15 @@
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-header bg-white fw-bold">
             Ventes par jour (CA)
+            @if (comparaison)
+            {
+                <span class="text-muted fw-normal small ms-2">Période 1 et période 2</span>
+            }
         </div>
         <div class="card-body">
-            <canvas id="chart-ventes-jour" height="80"></canvas>
+            <div style="height:220px; position:relative;">
+                <canvas id="chart-ventes-jour"></canvas>
+            </div>
         </div>
     </div>
 
@@ -349,7 +405,7 @@
             <span>@(comparaison ? "Comparaison des périodes" : "Produits de la période")</span>
             @if (comparaison)
             {
-                <span class="badge bg-info">Comparaison active</span>
+                <span class="text-muted fw-normal small">Évolution = CA P1 par rapport à P2</span>
             }
         </div>
         <div class="table-responsive">
@@ -473,26 +529,65 @@
           chartVentes.resize();
           return;
         }
-        var ventesJour = @Html.Raw(ViewBag.VentesParJourJson ?? "[]");
+
+        var ventesJour1 = @Html.Raw(ViewBag.VentesParJourJson ?? "[]");
+        var ventesJour2 = @Html.Raw(ViewBag.VentesParJour2Json ?? "[]");
+
+        function toMap(arr) {
+          var m = {};
+          (arr || []).forEach(function (v) { m[v.jour] = v.ca; });
+          return m;
+        }
+
+        var map1 = toMap(ventesJour1);
+        var map2 = toMap(ventesJour2);
+        var labelsIso = {};
+        Object.keys(map1).forEach(function (j) { labelsIso[j] = true; });
+        Object.keys(map2).forEach(function (j) { labelsIso[j] = true; });
+        var jours = Object.keys(labelsIso).sort();
+
+        var datasets = [{
+          label: 'Période 1',
+          data: jours.map(function (j) {
+            return Object.prototype.hasOwnProperty.call(map1, j) ? map1[j] : null;
+          }),
+          borderColor: '#4CAF82',
+          backgroundColor: 'rgba(76,175,130,0.12)',
+          tension: 0.3,
+          fill: false,
+          spanGaps: false
+        }];
+
+        if (ventesJour2 && ventesJour2.length > 0) {
+          datasets.push({
+            label: 'Période 2',
+            data: jours.map(function (j) {
+              return Object.prototype.hasOwnProperty.call(map2, j) ? map2[j] : null;
+            }),
+            borderColor: '#0DCAF0',
+            backgroundColor: 'rgba(13,202,240,0.12)',
+            tension: 0.3,
+            fill: false,
+            spanGaps: false
+          });
+        }
+
         chartVentes = new Chart(canvas.getContext('2d'), {
           type: 'line',
           data: {
-            labels: ventesJour.map(function (v) {
-              return new Date(v.jour).toLocaleDateString('fr-FR');
+            labels: jours.map(function (j) {
+              return new Date(j).toLocaleDateString('fr-FR');
             }),
-            datasets: [{
-              label: 'CA (FCFA)',
-              data: ventesJour.map(function (v) { return v.cA; }),
-              borderColor: '#4CAF82',
-              backgroundColor: 'rgba(76,175,130,0.1)',
-              tension: 0.3,
-              fill: true
-            }]
+            datasets: datasets
           },
           options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-              legend: { display: false }
+              legend: { display: datasets.length > 1 }
+            },
+            scales: {
+              y: { beginAtZero: true }
             }
           }
         });

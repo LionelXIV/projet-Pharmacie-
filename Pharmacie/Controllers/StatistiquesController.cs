@@ -32,15 +32,18 @@ public class StatistiquesController : Controller
         string vue = "analyse")
     {
         var (d1, f1) = ResolvePeriode1(debut1, fin1, periode);
-        var d2 = debut2;
-        var f2 = fin2;
+        var (d2, f2) = ResolvePeriode2(debut2, fin2);
         vue = NormalizeVue(vue);
 
         var topVentes1 = await GetTopVentesAsync(d1, f1);
 
         List<TopVenteItem>? topVentes2 = null;
+        List<VenteParJourItem> ventesParJour2 = new();
         if (d2.HasValue && f2.HasValue)
+        {
             topVentes2 = await GetTopVentesAsync(d2.Value, f2.Value);
+            ventesParJour2 = await GetVentesParJourAsync(d2.Value, f2.Value);
+        }
 
         var ventesParJour = await GetVentesParJourAsync(d1, f1);
         var analyse = await GetAnalyseJourParJourAsync(d1, f1);
@@ -50,13 +53,8 @@ public class StatistiquesController : Controller
         ViewBag.TopVentes1 = topVentes1;
         ViewBag.TopVentes2 = topVentes2;
         ViewBag.VentesParJour = ventesParJour;
-        ViewBag.VentesParJourJson = JsonSerializer.Serialize(
-            ventesParJour.Select(v => new
-            {
-                jour = v.Jour.ToString("yyyy-MM-dd"),
-                nbVentes = v.NbVentes,
-                cA = v.CA
-            }));
+        ViewBag.VentesParJourJson = SerializeVentesJour(ventesParJour);
+        ViewBag.VentesParJour2Json = SerializeVentesJour(ventesParJour2);
         ViewBag.D1 = d1.ToString("yyyy-MM-dd");
         ViewBag.F1 = f1.ToString("yyyy-MM-dd");
         ViewBag.D2 = d2?.ToString("yyyy-MM-dd");
@@ -64,6 +62,9 @@ public class StatistiquesController : Controller
         ViewBag.TotalCA1 = topVentes1.Sum(x => x.CA);
         ViewBag.TotalMarge1 = topVentes1.Sum(x => x.Marge);
         ViewBag.TotalQte1 = topVentes1.Sum(x => x.QuantiteVendue);
+        ViewBag.TotalCA2 = topVentes2?.Sum(x => x.CA) ?? 0m;
+        ViewBag.TotalMarge2 = topVentes2?.Sum(x => x.Marge) ?? 0m;
+        ViewBag.TotalQte2 = topVentes2?.Sum(x => x.QuantiteVendue) ?? 0;
 
         return View(topVentes1);
     }
@@ -125,6 +126,27 @@ public class StatistiquesController : Controller
             _ => (today.AddDays(-7), today)
         };
     }
+
+    private static (DateTime? Debut, DateTime? Fin) ResolvePeriode2(
+        DateTime? debut2,
+        DateTime? fin2)
+    {
+        if (!debut2.HasValue && !fin2.HasValue)
+            return (null, null);
+
+        var d = (debut2 ?? fin2!.Value).Date;
+        var f = (fin2 ?? debut2!.Value).Date;
+        if (d > f)
+            (d, f) = (f, d);
+        return (d, f);
+    }
+
+    private static string SerializeVentesJour(IEnumerable<VenteParJourItem> items) =>
+        JsonSerializer.Serialize(items.Select(v => new
+        {
+            jour = v.Jour.ToString("yyyy-MM-dd"),
+            ca = v.CA
+        }));
 
     private async Task<List<TopVenteItem>> GetTopVentesAsync(DateTime debut, DateTime fin)
     {
@@ -239,6 +261,10 @@ public class StatistiquesController : Controller
         var start = debut.Date;
         var endExclusive = fin.Date.AddDays(1);
 
+        var jours = Enumerable.Range(0, Math.Max(0, (endExclusive - start).Days))
+            .Select(i => start.AddDays(i))
+            .ToList();
+
         var sales = await _context.Sales
             .AsNoTracking()
             .Where(s => s.SoldAt >= start
@@ -252,15 +278,19 @@ public class StatistiquesController : Controller
             })
             .ToListAsync();
 
-        return sales
+        var parJour = sales
             .GroupBy(x => x.SoldAt.Date)
-            .Select(g => new VenteParJourItem
+            .ToDictionary(
+                g => g.Key,
+                g => new { NbVentes = g.Count(), CA = g.Sum(x => x.CA) });
+
+        return jours
+            .Select(j => new VenteParJourItem
             {
-                Jour = g.Key,
-                NbVentes = g.Count(),
-                CA = g.Sum(x => x.CA)
+                Jour = j,
+                NbVentes = parJour.TryGetValue(j, out var v) ? v.NbVentes : 0,
+                CA = parJour.TryGetValue(j, out var v2) ? v2.CA : 0
             })
-            .OrderBy(x => x.Jour)
             .ToList();
     }
 }
