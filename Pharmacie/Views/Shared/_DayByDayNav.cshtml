@@ -1,0 +1,70 @@
+@{
+    var jour = (ViewData["DayNavJour"] is DateTime d ? d : DateTime.Today).Date;
+    if (jour > DateTime.Today)
+        jour = DateTime.Today;
+    var controller = ViewData["DayNavController"] as string
+        ?? (ViewContext.RouteData.Values["controller"] as string)
+        ?? "Sales";
+    var action = ViewData["DayNavAction"] as string ?? "Index";
+    var jourPrec = jour.AddDays(-1);
+    var jourSuiv = jour.AddDays(1);
+    var suivantDisabled = jour.Date >= DateTime.Today;
+    var jourIso = jour.ToString("yyyy-MM-dd");
+    var todayIso = DateTime.Today.ToString("yyyy-MM-dd");
+}
+<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <a asp-controller="@controller"
+       asp-action="@action"
+       asp-route-from="@jourPrec.ToString("yyyy-MM-dd")"
+       asp-route-to="@jourPrec.ToString("yyyy-MM-dd")"
+       class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-chevron-left"></i>
+        Jour précédent
+    </a>
+
+    <input type="date"
+           id="nav-date"
+           class="form-control form-control-sm text-center fw-bold"
+           style="width:150px; cursor:pointer"
+           value="@jourIso"
+           max="@todayIso"
+           data-flatpickr-ignore="true"
+           onchange="naviguerDate(this.value)"
+           title="Aller à une date">
+
+    @if (suivantDisabled)
+    {
+        <span class="btn btn-sm btn-outline-secondary disabled">
+            Jour suivant
+            <i class="bi bi-chevron-right"></i>
+        </span>
+    }
+    else
+    {
+        <a asp-controller="@controller"
+           asp-action="@action"
+           asp-route-from="@jourSuiv.ToString("yyyy-MM-dd")"
+           asp-route-to="@jourSuiv.ToString("yyyy-MM-dd")"
+           class="btn btn-sm btn-outline-secondary">
+            Jour suivant
+            <i class="bi bi-chevron-right"></i>
+        </a>
+    }
+
+    <a asp-controller="@controller"
+       asp-action="@action"
+       asp-route-from="@todayIso"
+       asp-route-to="@todayIso"
+       class="btn btn-sm btn-outline-primary ms-2">
+        Aujourd'hui
+    </a>
+</div>
+<script>
+  function naviguerDate(dateStr) {
+    if (!dateStr) return;
+    var url = new URL(window.location.href);
+    url.searchParams.set('from', dateStr);
+    url.searchParams.set('to', dateStr);
+    window.location.href = url.toString();
+  }
+</script>

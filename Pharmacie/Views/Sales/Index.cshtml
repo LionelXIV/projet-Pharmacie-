@@ -134,44 +134,11 @@
 </div>
 
 @{
-    var jourNav = Model.Filter.From?.Date ?? DateTime.Today;
-    var jourPrec = jourNav.AddDays(-1);
-    var jourSuiv = jourNav.AddDays(1);
-    var jourSuivDisabled = jourNav.Date >= DateTime.Today;
+    ViewData["DayNavJour"] = Model.Filter.From?.Date ?? DateTime.Today;
+    ViewData["DayNavController"] = "Sales";
+    ViewData["DayNavAction"] = "Index";
 }
-<div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-    <a asp-action="Index"
-       asp-route-from="@jourPrec.ToString("yyyy-MM-dd")"
-       asp-route-to="@jourPrec.ToString("yyyy-MM-dd")"
-       class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-chevron-left"></i>
-        Jour précédent
-    </a>
-
-    <span class="fw-bold">@jourNav.ToString("dd/MM/yyyy")</span>
-
-    @if (jourSuivDisabled)
-    {
-        <span class="btn btn-sm btn-outline-secondary disabled">
-            Jour suivant
-            <i class="bi bi-chevron-right"></i>
-        </span>
-    }
-    else
-    {
-        <a asp-action="Index"
-           asp-route-from="@jourSuiv.ToString("yyyy-MM-dd")"
-           asp-route-to="@jourSuiv.ToString("yyyy-MM-dd")"
-           class="btn btn-sm btn-outline-secondary">
-            Jour suivant
-            <i class="bi bi-chevron-right"></i>
-        </a>
-    }
-
-    <a asp-action="Index" class="btn btn-sm btn-outline-primary ms-2">
-        Aujourd'hui
-    </a>
-</div>
+<partial name="_DayByDayNav" />
 
 <div class="card border-0 shadow-sm table-card mb-3">
     <div class="card-header bg-white border-bottom py-3">

@@ -57,7 +57,7 @@
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <form method="get" asp-action="Index" class="row g-2">
+        <form method="get" asp-action="Index" id="form-statistiques" class="row g-2">
             <div class="col-md-12 mb-2">
                 <strong>Période 1</strong>
             </div>
@@ -293,9 +293,11 @@
             break;
         }
 
-        document.querySelector('[name="debut1"]').value = debut;
-        document.querySelector('[name="fin1"]').value = fin;
-        document.querySelector('form').submit();
+        document.getElementById('form-statistiques').querySelector('[name="debut1"]').value = debut;
+        document.getElementById('form-statistiques').querySelector('[name="fin1"]').value = fin;
+        var form = document.getElementById('form-statistiques');
+        if (form.requestSubmit) form.requestSubmit();
+        else form.submit();
       }
     </script>
 }

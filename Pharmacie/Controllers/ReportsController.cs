@@ -138,10 +138,21 @@ public class ReportsController : Controller
     }
 
     [Authorize(Roles = AppRoles.OperationalReportsAccess)]
-    public async Task<IActionResult> SalesHistory()
+    public async Task<IActionResult> SalesHistory(DateTime? from = null, DateTime? to = null)
     {
-        var rows = await LoadSalesHistoryRowsAsync();
-        ViewBag.RowLimit = ReportLimits.MaxSalesRows;
+        var jour = (from ?? DateTime.Today).Date;
+        if (jour > DateTime.Today)
+            jour = DateTime.Today;
+        var fin = (to ?? jour).Date;
+        if (fin > DateTime.Today)
+            fin = DateTime.Today;
+        if (jour > fin)
+            (jour, fin) = (fin, jour);
+
+        var rows = await LoadSalesHistoryRowsAsync(jour, fin, take: null);
+        ViewBag.From = jour;
+        ViewBag.To = fin;
+        ViewBag.RowLimit = rows.Count;
         return View(rows);
     }
 

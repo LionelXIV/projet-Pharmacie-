@@ -169,7 +169,7 @@
                         <a class="nav-link @(IsCtrl("StockMovements") ? "active" : null)" asp-controller="StockMovements" asp-action="Index" aria-current="@(IsCtrl("StockMovements") ? "page" : null)">
                             <i class="bi bi-arrow-down-up" aria-hidden="true"></i>Mouvements
                         </a>
-                        @if (User!.IsInRole(AppRoles.PharmacienTitulaire) || User.IsInRole(AppRoles.Pharmacien))
+                        @if (AppRoles.IsTitulaire(User!) || User!.IsInRole(AppRoles.Pharmacien))
                         {
                             <a class="nav-link @(IsCtrl("Inventaire") ? "active" : null)" asp-controller="Inventaire" asp-action="Index" aria-current="@(IsCtrl("Inventaire") ? "page" : null)">
                                 <i class="bi bi-clipboard-check" aria-hidden="true"></i>Inventaire
@@ -734,7 +734,7 @@ function togglePassword(fieldId) {
 
   document.addEventListener('click', function (e) {
     var link = e.target.closest('a');
-    var btn = e.target.closest('button[type="submit"]');
+    var btn = e.target.closest('button, input[type="submit"]');
     if (link || btn) {
       isInternalNavigation = true;
       setTimeout(function () {
@@ -748,6 +748,15 @@ function togglePassword(fieldId) {
     setTimeout(function () {
       isInternalNavigation = false;
     }, 2000);
+  });
+
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.matches && e.target.matches('input[type="date"]')) {
+      isInternalNavigation = true;
+      setTimeout(function () {
+        isInternalNavigation = false;
+      }, 4000);
+    }
   });
 
   window.addEventListener('pagehide', function (e) {

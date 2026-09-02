@@ -9,7 +9,7 @@ using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
 
-[Authorize(Roles = AppRoles.PharmacienTitulaire + "," + AppRoles.Pharmacien)]
+[Authorize(Roles = AppRoles.PharmacienTitulaire + "," + AppRoles.Pharmacien + "," + AppRoles.Administrateur)]
 public class InventaireController : Controller
 {
     private readonly ApplicationDbContext _context;

@@ -120,6 +120,7 @@ public class GoodsReceiptsController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = AppRoles.GoodsReceipt)]
     public async Task<IActionResult> RechercheParProduit(string? terme = null)
     {
         var resultats = new List<BlProduitRechercheItem>();

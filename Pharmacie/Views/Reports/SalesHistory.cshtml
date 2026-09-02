@@ -1,7 +1,9 @@
 @model IReadOnlyList<ReportSaleHistoryRowViewModel>
 @{
     ViewData["Title"] = "Rapport — Historique ventes";
-    var limit = (int)(ViewBag.RowLimit ?? 500);
+    var jour = ViewBag.From is DateTime dFrom ? dFrom.Date : DateTime.Today;
+    var fin = ViewBag.To is DateTime dTo ? dTo.Date : jour;
+    var memeJour = jour.Date == fin.Date;
 }
 
 <nav class="app-breadcrumb mb-3" aria-label="Fil d’Ariane">
@@ -13,11 +15,31 @@
 
 <div class="page-header">
     <h1 class="page-title">Historique des ventes</h1>
-    <p class="page-lead mb-0">Les <strong>@limit</strong> ventes les plus récentes.</p>
+    <p class="page-lead mb-0">
+        @if (memeJour)
+        {
+            <text>Ventes du <strong>@jour.ToString("dd/MM/yyyy")</strong>.</text>
+        }
+        else
+        {
+            <text>Ventes du <strong>@jour.ToString("dd/MM/yyyy")</strong> au <strong>@fin.ToString("dd/MM/yyyy")</strong>.</text>
+        }
+    </p>
 </div>
 
+@{
+    ViewData["DayNavJour"] = jour.Date;
+    ViewData["DayNavController"] = "Reports";
+    ViewData["DayNavAction"] = "SalesHistory";
+}
+<partial name="_DayByDayNav" />
+
 <div class="mb-3">
-    <a class="btn btn-outline-secondary btn-sm" asp-action="SalesHistoryCsv" role="button">
+    <a class="btn btn-outline-secondary btn-sm"
+       asp-action="SalesHistoryCsv"
+       asp-route-dateDebut="@jour.ToString("yyyy-MM-dd")"
+       asp-route-dateFin="@fin.ToString("yyyy-MM-dd")"
+       role="button">
         <i class="bi bi-download me-1" aria-hidden="true"></i>Exporter CSV
     </a>
 </div>
@@ -56,7 +78,7 @@
     </div>
     @if (Model.Count > 0)
     {
-        <div class="table-card-caption">@Model.Count vente(s) affichée(s) (plafond @limit).</div>
+        <div class="table-card-caption">@Model.Count vente(s) affichée(s).</div>
     }
 </div>
 @if (Model.Count == 0)
