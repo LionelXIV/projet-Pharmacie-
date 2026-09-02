@@ -145,6 +145,13 @@
         <table class="table table-sm mb-0 align-middle">
             <thead class="table-light">
                 <tr>
+                    <th style="width:40px">
+                        <input type="checkbox"
+                               id="check-all"
+                               class="form-check-input"
+                               onclick="toggleAll(this)"
+                               title="Tout sélectionner">
+                    </th>
                     <th>#</th>
                     <th>Produit</th>
                     <th class="text-center">Qté vendue</th>
@@ -178,6 +185,13 @@
                             : "bg-danger";
 
                     <tr>
+                        <td>
+                            <input type="checkbox"
+                                   class="form-check-input check-produit"
+                                   value="@item.ProductId"
+                                   data-nom="@item.Nom"
+                                   data-qte="1">
+                        </td>
                         <td class="text-muted">@rang</td>
                         <td class="fw-bold small">@item.Nom</td>
                         <td class="text-center">@item.QuantiteVendue</td>
@@ -211,7 +225,7 @@
             </tbody>
             <tfoot class="table-success">
                 <tr>
-                    <td colspan="2" class="fw-bold">TOTAL</td>
+                    <td colspan="3" class="fw-bold">TOTAL</td>
                     <td class="text-center fw-bold">@totalQte1</td>
                     <td colspan="2"></td>
                     <td class="text-end fw-bold">@totalCa1.ToString("N0") FCFA</td>
@@ -224,6 +238,43 @@
                 </tr>
             </tfoot>
         </table>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+
+<div id="barre-selection"
+     style="display:none; position:sticky; bottom:20px; z-index:100"
+     class="mt-3">
+    <div class="card border-success shadow-lg">
+        <div class="card-body py-2 d-flex flex-wrap align-items-center gap-3">
+            <span class="fw-bold text-success">
+                <i class="bi bi-check-circle me-1"></i>
+                <span id="nb-selectionnes">0</span>
+                produit(s) sélectionné(s)
+            </span>
+            <div class="d-flex align-items-center gap-2">
+                <label class="small text-muted mb-0" for="qte-globale">Qté par défaut :</label>
+                <input type="number"
+                       id="qte-globale"
+                       class="form-control form-control-sm text-center"
+                       style="width:70px"
+                       value="1"
+                       min="1">
+            </div>
+            <button type="button"
+                    id="btn-ajouter-panier"
+                    class="btn btn-success btn-sm"
+                    onclick="ajouterSelectionPanier()">
+                <i class="bi bi-cart-plus me-1"></i>
+                Ajouter au panier
+            </button>
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    onclick="deselectionnerTout()">
+                Tout désélectionner
+            </button>
+        </div>
     </div>
 </div>
 
@@ -298,6 +349,110 @@
         var form = document.getElementById('form-statistiques');
         if (form.requestSubmit) form.requestSubmit();
         else form.submit();
+      }
+
+      function toggleAll(checkbox) {
+        document.querySelectorAll('.check-produit').forEach(function (cb) {
+          cb.checked = checkbox.checked;
+        });
+        updateBarreSelection();
+      }
+
+      function updateBarreSelection() {
+        var checked = document.querySelectorAll('.check-produit:checked');
+        var barre = document.getElementById('barre-selection');
+        var nb = document.getElementById('nb-selectionnes');
+        var checkAll = document.getElementById('check-all');
+        if (!barre || !nb) return;
+
+        if (checked.length > 0) {
+          barre.style.display = 'block';
+          nb.textContent = checked.length;
+        } else {
+          barre.style.display = 'none';
+        }
+
+        var all = document.querySelectorAll('.check-produit');
+        if (checkAll) {
+          checkAll.checked = all.length > 0 && checked.length === all.length;
+        }
+      }
+
+      document.querySelectorAll('.check-produit').forEach(function (cb) {
+        cb.addEventListener('change', updateBarreSelection);
+      });
+
+      function deselectionnerTout() {
+        document.querySelectorAll('.check-produit').forEach(function (cb) {
+          cb.checked = false;
+        });
+        var checkAll = document.getElementById('check-all');
+        if (checkAll) checkAll.checked = false;
+        updateBarreSelection();
+      }
+
+      function getAntiForgeryToken() {
+        var globalToken = document.getElementById('global-antiforgery-token');
+        if (globalToken && globalToken.value) return globalToken.value;
+        var pageToken = document.querySelector('input[name="__RequestVerificationToken"]');
+        return pageToken ? pageToken.value : '';
+      }
+
+      async function ajouterSelectionPanier() {
+        var checked = document.querySelectorAll('.check-produit:checked');
+        var qteGlobale = parseInt(document.getElementById('qte-globale').value, 10) || 1;
+        var btn = document.getElementById('btn-ajouter-panier');
+
+        if (checked.length === 0) {
+          if (window.toastr) toastr.warning('Aucun produit sélectionné.');
+          return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Ajout en cours...';
+
+        var nbAjoutes = 0;
+        var nbErreurs = 0;
+        var token = getAntiForgeryToken();
+        var url = '@Url.Action("AjouterProduitAjax", "PanierCommande")';
+
+        for (var i = 0; i < checked.length; i++) {
+          var cb = checked[i];
+          try {
+            var formData = new FormData();
+            formData.append('productId', cb.value);
+            formData.append('quantite', String(qteGlobale));
+            formData.append('__RequestVerificationToken', token);
+
+            var response = await fetch(url, {
+              method: 'POST',
+              body: formData,
+              credentials: 'same-origin'
+            });
+
+            if (response.ok) {
+              var data = await response.json();
+              if (data && data.success) nbAjoutes++;
+              else nbErreurs++;
+            } else {
+              nbErreurs++;
+            }
+          } catch (e) {
+            nbErreurs++;
+          }
+        }
+
+        if (nbAjoutes > 0) {
+          if (window.toastr) toastr.success(nbAjoutes + ' produit(s) ajouté(s) au panier !');
+          if (typeof updateBadgePanier === 'function') updateBadgePanier();
+        }
+        if (nbErreurs > 0 && window.toastr) {
+          toastr.warning(nbErreurs + ' produit(s) non ajouté(s).');
+        }
+
+        deselectionnerTout();
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cart-plus me-1"></i>Ajouter au panier';
       }
     </script>
 }

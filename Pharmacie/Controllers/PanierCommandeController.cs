@@ -193,6 +193,70 @@ public class PanierCommandeController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AjouterProduitAjax(int productId, int quantite = 1)
+    {
+        var userId = CurrentUserId();
+        if (userId == null)
+            return Json(new { success = false, message = "Non authentifié" });
+
+        if (productId <= 0 || quantite <= 0)
+            return Json(new { success = false, message = "Produit ou quantité invalide" });
+
+        try
+        {
+            var panier = await GetOrCreatePanierAsync(userId);
+
+            var product = await _context.Products
+                .Include(p => p.Supplier)
+                .FirstOrDefaultAsync(p => p.Id == productId);
+
+            if (product == null)
+                return Json(new { success = false, message = "Produit introuvable" });
+
+            var existant = await _context.PanierCommandeLignes
+                .FirstOrDefaultAsync(l =>
+                    l.PanierCommandeId == panier.Id && l.ProductId == productId);
+
+            if (existant != null)
+            {
+                existant.QuantiteFinale += quantite;
+                existant.Source = MergeSource(existant.Source, "Manuel");
+            }
+            else
+            {
+                _context.PanierCommandeLignes.Add(new PanierCommandeLigne
+                {
+                    PanierCommandeId = panier.Id,
+                    ProductId = productId,
+                    SupplierId = product.SupplierId,
+                    QuantiteConseillee = quantite,
+                    QuantiteFinale = quantite,
+                    Source = "Manuel",
+                    Selectionne = true
+                });
+            }
+
+            panier.UpdatedAt = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            var nbTotal = await _context.PanierCommandeLignes
+                .CountAsync(l => l.PanierCommandeId == panier.Id);
+
+            return Json(new
+            {
+                success = true,
+                nbTotal,
+                message = product.CommercialName + " ajouté au panier"
+            });
+        }
+        catch (Exception)
+        {
+            return Json(new { success = false, message = "Erreur lors de l'ajout" });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ModifierQuantite(int ligneId, int quantite)
     {
         var ligne = await GetOwnedLigneAsync(ligneId);
