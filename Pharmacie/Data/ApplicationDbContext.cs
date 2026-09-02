@@ -41,6 +41,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
     public DbSet<VenteCaisse> VenteCaisses => Set<VenteCaisse>();
     public DbSet<DepotCaisse> DepotCaisses => Set<DepotCaisse>();
     public DbSet<PrixModification> PrixModifications => Set<PrixModification>();
+    public DbSet<PanierCommande> PanierCommandes => Set<PanierCommande>();
+    public DbSet<PanierCommandeLigne> PanierCommandeLignes => Set<PanierCommandeLigne>();
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -389,6 +391,37 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IDataPro
             entity.HasOne(m => m.Sale)
                 .WithMany()
                 .HasForeignKey(m => m.SaleId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<PanierCommande>(entity =>
+        {
+            entity.ToTable("PanierCommandes");
+            entity.Property(p => p.UserId).HasMaxLength(450).IsRequired();
+            entity.Property(p => p.Statut).HasMaxLength(20).IsRequired();
+            entity.HasIndex(p => new { p.UserId, p.Statut });
+            entity.HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(p => p.Lignes)
+                .WithOne(l => l.PanierCommande)
+                .HasForeignKey(l => l.PanierCommandeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PanierCommandeLigne>(entity =>
+        {
+            entity.ToTable("PanierCommandeLignes");
+            entity.Property(l => l.Source).HasMaxLength(80).IsRequired();
+            entity.HasIndex(l => new { l.PanierCommandeId, l.ProductId }).IsUnique();
+            entity.HasOne(l => l.Product)
+                .WithMany()
+                .HasForeignKey(l => l.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(l => l.Supplier)
+                .WithMany()
+                .HasForeignKey(l => l.SupplierId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

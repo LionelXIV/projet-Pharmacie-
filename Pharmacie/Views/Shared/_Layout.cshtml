@@ -41,7 +41,7 @@
     var isReports = IsCtrl("Reports");
     var isStatistiques = IsCtrl("Statistiques");
     var isCatalog = IsCtrlAny("Products", "Batches", "StockMovements", "ProductImports", "Inventaire");
-    var isPurchasing = IsCtrlAny("PurchaseOrders", "Categories", "Suppliers", "GoodsReceipts", "BLImport");
+    var isPurchasing = IsCtrlAny("PurchaseOrders", "Categories", "Suppliers", "GoodsReceipts", "BLImport", "PanierCommande");
     var isSales = IsCtrl("Sales");
     var isBons = IsCtrl("Bons");
     var isAvoirs = IsCtrl("Avoirs");
@@ -60,6 +60,8 @@
     var showAdminSection = User?.Identity?.IsAuthenticated == true && AppRoles.CanManageUsersAccounts(User);
     var showVendeursMenu = showAdminSection;
     var showPerformanceVendeurs = User?.Identity?.IsAuthenticated == true && AppRoles.CanAccessFinances(User);
+    var showPanierCommande = User?.Identity?.IsAuthenticated == true
+        && (AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien));
     var antiforgeryTokens = Antiforgery.GetAndStoreTokens(Context);
 
     var nbAnomalies = 0;
@@ -204,6 +206,16 @@
                                 <i class="bi bi-bag-check" aria-hidden="true"></i>Commandes fournisseurs
                             </a>
                         }
+                        @if (showPanierCommande)
+                        {
+                            <a asp-controller="PanierCommande"
+                               asp-action="Index"
+                               class="nav-link @(IsCtrl("PanierCommande") ? "active" : null)"
+                               aria-current="@(IsCtrl("PanierCommande") ? "page" : null)">
+                                <i class="bi bi-cart3" aria-hidden="true"></i>Panier de commande
+                                <span id="badge-panier-nav" class="badge bg-danger ms-1" style="display:none"></span>
+                            </a>
+                        }
                         @if (AppRoles.CanAccessGoodsReceipts(User!))
                         {
                             <a class="nav-link @(IsCtrl("GoodsReceipts") && IsAction("Index") ? "active" : null)" asp-controller="GoodsReceipts" asp-action="Index" aria-current="@(IsCtrl("GoodsReceipts") && IsAction("Index") ? "page" : null)">
@@ -346,6 +358,20 @@
                 <h6 class="ph-page-title mb-0">@ViewData["Title"]</h6>
                 <span class="ph-mobile-nav-hint text-muted small">Menu latéral sur grand écran</span>
                 <div class="ph-topbar-actions">
+                    @if (showPanierCommande)
+                    {
+                        <a asp-controller="PanierCommande"
+                           asp-action="Index"
+                           class="btn btn-sm btn-outline-success position-relative me-2"
+                           title="Panier de commande">
+                            <i class="bi bi-cart3"></i>
+                            <span id="badge-panier"
+                                  class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                  style="display:none">
+                                0
+                            </span>
+                        </a>
+                    }
                     @if (User?.Identity?.IsAuthenticated == true && AppRoles.IsTitulaire(User))
                     {
                         <button type="button"
@@ -809,5 +835,36 @@ async function verifierAvantDeconnexion() {
     }
 }
     </script>
+    @if (showPanierCommande)
+    {
+    <script>
+function updateBadgePanier() {
+    fetch('@Url.Action("NbLignes", "PanierCommande")', {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+    })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+            if (!data) return;
+            var ids = ['badge-panier', 'badge-panier-nav', 'badge-panier-stats'];
+            ids.forEach(function (id) {
+                var badge = document.getElementById(id);
+                if (!badge) return;
+                if (data.nb > 0) {
+                    badge.textContent = data.nb;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.textContent = '';
+                    badge.style.display = 'none';
+                }
+            });
+        })
+        .catch(function () {});
+}
+
+updateBadgePanier();
+setInterval(updateBadgePanier, 2 * 60 * 1000);
+    </script>
+    }
 </body>
 </html>

@@ -116,14 +116,23 @@ else
             </div>
         }
 
+    </form>
+
         <div class="d-flex flex-wrap gap-2">
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-bag-plus me-1"></i>
-                Créer la commande
-            </button>
+            <form asp-controller="PanierCommande" asp-action="AjouterSuggestions" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="source" value="Rupture">
+                <button type="submit" class="btn btn-warning">
+                    <i class="bi bi-cart-plus me-1"></i>
+                    Ajouter au panier
+                </button>
+            </form>
+            <a asp-controller="PanierCommande" asp-action="Index" class="btn btn-success">
+                <i class="bi bi-cart3 me-1"></i>
+                Voir le panier
+            </a>
             <a class="btn btn-outline-secondary" asp-action="Rapport" asp-route-id="@sessionId">
                 Ignorer et voir le rapport
             </a>
         </div>
-    </form>
 }
