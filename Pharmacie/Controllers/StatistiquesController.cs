@@ -28,11 +28,13 @@ public class StatistiquesController : Controller
         DateTime? fin1 = null,
         DateTime? debut2 = null,
         DateTime? fin2 = null,
-        string periode = "semaine")
+        string periode = "semaine",
+        string vue = "analyse")
     {
         var (d1, f1) = ResolvePeriode1(debut1, fin1, periode);
         var d2 = debut2;
         var f2 = fin2;
+        vue = NormalizeVue(vue);
 
         var topVentes1 = await GetTopVentesAsync(d1, f1);
 
@@ -41,7 +43,10 @@ public class StatistiquesController : Controller
             topVentes2 = await GetTopVentesAsync(d2.Value, f2.Value);
 
         var ventesParJour = await GetVentesParJourAsync(d1, f1);
+        var analyse = await GetAnalyseJourParJourAsync(d1, f1);
 
+        ViewBag.Vue = vue;
+        ViewBag.Analyse = analyse;
         ViewBag.TopVentes1 = topVentes1;
         ViewBag.TopVentes2 = topVentes2;
         ViewBag.VentesParJour = ventesParJour;
@@ -161,9 +166,72 @@ public class StatistiquesController : Controller
                     Marge = ca - (g.Key.PrixCession * qte)
                 };
             })
-            .OrderByDescending(x => x.CA)
+            .OrderByDescending(x => x.QuantiteVendue)
+            .ThenByDescending(x => x.CA)
             .Take(50)
             .ToList();
+    }
+
+    private async Task<AnalyseVenteVm> GetAnalyseJourParJourAsync(DateTime debut, DateTime fin)
+    {
+        var start = debut.Date;
+        var endExclusive = fin.Date.AddDays(1);
+        var jours = Enumerable.Range(0, Math.Max(0, (endExclusive - start).Days))
+            .Select(i => start.AddDays(i))
+            .ToList();
+
+        var lines = await _context.SaleLines
+            .AsNoTracking()
+            .Where(sl => sl.Sale != null
+                && sl.Sale.SoldAt >= start
+                && sl.Sale.SoldAt < endExclusive
+                && !sl.Sale.IsAnnulee
+                && !sl.Sale.IsAdminTest
+                && sl.Product != null)
+            .Select(sl => new
+            {
+                sl.ProductId,
+                Nom = sl.Product!.CommercialName,
+                sl.Quantity,
+                sl.Sale!.SoldAt
+            })
+            .ToListAsync();
+
+        var lignes = lines
+            .GroupBy(x => new { x.ProductId, x.Nom })
+            .Select(g =>
+            {
+                var parJour = jours.ToDictionary(j => j, _ => 0);
+                foreach (var x in g)
+                {
+                    var jour = x.SoldAt.Date;
+                    if (parJour.ContainsKey(jour))
+                        parJour[jour] += x.Quantity;
+                }
+
+                return new AnalyseVenteLigne
+                {
+                    ProductId = g.Key.ProductId,
+                    Nom = g.Key.Nom,
+                    Total = g.Sum(x => x.Quantity),
+                    QuantitesParJour = parJour
+                };
+            })
+            .OrderByDescending(x => x.Total)
+            .Take(50)
+            .ToList();
+
+        return new AnalyseVenteVm
+        {
+            Jours = jours,
+            Lignes = lignes
+        };
+    }
+
+    private static string NormalizeVue(string? vue)
+    {
+        var v = (vue ?? "analyse").Trim().ToLowerInvariant();
+        return v is "analyse" or "top" or "stats" ? v : "analyse";
     }
 
     private async Task<List<VenteParJourItem>> GetVentesParJourAsync(DateTime debut, DateTime fin)

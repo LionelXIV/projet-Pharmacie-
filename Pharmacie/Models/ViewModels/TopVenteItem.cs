@@ -22,6 +22,23 @@ public class VenteParJourItem
     public decimal CA { get; set; }
 }
 
+public class AnalyseVenteLigne
+{
+    public int ProductId { get; set; }
+    public string Nom { get; set; } = string.Empty;
+    public int Total { get; set; }
+    public Dictionary<DateTime, int> QuantitesParJour { get; set; } = new();
+
+    public int QteDuJour(DateTime jour) =>
+        QuantitesParJour.TryGetValue(jour.Date, out var qte) ? qte : 0;
+}
+
+public class AnalyseVenteVm
+{
+    public List<DateTime> Jours { get; set; } = new();
+    public List<AnalyseVenteLigne> Lignes { get; set; } = new();
+}
+
 public class BlProduitRechercheItem
 {
     public int BlId { get; set; }

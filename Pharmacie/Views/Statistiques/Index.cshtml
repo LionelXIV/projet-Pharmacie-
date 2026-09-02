@@ -2,13 +2,40 @@
 @using Pharmacie.Models.ViewModels
 @{
     ViewData["Title"] = "Statistiques ventes";
+    var vue = (ViewBag.Vue as string) ?? "analyse";
+    var analyse = ViewBag.Analyse as AnalyseVenteVm ?? new AnalyseVenteVm();
     var topVentes2 = ViewBag.TopVentes2 as List<TopVenteItem>;
     var totalCa1 = ViewBag.TotalCA1 as decimal? ?? 0m;
     var totalMarge1 = ViewBag.TotalMarge1 as decimal? ?? 0m;
     var totalQte1 = ViewBag.TotalQte1 as int? ?? 0;
     var tauxMargeMoyen = totalCa1 > 0 ? Math.Round(totalMarge1 / totalCa1 * 100, 1) : 0m;
     var comparaison = topVentes2 != null;
+    var d1 = ViewBag.D1 as string;
+    var f1 = ViewBag.F1 as string;
 }
+
+<style>
+  .analyse-table th,
+  .analyse-table td { white-space: nowrap; }
+  .analyse-table .col-check {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #fff;
+    width: 40px;
+  }
+  .analyse-table .col-produit {
+    position: sticky;
+    left: 40px;
+    z-index: 2;
+    background: #fff;
+    min-width: 180px;
+  }
+  .analyse-table thead .col-check,
+  .analyse-table thead .col-produit { z-index: 3; background: #f8f9fa; }
+  .analyse-table tfoot .col-check,
+  .analyse-table tfoot .col-produit { background: var(--bs-table-bg, #d1e7dd); }
+</style>
 
 <div class="page-header">
     <div>
@@ -16,51 +43,35 @@
             <i class="bi bi-bar-chart-line me-2"></i>
             Statistiques ventes
         </h1>
-        <p class="page-lead mb-0">Top produits, marge et comparaison de périodes.</p>
+        <p class="page-lead mb-0">Analyse jour par jour, top ventes et comparaison de périodes.</p>
     </div>
 </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100 app-kpi-card">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase fw-semibold mb-1">CA période 1</div>
-                <div class="fs-4 fw-bold text-success">@totalCa1.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100 app-kpi-card">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase fw-semibold mb-1">Marge période 1</div>
-                <div class="fs-4 fw-bold text-success">@totalMarge1.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100 app-kpi-card">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase fw-semibold mb-1">Nb produits vendus</div>
-                <div class="fs-4 fw-bold">@totalQte1</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100 app-kpi-card">
-            <div class="card-body">
-                <div class="text-muted small text-uppercase fw-semibold mb-1">Taux de marge moyen</div>
-                <div class="fs-4 fw-bold">@tauxMargeMoyen.ToString("N1") %</div>
-            </div>
-        </div>
-    </div>
+<div class="btn-group mb-3" role="group" aria-label="Vues statistiques">
+    <button type="button"
+            class="btn btn-vue @(vue == "analyse" ? "btn-primary" : "btn-outline-primary")"
+            data-vue="analyse"
+            onclick="setVue('analyse')">
+        Analyse vente
+    </button>
+    <button type="button"
+            class="btn btn-vue @(vue == "top" ? "btn-primary" : "btn-outline-primary")"
+            data-vue="top"
+            onclick="setVue('top')">
+        Top vente
+    </button>
+    <button type="button"
+            class="btn btn-vue @(vue == "stats" ? "btn-primary" : "btn-outline-primary")"
+            data-vue="stats"
+            onclick="setVue('stats')">
+        Statistiques
+    </button>
 </div>
 
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <form method="get" asp-action="Index" id="form-statistiques" class="row g-2">
-            <div class="col-md-12 mb-2">
-                <strong>Période 1</strong>
-            </div>
+            <input type="hidden" name="vue" id="vue-field" value="@vue" />
             <div class="col-12 mb-2">
                 <div class="btn-group btn-group-sm">
                     <button type="button" class="btn btn-outline-primary" onclick="setPeriode('aujourd hui')">
@@ -78,32 +89,19 @@
                 </div>
             </div>
             <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Du</label>
                 <input type="date" name="debut1" value="@ViewBag.D1"
                        class="form-control form-control-sm" data-flatpickr-ignore="true">
             </div>
             <div class="col-md-3">
+                <label class="form-label small text-muted mb-1">Au</label>
                 <input type="date" name="fin1" value="@ViewBag.F1"
                        class="form-control form-control-sm" data-flatpickr-ignore="true">
-            </div>
-            <div class="col-md-12 mt-2 mb-1">
-                <strong>Période 2
-                    <span class="text-muted fw-normal small">(optionnel — comparaison)</span>
-                </strong>
-            </div>
-            <div class="col-md-3">
-                <input type="date" name="debut2" value="@ViewBag.D2"
-                       class="form-control form-control-sm" data-flatpickr-ignore="true"
-                       placeholder="Début période 2">
-            </div>
-            <div class="col-md-3">
-                <input type="date" name="fin2" value="@ViewBag.F2"
-                       class="form-control form-control-sm" data-flatpickr-ignore="true"
-                       placeholder="Fin période 2">
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary btn-sm w-100">Analyser</button>
             </div>
-            <div class="col-md-2 d-flex align-items-end">
+            <div id="bloc-csv" class="col-md-2 d-flex align-items-end @(vue == "top" ? "" : "d-none")">
                 <a asp-action="ExportCsv"
                    asp-route-debut="@ViewBag.D1"
                    asp-route-fin="@ViewBag.F1"
@@ -116,128 +114,313 @@
                    asp-action="Index"
                    class="btn btn-success btn-sm w-100">
                     <i class="bi bi-cart3 me-1"></i>
-                    Voir le panier de commande
+                    Voir le panier
                     <span id="badge-panier-stats" class="badge bg-white text-success ms-1"></span>
                 </a>
+            </div>
+
+            <div id="bloc-periode2" class="col-12 @(vue == "stats" ? "" : "d-none")">
+                <div class="mt-2 mb-1">
+                    <strong>Période 2
+                        <span class="text-muted fw-normal small">(optionnel — comparaison)</span>
+                    </strong>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <input type="date" name="debut2" value="@ViewBag.D2"
+                               class="form-control form-control-sm" data-flatpickr-ignore="true"
+                               placeholder="Début période 2">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" name="fin2" value="@ViewBag.F2"
+                               class="form-control form-control-sm" data-flatpickr-ignore="true"
+                               placeholder="Fin période 2">
+                    </div>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-white fw-bold">
-        Ventes par jour
-    </div>
-    <div class="card-body">
-        <canvas id="chart-ventes-jour" height="80"></canvas>
+@* ── Vue 1 — Analyse vente (produit × jour) ── *@
+<div id="vue-analyse" class="vue-panel @(vue == "analyse" ? "" : "d-none")">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+            <span>Analyse vente — quantités jour par jour</span>
+            <span class="text-muted fw-normal small">@d1 → @f1 · top 50</span>
+        </div>
+        <div class="table-responsive">
+            @if (analyse.Lignes.Count == 0)
+            {
+                <p class="text-muted p-3 mb-0">Aucune vente sur cette période.</p>
+            }
+            else
+            {
+                <table class="table table-sm mb-0 align-middle analyse-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="col-check">
+                                <input type="checkbox"
+                                       class="form-check-input check-all"
+                                       onclick="toggleAll(this)"
+                                       title="Tout sélectionner">
+                            </th>
+                            <th class="col-produit">Produit</th>
+                            @foreach (var jour in analyse.Jours)
+                            {
+                                <th class="text-center">@jour.ToString("dd/MM")</th>
+                            }
+                            <th class="text-center fw-bold">TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in analyse.Lignes)
+                        {
+                            <tr>
+                                <td class="col-check">
+                                    <input type="checkbox"
+                                           class="form-check-input check-produit"
+                                           value="@item.ProductId"
+                                           data-nom="@item.Nom"
+                                           data-qte="1">
+                                </td>
+                                <td class="col-produit fw-bold small">@item.Nom</td>
+                                @foreach (var jour in analyse.Jours)
+                                {
+                                    var qteJour = item.QteDuJour(jour);
+                                    <td class="text-center @(qteJour == 0 ? "text-muted" : "")">@qteJour</td>
+                                }
+                                <td class="text-center fw-bold">@item.Total</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-success">
+                        <tr>
+                            <td class="col-check"></td>
+                            <td class="col-produit fw-bold">TOTAL</td>
+                            @foreach (var jour in analyse.Jours)
+                            {
+                                <td class="text-center fw-bold">@analyse.Lignes.Sum(l => l.QteDuJour(jour))</td>
+                            }
+                            <td class="text-center fw-bold">@analyse.Lignes.Sum(l => l.Total)</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            }
+        </div>
+        <div class="card-footer bg-white">
+            <button type="button" class="btn btn-success btn-sm" onclick="ajouterSelectionPanier()">
+                <i class="bi bi-cart-plus me-1"></i>
+                Préparer une commande
+            </button>
+        </div>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-        <span>Top 50 produits</span>
-        @if (comparaison)
-        {
-            <span class="badge bg-info">Comparaison active</span>
-        }
-    </div>
-    <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th style="width:40px">
-                        <input type="checkbox"
-                               id="check-all"
-                               class="form-check-input"
-                               onclick="toggleAll(this)"
-                               title="Tout sélectionner">
-                    </th>
-                    <th>#</th>
-                    <th>Produit</th>
-                    <th class="text-center">Qté vendue</th>
-                    <th class="text-end">Prix cession</th>
-                    <th class="text-end">Prix vente moy.</th>
-                    <th class="text-end">CA</th>
-                    <th class="text-end">Marge</th>
-                    <th class="text-end">Taux marge</th>
-                    @if (comparaison)
-                    {
-                        <th class="text-center text-info">Qté P2</th>
-                        <th class="text-end text-info">CA P2</th>
-                        <th class="text-center">Évolution</th>
-                    }
-                </tr>
-            </thead>
-            <tbody>
-                @{
-                    int rang = 1;
-                }
-                @foreach (var item in Model)
-                {
-                    var p2 = topVentes2?.FirstOrDefault(x => x.ProductId == item.ProductId);
-                    var evolution = p2 != null && p2.CA > 0
-                        ? Math.Round((item.CA - p2.CA) / p2.CA * 100, 1)
-                        : (decimal?)null;
-                    var badgeMarge = item.TauxMarge >= 30
-                        ? "bg-success"
-                        : item.TauxMarge >= 15
-                            ? "bg-warning text-dark"
-                            : "bg-danger";
-
+@* ── Vue 2 — Top vente ── *@
+<div id="vue-top" class="vue-panel @(vue == "top" ? "" : "d-none")">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+            <span>Top vente — ce que le produit rapporte</span>
+            <span class="text-muted fw-normal small">@d1 → @f1 · top 50</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light">
                     <tr>
-                        <td>
+                        <th style="width:40px">
                             <input type="checkbox"
-                                   class="form-check-input check-produit"
-                                   value="@item.ProductId"
-                                   data-nom="@item.Nom"
-                                   data-qte="1">
-                        </td>
-                        <td class="text-muted">@rang</td>
-                        <td class="fw-bold small">@item.Nom</td>
-                        <td class="text-center">@item.QuantiteVendue</td>
-                        <td class="text-end text-muted small">@item.PrixCession.ToString("N0")</td>
-                        <td class="text-end">@item.PrixVenteMoyen.ToString("N0")</td>
-                        <td class="text-end fw-bold">@item.CA.ToString("N0")</td>
-                        <td class="text-end text-success">@item.Marge.ToString("N0")</td>
-                        <td class="text-end">
-                            <span class="badge @badgeMarge">@item.TauxMarge.ToString("N1")%</span>
-                        </td>
+                                   class="form-check-input check-all"
+                                   onclick="toggleAll(this)"
+                                   title="Tout sélectionner">
+                        </th>
+                        <th>#</th>
+                        <th>Produit</th>
+                        <th class="text-center">Qté</th>
+                        <th class="text-end">Prix cession</th>
+                        <th class="text-end">Prix vente</th>
+                        <th class="text-end">Marge</th>
+                        <th class="text-end">CA</th>
+                        <th class="text-end">Taux marge</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int rang = 1;
+                    }
+                    @foreach (var item in Model)
+                    {
+                        var badgeMarge = item.TauxMarge >= 30
+                            ? "bg-success"
+                            : item.TauxMarge >= 15
+                                ? "bg-warning text-dark"
+                                : "bg-danger";
+                        <tr>
+                            <td>
+                                <input type="checkbox"
+                                       class="form-check-input check-produit"
+                                       value="@item.ProductId"
+                                       data-nom="@item.Nom"
+                                       data-qte="1">
+                            </td>
+                            <td class="text-muted">@rang</td>
+                            <td class="fw-bold small">@item.Nom</td>
+                            <td class="text-center">@item.QuantiteVendue</td>
+                            <td class="text-end text-muted small">@item.PrixCession.ToString("N0")</td>
+                            <td class="text-end">@item.PrixVenteMoyen.ToString("N0")</td>
+                            <td class="text-end text-success">@item.Marge.ToString("N0")</td>
+                            <td class="text-end fw-bold">@item.CA.ToString("N0")</td>
+                            <td class="text-end">
+                                <span class="badge @badgeMarge">@item.TauxMarge.ToString("N1")%</span>
+                            </td>
+                        </tr>
+                        rang++;
+                    }
+                </tbody>
+                <tfoot class="table-success">
+                    <tr>
+                        <td colspan="3" class="fw-bold">TOTAL</td>
+                        <td class="text-center fw-bold">@totalQte1</td>
+                        <td colspan="2"></td>
+                        <td class="text-end fw-bold text-success">@totalMarge1.ToString("N0") FCFA</td>
+                        <td class="text-end fw-bold">@totalCa1.ToString("N0") FCFA</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            <button type="button" class="btn btn-success btn-sm" onclick="ajouterSelectionPanier()">
+                <i class="bi bi-cart-plus me-1"></i>
+                Préparer une commande
+            </button>
+        </div>
+    </div>
+</div>
+
+@* ── Vue 3 — Statistiques + comparaison ── *@
+<div id="vue-stats" class="vue-panel @(vue == "stats" ? "" : "d-none")">
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 app-kpi-card">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">CA période 1</div>
+                    <div class="fs-4 fw-bold text-success">@totalCa1.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 app-kpi-card">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Marge période 1</div>
+                    <div class="fs-4 fw-bold text-success">@totalMarge1.ToString("N0") <span class="fs-6 fw-normal">FCFA</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 app-kpi-card">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Nb produits vendus</div>
+                    <div class="fs-4 fw-bold">@totalQte1</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 app-kpi-card">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">Taux de marge moyen</div>
+                    <div class="fs-4 fw-bold">@tauxMargeMoyen.ToString("N1") %</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">
+            Ventes par jour (CA)
+        </div>
+        <div class="card-body">
+            <canvas id="chart-ventes-jour" height="80"></canvas>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+            <span>@(comparaison ? "Comparaison des périodes" : "Produits de la période")</span>
+            @if (comparaison)
+            {
+                <span class="badge bg-info">Comparaison active</span>
+            }
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:40px">
+                            <input type="checkbox"
+                                   class="form-check-input check-all"
+                                   onclick="toggleAll(this)"
+                                   title="Tout sélectionner">
+                        </th>
+                        <th>Produit</th>
+                        <th class="text-center">Qté P1</th>
+                        <th class="text-end">CA P1</th>
+                        <th class="text-end">Marge P1</th>
                         @if (comparaison)
                         {
-                            <td class="text-center text-info">@(p2?.QuantiteVendue ?? 0)</td>
-                            <td class="text-end text-info">@(p2 != null ? p2.CA.ToString("N0") : "—")</td>
-                            <td class="text-center">
-                                @if (evolution.HasValue)
-                                {
-                                    <span class="badge @(evolution > 0 ? "bg-success" : evolution < 0 ? "bg-danger" : "bg-secondary")">
-                                        @(evolution > 0 ? "+" : "")@evolution.Value.ToString("N1")%
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span>—</span>
-                                }
-                            </td>
+                            <th class="text-center text-info">Qté P2</th>
+                            <th class="text-end text-info">CA P2</th>
+                            <th class="text-center">Évolution</th>
                         }
                     </tr>
-                    rang++;
-                }
-            </tbody>
-            <tfoot class="table-success">
-                <tr>
-                    <td colspan="3" class="fw-bold">TOTAL</td>
-                    <td class="text-center fw-bold">@totalQte1</td>
-                    <td colspan="2"></td>
-                    <td class="text-end fw-bold">@totalCa1.ToString("N0") FCFA</td>
-                    <td class="text-end fw-bold text-success">@totalMarge1.ToString("N0") FCFA</td>
-                    <td></td>
-                    @if (comparaison)
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
                     {
-                        <td colspan="3"></td>
+                        var p2 = topVentes2?.FirstOrDefault(x => x.ProductId == item.ProductId);
+                        var evolution = p2 != null && p2.CA > 0
+                            ? Math.Round((item.CA - p2.CA) / p2.CA * 100, 1)
+                            : (decimal?)null;
+                        <tr>
+                            <td>
+                                <input type="checkbox"
+                                       class="form-check-input check-produit"
+                                       value="@item.ProductId"
+                                       data-nom="@item.Nom"
+                                       data-qte="1">
+                            </td>
+                            <td class="fw-bold small">@item.Nom</td>
+                            <td class="text-center">@item.QuantiteVendue</td>
+                            <td class="text-end fw-bold">@item.CA.ToString("N0")</td>
+                            <td class="text-end text-success">@item.Marge.ToString("N0")</td>
+                            @if (comparaison)
+                            {
+                                <td class="text-center text-info">@(p2?.QuantiteVendue ?? 0)</td>
+                                <td class="text-end text-info">@(p2 != null ? p2.CA.ToString("N0") : "—")</td>
+                                <td class="text-center">
+                                    @if (evolution.HasValue)
+                                    {
+                                        <span class="badge @(evolution > 0 ? "bg-success" : evolution < 0 ? "bg-danger" : "bg-secondary")">
+                                            @(evolution > 0 ? "+" : "")@evolution.Value.ToString("N1")%
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>—</span>
+                                    }
+                                </td>
+                            }
+                        </tr>
                     }
-                </tr>
-            </tfoot>
-        </table>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white">
+            <button type="button" class="btn btn-success" onclick="ajouterSelectionPanier()">
+                <i class="bi bi-cart-plus me-1"></i>
+                Préparer une commande
+            </button>
+        </div>
     </div>
 </div>
 
@@ -267,7 +450,7 @@
                     class="btn btn-success btn-sm"
                     onclick="ajouterSelectionPanier()">
                 <i class="bi bi-cart-plus me-1"></i>
-                Ajouter au panier
+                Préparer une commande
             </button>
             <button type="button"
                     class="btn btn-outline-secondary btn-sm"
@@ -281,12 +464,17 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-      (function () {
-        var ventesJour = @Html.Raw(ViewBag.VentesParJourJson ?? "[]");
+      var chartVentes = null;
+
+      function ensureChart() {
         var canvas = document.getElementById('chart-ventes-jour');
         if (!canvas || !window.Chart) return;
-
-        new Chart(canvas.getContext('2d'), {
+        if (chartVentes) {
+          chartVentes.resize();
+          return;
+        }
+        var ventesJour = @Html.Raw(ViewBag.VentesParJourJson ?? "[]");
+        chartVentes = new Chart(canvas.getContext('2d'), {
           type: 'line',
           data: {
             labels: ventesJour.map(function (v) {
@@ -308,7 +496,37 @@
             }
           }
         });
-      })();
+      }
+
+      function setVue(nom) {
+        document.querySelectorAll('.vue-panel').forEach(function (p) {
+          p.classList.add('d-none');
+        });
+        var panel = document.getElementById('vue-' + nom);
+        if (panel) panel.classList.remove('d-none');
+
+        var field = document.getElementById('vue-field');
+        if (field) field.value = nom;
+
+        document.querySelectorAll('.btn-vue').forEach(function (b) {
+          var active = b.getAttribute('data-vue') === nom;
+          b.classList.toggle('btn-primary', active);
+          b.classList.toggle('btn-outline-primary', !active);
+        });
+
+        var blocP2 = document.getElementById('bloc-periode2');
+        if (blocP2) blocP2.classList.toggle('d-none', nom !== 'stats');
+        var blocCsv = document.getElementById('bloc-csv');
+        if (blocCsv) blocCsv.classList.toggle('d-none', nom !== 'top');
+
+        deselectionnerTout();
+
+        if (nom === 'stats') ensureChart();
+
+        var url = new URL(window.location.href);
+        url.searchParams.set('vue', nom);
+        history.replaceState(null, '', url.pathname + url.search);
+      }
 
       function toYmd(d) {
         var y = d.getFullYear();
@@ -351,18 +569,35 @@
         else form.submit();
       }
 
+      function getActivePanel() {
+        return document.querySelector('.vue-panel:not(.d-none)');
+      }
+
+      function getActiveCheckboxes() {
+        var panel = getActivePanel();
+        return panel ? panel.querySelectorAll('.check-produit') : [];
+      }
+
+      function getCheckedProduits() {
+        var panel = getActivePanel();
+        return panel ? panel.querySelectorAll('.check-produit:checked') : [];
+      }
+
       function toggleAll(checkbox) {
-        document.querySelectorAll('.check-produit').forEach(function (cb) {
+        var table = checkbox.closest('table');
+        var boxes = table
+          ? table.querySelectorAll('.check-produit')
+          : getActiveCheckboxes();
+        boxes.forEach(function (cb) {
           cb.checked = checkbox.checked;
         });
         updateBarreSelection();
       }
 
       function updateBarreSelection() {
-        var checked = document.querySelectorAll('.check-produit:checked');
+        var checked = getCheckedProduits();
         var barre = document.getElementById('barre-selection');
         var nb = document.getElementById('nb-selectionnes');
-        var checkAll = document.getElementById('check-all');
         if (!barre || !nb) return;
 
         if (checked.length > 0) {
@@ -372,7 +607,10 @@
           barre.style.display = 'none';
         }
 
-        var all = document.querySelectorAll('.check-produit');
+        var panel = getActivePanel();
+        if (!panel) return;
+        var all = panel.querySelectorAll('.check-produit');
+        var checkAll = panel.querySelector('.check-all');
         if (checkAll) {
           checkAll.checked = all.length > 0 && checked.length === all.length;
         }
@@ -386,8 +624,9 @@
         document.querySelectorAll('.check-produit').forEach(function (cb) {
           cb.checked = false;
         });
-        var checkAll = document.getElementById('check-all');
-        if (checkAll) checkAll.checked = false;
+        document.querySelectorAll('.check-all').forEach(function (cb) {
+          cb.checked = false;
+        });
         updateBarreSelection();
       }
 
@@ -399,7 +638,7 @@
       }
 
       async function ajouterSelectionPanier() {
-        var checked = document.querySelectorAll('.check-produit:checked');
+        var checked = getCheckedProduits();
         var qteGlobale = parseInt(document.getElementById('qte-globale').value, 10) || 1;
         var btn = document.getElementById('btn-ajouter-panier');
 
@@ -408,8 +647,11 @@
           return;
         }
 
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Ajout en cours...';
+        var originalHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Ajout en cours...';
+        }
 
         var nbAjoutes = 0;
         var nbErreurs = 0;
@@ -443,7 +685,7 @@
         }
 
         if (nbAjoutes > 0) {
-          if (window.toastr) toastr.success(nbAjoutes + ' produit(s) ajouté(s) au panier !');
+          if (window.toastr) toastr.success(nbAjoutes + ' produit(s) ajouté(s) au panier de commande !');
           if (typeof updateBadgePanier === 'function') updateBadgePanier();
         }
         if (nbErreurs > 0 && window.toastr) {
@@ -451,8 +693,12 @@
         }
 
         deselectionnerTout();
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-cart-plus me-1"></i>Ajouter au panier';
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml || '<i class="bi bi-cart-plus me-1"></i>Préparer une commande';
+        }
       }
+
+      if ('@vue' === 'stats') ensureChart();
     </script>
 }
