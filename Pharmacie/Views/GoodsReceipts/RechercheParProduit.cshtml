@@ -1,0 +1,110 @@
+@model List<Pharmacie.Models.ViewModels.BlProduitRechercheItem>
+@{
+    ViewData["Title"] = "Recherche produit dans les BL";
+    var terme = ViewBag.Terme as string;
+}
+
+<div class="page-header">
+    <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-md-between gap-3">
+        <div>
+            <h1 class="page-title">Recherche produit dans les BL</h1>
+            <p class="page-lead mb-0">Retrouvez un produit par nom ou CIP dans les bons de livraison.</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Retour aux BL
+        </a>
+    </div>
+</div>
+
+<form method="get" asp-action="RechercheParProduit" class="row g-2 mb-3">
+    <div class="col-md-8">
+        <input type="text"
+               name="terme"
+               value="@terme"
+               class="form-control"
+               placeholder="Nom du produit ou CIP (2 caractères min.)"
+               autocomplete="off"
+               autofocus>
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-search me-1"></i>Rechercher
+        </button>
+        <a asp-action="RechercheParProduit" class="btn btn-outline-secondary">Effacer</a>
+    </div>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(terme) && terme.Trim().Length < 2)
+{
+    <div class="alert alert-warning py-2">Saisissez au moins 2 caractères.</div>
+}
+
+@if (Model.Count > 0)
+{
+    <div class="card border-0 shadow-sm table-card">
+    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">
+            <i class="bi bi-search me-2 text-primary"></i>Résultats
+        </span>
+        <span class="badge text-bg-light border">@Model.Count</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>BL N°</th>
+                    <th>Fournisseur</th>
+                    <th>Date réception</th>
+                    <th>Produit</th>
+                    <th>CIP</th>
+                    <th class="text-center">Qté</th>
+                    <th>Lot</th>
+                    <th>Péremption</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>
+                            <a asp-action="Details" asp-route-id="@item.BlId" class="font-monospace">
+                                @(string.IsNullOrWhiteSpace(item.BlRef) ? $"#{item.BlId}" : item.BlRef)
+                            </a>
+                        </td>
+                        <td>@item.Fournisseur</td>
+                        <td class="text-nowrap">@item.DateReception.ToString("dd/MM/yyyy")</td>
+                        <td class="fw-bold small">@item.Produit</td>
+                        <td class="text-muted small">@(item.Cip ?? "—")</td>
+                        <td class="text-center">@item.Quantite</td>
+                        <td class="small">@(string.IsNullOrWhiteSpace(item.Lot) ? "—" : item.Lot)</td>
+                        <td class="text-nowrap">@item.Peremption.ToString("dd/MM/yyyy")</td>
+                        <td class="text-end">
+                            <a asp-action="Details" asp-route-id="@item.BlId" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    </div>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="app-empty-state my-3" role="status">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        @if (string.IsNullOrWhiteSpace(terme))
+        {
+            <p class="app-empty-state-title mb-1">Saisissez un nom ou un CIP</p>
+            <p class="mb-0 small">La recherche parcourt les lignes de tous les bons de livraison.</p>
+        }
+        else
+        {
+            <p class="app-empty-state-title mb-1">Aucun résultat</p>
+            <p class="mb-0 small">Aucun produit trouvé pour « @terme ».</p>
+        }
+    </div>
+}

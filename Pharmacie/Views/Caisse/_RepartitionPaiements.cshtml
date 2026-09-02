@@ -5,19 +5,40 @@
         var val = ViewData[name];
         return val == null ? 0m : Convert.ToDecimal(val);
     }
-    var totalWave = Get("TotalWave");
-    var totalOm = Get("TotalOrangeMoney");
-    var totalFreemoney = Get("TotalFreemoney");
-    var totalYas = Get("TotalYasMoney");
-    var totalCheque = Get("TotalCheque");
-    var totalTpe = Get("TotalTPE");
-    var totalVirement = Get("TotalVirement");
-    var totalTransfert = Get("TotalTransfertInternational");
-    var totalAutres = Get("TotalAutres");
+
+    var simples = new (string Label, string Icon, decimal Amount)[]
+    {
+        ("Espèces", "bi bi-cash text-success", Get("CaEspeces")),
+        ("Wave", "bi bi-phone text-primary", Get("CaWave")),
+        ("Orange Money", "bi bi-phone text-warning", Get("CaOM")),
+        ("Freemoney", "bi bi-phone", Get("CaFreemoney")),
+        ("Yas Money", "bi bi-phone", Get("CaYasMoney")),
+        ("Chèque", "bi bi-file-text", Get("CaCheque")),
+        ("TPE", "bi bi-credit-card", Get("CaTPE")),
+        ("Virement", "bi bi-bank", Get("CaVirement")),
+        ("Transfert intl", "bi bi-globe", Get("CaTransfert")),
+        ("Autres", "bi bi-three-dots", Get("CaAutreSimple"))
+    };
+
+    var fracs = new (string Label, decimal Amount)[]
+    {
+        ("Espèces (fractionné)", Get("CaEspecesFrac")),
+        ("Wave (fractionné)", Get("CaWaveFrac")),
+        ("Orange Money (fractionné)", Get("CaOMFrac")),
+        ("Freemoney (fractionné)", Get("CaFreemoneyFrac")),
+        ("Yas Money (fractionné)", Get("CaYasMoneyFrac")),
+        ("Chèque (fractionné)", Get("CaChequeFrac")),
+        ("TPE (fractionné)", Get("CaTPEFrac")),
+        ("Virement (fractionné)", Get("CaVirementFrac")),
+        ("Transfert intl (fractionné)", Get("CaTransfertFrac")),
+        ("Autres (fractionné)", Get("CaAutreFrac"))
+    };
+
     var totalAutresPaiements = Get("TotalAutresPaiements");
     var totalEspeces = Get("TotalEspeces");
     if (totalEspeces == 0)
-        totalEspeces = Get("CaEspeces");
+        totalEspeces = Get("CaEspeces") + Get("CaEspecesFrac");
+    var hasFrac = fracs.Any(x => x.Amount > 0);
 }
 <div class="card border-0 shadow-sm mt-3">
     <div class="card-header fw-bold">
@@ -27,75 +48,30 @@
     <div class="card-body p-0">
         <table class="table table-sm mb-0">
             <tbody>
-                @if (totalEspeces > 0)
+                @foreach (var row in simples.Where(x => x.Amount > 0))
                 {
                     <tr>
-                        <td><i class="bi bi-cash text-success me-2"></i>Espèces</td>
-                        <td class="text-end fw-bold">@totalEspeces.ToString("N0") FCFA</td>
+                        <td><i class="@row.Icon me-2"></i>@row.Label</td>
+                        <td class="text-end fw-bold">@row.Amount.ToString("N0") FCFA</td>
                     </tr>
                 }
-                @if (totalWave > 0)
+                @if (hasFrac)
                 {
                     <tr>
-                        <td><i class="bi bi-phone text-primary me-2"></i>Wave</td>
-                        <td class="text-end fw-bold">@totalWave.ToString("N0") FCFA</td>
+                        <td colspan="2" class="text-muted small pt-2">
+                            <em>Paiements fractionnés</em>
+                        </td>
                     </tr>
-                }
-                @if (totalOm > 0)
-                {
-                    <tr>
-                        <td><i class="bi bi-phone text-warning me-2"></i>Orange Money</td>
-                        <td class="text-end fw-bold">@totalOm.ToString("N0") FCFA</td>
-                    </tr>
-                }
-                @if (totalFreemoney > 0)
-                {
-                    <tr>
-                        <td>Freemoney</td>
-                        <td class="text-end fw-bold">@totalFreemoney.ToString("N0") FCFA</td>
-                    </tr>
-                }
-                @if (totalYas > 0)
-                {
-                    <tr>
-                        <td>Yas Money</td>
-                        <td class="text-end fw-bold">@totalYas.ToString("N0") FCFA</td>
-                    </tr>
-                }
-                @if (totalCheque > 0)
-                {
-                    <tr>
-                        <td><i class="bi bi-file-text me-2"></i>Chèque</td>
-                        <td class="text-end fw-bold">@totalCheque.ToString("N0") FCFA</td>
-                    </tr>
-                }
-                @if (totalTpe > 0)
-                {
-                    <tr>
-                        <td>TPE</td>
-                        <td class="text-end fw-bold">@totalTpe.ToString("N0") FCFA</td>
-                    </tr>
-                }
-                @if (totalVirement > 0)
-                {
-                    <tr>
-                        <td>Virement</td>
-                        <td class="text-end fw-bold">@totalVirement.ToString("N0") FCFA</td>
-                    </tr>
-                }
-                @if (totalTransfert > 0)
-                {
-                    <tr>
-                        <td>Transfert intl</td>
-                        <td class="text-end fw-bold">@totalTransfert.ToString("N0") FCFA</td>
-                    </tr>
-                }
-                @if (totalAutres > 0)
-                {
-                    <tr>
-                        <td>Autres</td>
-                        <td class="text-end fw-bold">@totalAutres.ToString("N0") FCFA</td>
-                    </tr>
+                    foreach (var row in fracs.Where(x => x.Amount > 0))
+                    {
+                        <tr>
+                            <td>
+                                <i class="bi bi-layout-split me-1 text-muted"></i>
+                                @row.Label
+                            </td>
+                            <td class="text-end fw-bold">@row.Amount.ToString("N0") FCFA</td>
+                        </tr>
+                    }
                 }
             </tbody>
             <tfoot class="table-success">

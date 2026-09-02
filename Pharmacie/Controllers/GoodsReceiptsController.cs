@@ -7,6 +7,7 @@ using Pharmacie.Authorization;
 using Pharmacie.Data;
 using Pharmacie.Helpers;
 using Pharmacie.Models;
+using Pharmacie.Models.ViewModels;
 using Pharmacie.Services;
 
 namespace Pharmacie.Controllers;
@@ -116,6 +117,47 @@ public class GoodsReceiptsController : Controller
         ViewBag.PaginationRoutes = paginationRoutes;
 
         return View(receipts);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> RechercheParProduit(string? terme = null)
+    {
+        var resultats = new List<BlProduitRechercheItem>();
+
+        if (!string.IsNullOrWhiteSpace(terme) && terme.Trim().Length >= 2)
+        {
+            var t = terme.Trim();
+            resultats = await _context.GoodsReceiptLines
+                .AsNoTracking()
+                .Where(l => l.Product != null
+                    && l.GoodsReceipt != null
+                    && (l.Product.CommercialName.Contains(t)
+                        || (l.Product.Cip != null && l.Product.Cip.Contains(t))))
+                .OrderByDescending(l => l.GoodsReceipt!.ReceivedAt)
+                .Select(l => new BlProduitRechercheItem
+                {
+                    BlId = l.GoodsReceiptId,
+                    BlRef = l.GoodsReceipt!.Reference,
+                    Fournisseur = l.GoodsReceipt!.Supplier != null
+                        ? l.GoodsReceipt.Supplier.Name
+                        : (l.GoodsReceipt.PurchaseOrder != null
+                            && l.GoodsReceipt.PurchaseOrder.Supplier != null
+                            ? l.GoodsReceipt.PurchaseOrder.Supplier.Name
+                            : "—"),
+                    DateReception = l.GoodsReceipt!.ReceivedAt,
+                    Produit = l.Product!.CommercialName,
+                    Cip = l.Product.Cip,
+                    Quantite = l.QuantityReceived,
+                    Lot = l.LotNumber,
+                    Peremption = l.ExpirationDate
+                })
+                .Take(50)
+                .ToListAsync();
+        }
+
+        ViewBag.Terme = terme;
+        ViewBag.Resultats = resultats;
+        return View(resultats);
     }
 
     public async Task<IActionResult> Details(int id)

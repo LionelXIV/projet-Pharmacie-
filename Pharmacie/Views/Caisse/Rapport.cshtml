@@ -4,10 +4,10 @@
 @{
     ViewData["Title"] = "Rapport " + Model.NomCaisse;
     var sales = ViewBag.Sales as List<Sale> ?? new List<Sale>();
-    decimal caEspeces = ViewBag.CaEspeces ?? 0m;
-    decimal caWave = ViewBag.CaWave ?? 0m;
-    decimal caOM = ViewBag.CaOM ?? 0m;
-    decimal caAutre = ViewBag.CaAutre ?? 0m;
+    decimal caEspeces = ViewBag.TotalEspeces ?? 0m;
+    decimal caWave = ViewBag.TotalWave ?? 0m;
+    decimal caOM = ViewBag.TotalOrangeMoney ?? 0m;
+    decimal caAutre = ViewBag.ResumeCaAutre ?? 0m;
     decimal bonsTotal = ViewBag.BonsTotal ?? 0m;
     decimal theoriqueEspeces = ViewBag.TheoriqueEspeces ?? 0m;
     decimal totalCa = ViewBag.TotalCa ?? 0m;

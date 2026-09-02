@@ -39,6 +39,7 @@
     var isHome = IsCtrl("Home") && IsAction("Index");
     var isDashboard = IsCtrl("Dashboard");
     var isReports = IsCtrl("Reports");
+    var isStatistiques = IsCtrl("Statistiques");
     var isCatalog = IsCtrlAny("Products", "Batches", "StockMovements", "ProductImports", "Inventaire");
     var isPurchasing = IsCtrlAny("PurchaseOrders", "Categories", "Suppliers", "GoodsReceipts", "BLImport");
     var isSales = IsCtrl("Sales");
@@ -235,6 +236,15 @@
                         <a class="nav-link @(isReports && IsAction("Index") ? "active" : null)" asp-controller="Reports" asp-action="Index" aria-current="@(isReports && IsAction("Index") ? "page" : null)">
                             <i class="bi bi-columns-gap" aria-hidden="true"></i>Vue d'ensemble
                         </a>
+                        @if (AppRoles.IsTitulaire(User!) || User!.IsInRole(AppRoles.Pharmacien))
+                        {
+                            <a asp-controller="Statistiques"
+                               asp-action="Index"
+                               class="nav-link @(isStatistiques ? "active" : null)"
+                               aria-current="@(isStatistiques ? "page" : null)">
+                                <i class="bi bi-bar-chart-line" aria-hidden="true"></i>Statistiques ventes
+                            </a>
+                        }
                         <a class="nav-link @(isReports && IsAction("StockStatus") ? "active" : null)" asp-controller="Reports" asp-action="StockStatus" aria-current="@(isReports && IsAction("StockStatus") ? "page" : null)">
                             <i class="bi bi-clipboard-data" aria-hidden="true"></i>État du stock
                         </a>

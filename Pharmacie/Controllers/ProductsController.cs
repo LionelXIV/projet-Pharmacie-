@@ -92,6 +92,8 @@ public class ProductsController : Controller
                 salePrice = p.SalePrice,
                 purchasePrice = p.PurchasePrice,
                 stockQuantity = p.StockQuantity,
+                stock = p.StockQuantity,
+                price = p.SalePrice,
                 assujettiTVA = p.AssujettiTVA,
                 tauxTVA = p.TauxTVA,
                 estTablette = p.ParentProductId != null,

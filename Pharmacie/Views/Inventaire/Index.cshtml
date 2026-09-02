@@ -17,6 +17,75 @@
     </div>
 </div>
 
+<div class="card border-success mb-3">
+    <div class="card-header bg-success text-white fw-bold">
+        <i class="bi bi-upc-scan me-1"></i>
+        Scanner un produit
+    </div>
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-5">
+                <label class="form-label small fw-bold" for="scan-input">
+                    Scanner USB ou CIP manuel
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="bi bi-upc"></i>
+                    </span>
+                    <input type="text"
+                           id="scan-input"
+                           class="form-control"
+                           placeholder="Scanner ou taper le CIP..."
+                           autocomplete="off"
+                           autofocus>
+                </div>
+                <div class="form-text">
+                    Le scanner USB tape automatiquement ici. Appuyez Entrée pour valider.
+                </div>
+            </div>
+            <div class="col-md-1 text-center d-none d-md-block">
+                <span class="text-muted">ou</span>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-bold">
+                    Scanner avec la caméra
+                    <span class="badge bg-secondary ms-1">Téléphone</span>
+                </label>
+                <div>
+                    <button type="button" id="btn-camera" class="btn btn-outline-success" onclick="startCamera()">
+                        <i class="bi bi-camera me-1"></i>
+                        Ouvrir la caméra
+                    </button>
+                    <button type="button" id="btn-stop-camera" class="btn btn-outline-danger ms-2"
+                            style="display:none" onclick="stopCamera()">
+                        <i class="bi bi-stop-circle me-1"></i>
+                        Arrêter
+                    </button>
+                </div>
+                <div id="camera-container" style="display:none" class="mt-2">
+                    <video id="camera-video"
+                           style="width:100%; max-width:300px; border-radius:8px"
+                           autoplay muted playsinline>
+                    </video>
+                </div>
+            </div>
+        </div>
+        <div id="scan-result" style="display:none"
+             class="mt-3 p-3 rounded bg-success bg-opacity-10 border border-success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong id="scan-nom"></strong>
+                    <span class="text-muted small ms-2" id="scan-cip"></span>
+                </div>
+                <div>
+                    <span class="badge bg-success fs-5" id="scan-count">1</span>
+                    <span class="text-muted small ms-1">scanné(s)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-2">
         <form method="get" class="row g-2 align-items-end">
@@ -128,6 +197,7 @@
 </form>
 
 @section Scripts {
+    <script src="https://unpkg.com/@@zxing/library@@0.19.1/umd/index.min.js"></script>
     <script>
       function calculerEcart(input) {
         var logiciel = parseInt(input.dataset.logiciel, 10) || 0;
@@ -187,5 +257,122 @@
 
         return confirm(avecEcart.length + ' écart(s) détecté(s). Confirmer les corrections ?');
       }
+
+      var scanCounts = {};
+      var scanBuffer = '';
+      var scanTimer = null;
+      var lastScanCip = '';
+      var lastScanAt = 0;
+
+      var scanInput = document.getElementById('scan-input');
+      if (scanInput) {
+        scanInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            var cip = this.value.trim();
+            if (cip) {
+              processScan(cip);
+              this.value = '';
+              this.focus();
+            }
+          }
+        });
+
+        scanInput.addEventListener('input', function () {
+          clearTimeout(scanTimer);
+          var val = this.value.trim();
+          var input = this;
+          if (/^\d{7,13}$/.test(val)) {
+            scanTimer = setTimeout(function () {
+              processScan(val);
+              input.value = '';
+              input.focus();
+            }, 100);
+          }
+        });
+      }
+
+      function processScan(cip) {
+        if (!cip) return;
+        var now = Date.now();
+        if (cip === lastScanCip && now - lastScanAt < 1200) return;
+        lastScanCip = cip;
+        lastScanAt = now;
+
+        var rows = document.querySelectorAll('.inventaire-row');
+        var found = false;
+
+        rows.forEach(function (row) {
+          var rowCip = (row.dataset.cip || '').trim();
+          if (!rowCip) return;
+          if (rowCip === cip || rowCip.endsWith(cip) || cip.endsWith(rowCip)) {
+            found = true;
+            if (!scanCounts[cip]) scanCounts[cip] = 0;
+            scanCounts[cip]++;
+
+            var input = row.querySelector('.stock-physique');
+            if (input) {
+              var current = parseInt(input.value, 10) || 0;
+              input.value = current + 1;
+              calculerEcart(input);
+              row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              row.style.background = '#d4edda';
+              setTimeout(function () { row.style.background = ''; }, 1000);
+            }
+
+            var nom = row.querySelector('td:first-child')?.textContent?.trim();
+            document.getElementById('scan-nom').textContent = nom || cip;
+            document.getElementById('scan-cip').textContent = cip;
+            document.getElementById('scan-count').textContent = scanCounts[cip];
+            document.getElementById('scan-result').style.display = 'block';
+          }
+        });
+
+        if (!found) {
+          if (window.toastr) toastr.warning('CIP ' + cip + ' non trouvé dans la liste.');
+          document.getElementById('scan-result').style.display = 'none';
+        }
+      }
+
+      var codeReader = null;
+
+      function startCamera() {
+        document.getElementById('camera-container').style.display = 'block';
+        document.getElementById('btn-camera').style.display = 'none';
+        document.getElementById('btn-stop-camera').style.display = 'inline-block';
+
+        if (!window.ZXing) {
+          if (window.toastr) toastr.error('Scanner caméra indisponible.');
+          return;
+        }
+
+        var Reader = ZXing.BrowserMultiFormatReader || ZXing.BrowserBarcodeReader;
+        if (!Reader) {
+          if (window.toastr) toastr.error('Scanner caméra indisponible.');
+          return;
+        }
+
+        codeReader = new Reader();
+        codeReader.decodeFromVideoDevice(null, 'camera-video', function (result, err) {
+          if (result) {
+            var cip = result.getText();
+            processScan(cip);
+            if (navigator.vibrate) navigator.vibrate(100);
+          }
+        });
+      }
+
+      function stopCamera() {
+        if (codeReader) {
+          codeReader.reset();
+          codeReader = null;
+        }
+        document.getElementById('camera-container').style.display = 'none';
+        document.getElementById('btn-camera').style.display = 'inline-block';
+        document.getElementById('btn-stop-camera').style.display = 'none';
+      }
+
+      window.startCamera = startCamera;
+      window.stopCamera = stopCamera;
     </script>
 }

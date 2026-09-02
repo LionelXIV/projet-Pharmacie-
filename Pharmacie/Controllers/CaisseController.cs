@@ -323,10 +323,7 @@ public class CaisseController : Controller
         ViewBag.Sales = sales;
         ViewBag.Depots = depots;
         ViewBag.TotalDepots = totalDepots;
-        ViewBag.CaEspeces = caEspeces;
-        ViewBag.CaWave = caWave;
-        ViewBag.CaOM = caOM;
-        ViewBag.CaAutre = caAutre;
+        ViewBag.ResumeCaAutre = caAutre;
         ViewBag.TotalEspeces = caEspeces;
         ViewBag.BonsTotal = bons;
         ViewBag.TheoriqueEspeces = theoriqueEspeces;
@@ -461,9 +458,6 @@ public class CaisseController : Controller
             .Cast<Sale>()
             .ToList();
         FillPaymentBreakdown(ventesJour);
-        ViewBag.TotalEspeces = ventesJour
-            .Where(s => s.PaymentMethod == PaymentMethod.Especes)
-            .Sum(CaisseService.CalculerTotalSale);
 
         var debut = d;
         var finExclusive = d.AddDays(1);
@@ -592,25 +586,46 @@ public class CaisseController : Controller
 
     private void FillPaymentBreakdown(IReadOnlyCollection<Sale> sales)
     {
-        decimal Sum(PaymentMethod pm)
+        decimal SumSimple(PaymentMethod pm) =>
+            sales.Where(s => !s.PaiementFractionne && s.PaymentMethod == pm)
+                .Sum(CaisseService.CalculerTotalSale);
+
+        decimal SumFrac(PaymentMethod pm)
         {
             decimal total = 0;
-            foreach (var s in sales)
+            foreach (var s in sales.Where(s => s.PaiementFractionne))
             {
-                if (s.PaiementFractionne)
-                {
-                    if (s.PaymentMethod == pm)
-                        total += s.MontantPaiement1;
-                    if (s.PaymentMethod2 == pm)
-                        total += s.MontantPaiement2;
-                }
-                else if (s.PaymentMethod == pm)
-                {
-                    total += CaisseService.CalculerTotalSale(s);
-                }
+                if (s.PaymentMethod == pm)
+                    total += s.MontantPaiement1;
+                if (s.PaymentMethod2 == pm)
+                    total += s.MontantPaiement2;
             }
             return total;
         }
+
+        decimal Sum(PaymentMethod pm) => SumSimple(pm) + SumFrac(pm);
+
+        var simpleEspeces = SumSimple(PaymentMethod.Especes);
+        var simpleWave = SumSimple(PaymentMethod.Wave);
+        var simpleOm = SumSimple(PaymentMethod.OrangeMoney);
+        var simpleFreemoney = SumSimple(PaymentMethod.Freemoney);
+        var simpleYas = SumSimple(PaymentMethod.YasMoney);
+        var simpleCheque = SumSimple(PaymentMethod.Cheque);
+        var simpleTpe = SumSimple(PaymentMethod.TPE);
+        var simpleVirement = SumSimple(PaymentMethod.Virement);
+        var simpleTransfert = SumSimple(PaymentMethod.TransfertInternational);
+        var simpleAutre = SumSimple(PaymentMethod.Autre);
+
+        var fracEspeces = SumFrac(PaymentMethod.Especes);
+        var fracWave = SumFrac(PaymentMethod.Wave);
+        var fracOm = SumFrac(PaymentMethod.OrangeMoney);
+        var fracFreemoney = SumFrac(PaymentMethod.Freemoney);
+        var fracYas = SumFrac(PaymentMethod.YasMoney);
+        var fracCheque = SumFrac(PaymentMethod.Cheque);
+        var fracTpe = SumFrac(PaymentMethod.TPE);
+        var fracVirement = SumFrac(PaymentMethod.Virement);
+        var fracTransfert = SumFrac(PaymentMethod.TransfertInternational);
+        var fracAutre = SumFrac(PaymentMethod.Autre);
 
         var totalWave = Sum(PaymentMethod.Wave);
         var totalOrangeMoney = Sum(PaymentMethod.OrangeMoney);
@@ -636,10 +651,29 @@ public class CaisseController : Controller
             totalWave + totalOrangeMoney + totalFreemoney + totalYasMoney
             + totalCheque + totalTpe + totalVirement + totalTransfert + totalAutres;
 
-        ViewBag.CaWave = totalWave;
-        ViewBag.CaOM = totalOrangeMoney;
-        ViewBag.CaAutre = totalFreemoney + totalYasMoney + totalCheque + totalTpe
-            + totalVirement + totalTransfert + totalAutres;
+        ViewBag.CaEspeces = simpleEspeces;
+        ViewBag.CaWave = simpleWave;
+        ViewBag.CaOM = simpleOm;
+        ViewBag.CaFreemoney = simpleFreemoney;
+        ViewBag.CaYasMoney = simpleYas;
+        ViewBag.CaCheque = simpleCheque;
+        ViewBag.CaTPE = simpleTpe;
+        ViewBag.CaVirement = simpleVirement;
+        ViewBag.CaTransfert = simpleTransfert;
+        ViewBag.CaAutreSimple = simpleAutre;
+        ViewBag.CaAutre = simpleFreemoney + simpleYas + simpleCheque + simpleTpe
+            + simpleVirement + simpleTransfert + simpleAutre;
+
+        ViewBag.CaEspecesFrac = fracEspeces;
+        ViewBag.CaWaveFrac = fracWave;
+        ViewBag.CaOMFrac = fracOm;
+        ViewBag.CaFreemoneyFrac = fracFreemoney;
+        ViewBag.CaYasMoneyFrac = fracYas;
+        ViewBag.CaChequeFrac = fracCheque;
+        ViewBag.CaTPEFrac = fracTpe;
+        ViewBag.CaVirementFrac = fracVirement;
+        ViewBag.CaTransfertFrac = fracTransfert;
+        ViewBag.CaAutreFrac = fracAutre;
     }
 
     [HttpGet]

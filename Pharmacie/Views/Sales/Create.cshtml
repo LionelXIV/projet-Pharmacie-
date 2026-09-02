@@ -826,21 +826,8 @@
       items.forEach(function (p) {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'dropdown-item d-flex align-items-center justify-content-between gap-2';
-        var label = document.createElement('span');
-        label.textContent = p.text;
-        btn.appendChild(label);
-        if (p.estTablette) {
-          var badgeT = document.createElement('span');
-          badgeT.className = 'badge text-bg-primary';
-          badgeT.textContent = 'Tablette';
-          btn.appendChild(badgeT);
-        } else if (p.estBoite) {
-          var badgeB = document.createElement('span');
-          badgeB.className = 'badge text-bg-success';
-          badgeB.textContent = 'Boîte';
-          btn.appendChild(badgeB);
-        }
+        btn.className = 'dropdown-item';
+        btn.innerHTML = renderOptionBadge(p, escapeHtml);
         btn.addEventListener('click', function () { addToCart(p); });
         el.appendChild(btn);
       });
@@ -1278,7 +1265,16 @@
     } else if (item.estBoite) {
       badge = ' <span class="badge text-bg-success">Boîte</span>';
     }
-    return '<div>' + name + badge + '</div>';
+    var stock = item.stock != null ? item.stock : (item.stockQuantity != null ? item.stockQuantity : 0);
+    var stockBadge = stock <= 0
+      ? '<span class="badge bg-danger ms-1">Rupture</span>'
+      : stock <= 5
+        ? '<span class="badge bg-warning text-dark ms-1">' + stock + '</span>'
+        : '<span class="badge bg-success ms-1">' + stock + '</span>';
+    var prix = item.price != null ? item.price : (item.salePrice != null ? item.salePrice : 0);
+    var prixSpan = '<span class="text-muted small ms-2">' +
+      parseInt(prix, 10).toLocaleString('fr-FR') + ' F</span>';
+    return '<div class="py-1"><strong>' + name + '</strong>' + badge + stockBadge + prixSpan + '</div>';
   }
 
   window.ajouterLigneRapide = function () {
