@@ -28,7 +28,7 @@
         <h2 class="h6 text-uppercase text-muted mb-3">Filtres</h2>
         <p class="small text-muted mb-3">
             <strong>Produit</strong> : mouvements de ce produit. <strong>Type</strong> : entrée, sortie ou ajustement.
-            <strong>Période</strong> : sur la date du mouvement (début de journée à fin de journée incluses pour les dates choisies).
+            <strong>Période</strong> : date et heure optionnelles (si heure vide : journée entière).
             <strong>Responsable</strong> : filtre sur l’utilisateur enregistré sur le mouvement (comptes ayant déjà généré un mouvement).
         </p>
         <form method="get" asp-action="Index" class="row g-2 align-items-end">
@@ -67,9 +67,21 @@
                 <label class="form-label small mb-0" for="From">Du</label>
                 <input type="date" name="From" id="From" value="@(Model.Filter.From?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
             </div>
+            <div class="col-md-4 col-lg-1">
+                <label class="form-label small mb-0" for="FromTime">Heure début</label>
+                <input type="time" name="FromTime" id="FromTime"
+                       value="@(Model.Filter.FromTime.HasValue ? $"{Model.Filter.FromTime.Value.Hours:D2}:{Model.Filter.FromTime.Value.Minutes:D2}" : "")"
+                       class="form-control form-control-sm" />
+            </div>
             <div class="col-md-4 col-lg-2">
                 <label class="form-label small mb-0" for="To">Au</label>
                 <input type="date" name="To" id="To" value="@(Model.Filter.To?.ToString("yyyy-MM-dd"))" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-4 col-lg-1">
+                <label class="form-label small mb-0" for="ToTime">Heure fin</label>
+                <input type="time" name="ToTime" id="ToTime"
+                       value="@(Model.Filter.ToTime.HasValue ? $"{Model.Filter.ToTime.Value.Hours:D2}:{Model.Filter.ToTime.Value.Minutes:D2}" : "")"
+                       class="form-control form-control-sm" />
             </div>
             <div class="col-md-4 col-lg-3">
                 <label class="form-label small mb-0" for="UserId">Responsable</label>

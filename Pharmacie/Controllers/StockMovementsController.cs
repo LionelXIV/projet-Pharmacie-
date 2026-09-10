@@ -45,10 +45,22 @@ public class StockMovementsController : Controller
             q = q.Where(m => m.Type == filter.Type.Value);
 
         if (filter.From.HasValue)
-            q = q.Where(m => m.OccurredAt >= filter.From.Value.Date);
+        {
+            var debut = filter.From.Value.Date;
+            if (filter.FromTime.HasValue)
+                debut = debut.Add(filter.FromTime.Value);
+            q = q.Where(m => m.OccurredAt >= debut);
+        }
 
         if (filter.To.HasValue)
-            q = q.Where(m => m.OccurredAt < filter.To.Value.Date.AddDays(1));
+        {
+            var fin = filter.To.Value.Date;
+            if (filter.ToTime.HasValue)
+                fin = fin.Add(filter.ToTime.Value);
+            else
+                fin = fin.AddDays(1).AddTicks(-1);
+            q = q.Where(m => m.OccurredAt <= fin);
+        }
 
         if (!string.IsNullOrEmpty(filter.UserId))
             q = q.Where(m => m.UserId == filter.UserId);

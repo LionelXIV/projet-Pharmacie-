@@ -103,7 +103,20 @@
                                 }
                                 var sub = baseSub - discAmt;
                                 <tr>
-                                    <td>@line.Product?.CommercialName</td>
+                                    <td>
+                                        @line.Product?.CommercialName
+                                        @{
+                                            var mods = ViewBag.PrixModsByProductId as Dictionary<int, PrixModification>;
+                                            if (mods != null && mods.TryGetValue(line.ProductId, out var pm))
+                                            {
+                                                <span class="badge bg-warning text-dark ms-1"
+                                                      title="Prix modifié : @pm.Raison">
+                                                    <i class="bi bi-pencil me-1"></i>
+                                                    Prix modifié
+                                                </span>
+                                            }
+                                        }
+                                    </td>
                                     <td class="text-end">@ReportCsvFormatter.FormatFcfa(line.UnitPrice)</td>
                                     <td class="text-end">@line.Quantity</td>
                                     <td class="text-end text-danger">@(remiseAff != "" ? "-" + remiseAff : "—")</td>

@@ -123,11 +123,25 @@ public class InventaireController : Controller
         string reason,
         string userId)
     {
+        if (ecart == 0)
+            return (true, null);
+
         if (ecart > 0)
         {
-            var lot = product.Batches.OrderByDescending(b => b.Id).FirstOrDefault();
-            if (lot == null)
+            // Surplus : stock physique > stock logiciel
+            var lot = product.Batches?
+                .OrderByDescending(b => b.Quantity > 0)
+                .ThenByDescending(b => b.Id)
+                .FirstOrDefault();
+
+            if (lot != null)
             {
+                var (okAdj, errAdj) = await _inventoryService.RecordAjustementAsync(
+                    lot.Id, ecart, reason, userId);
+                if (okAdj)
+                    return (true, null);
+
+                // Fallback entrée si l'ajustement du lot échoue
                 return await _inventoryService.RecordEntreeAsync(
                     product.Id,
                     $"INV-{product.Id}-{DateTime.Now:yyyyMMddHHmmss}",
@@ -137,11 +151,18 @@ public class InventaireController : Controller
                     userId);
             }
 
-            return await _inventoryService.RecordAjustementAsync(lot.Id, ecart, reason, userId);
+            return await _inventoryService.RecordEntreeAsync(
+                product.Id,
+                $"INV-{product.Id}-{DateTime.Now:yyyyMMddHHmmss}",
+                DateTime.Today.AddYears(2),
+                ecart,
+                reason,
+                userId);
         }
 
+        // Manquant : stock physique < stock logiciel (FEFO)
         var remaining = Math.Abs(ecart);
-        var lots = product.Batches
+        var lots = (product.Batches ?? new List<ProductBatch>())
             .Where(b => b.Quantity > 0)
             .OrderBy(b => b.ExpirationDate)
             .ThenBy(b => b.Id)

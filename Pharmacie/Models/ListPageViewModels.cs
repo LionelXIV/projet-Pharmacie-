@@ -90,6 +90,12 @@ public class StockMovementListFilters
     [DataType(DataType.Date)]
     public DateTime? To { get; set; }
 
+    [Display(Name = "Heure début")]
+    public TimeSpan? FromTime { get; set; }
+
+    [Display(Name = "Heure fin")]
+    public TimeSpan? ToTime { get; set; }
+
     public string? UserId { get; set; }
 }
 

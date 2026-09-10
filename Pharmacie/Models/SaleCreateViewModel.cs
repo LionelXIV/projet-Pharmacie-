@@ -80,4 +80,8 @@ public class SaleLineSlotViewModel
 
     [ValidateNever]
     public decimal AncienPrix { get; set; }
+
+    [ValidateNever]
+    [StringLength(200)]
+    public string? RaisonPrixModifie { get; set; }
 }

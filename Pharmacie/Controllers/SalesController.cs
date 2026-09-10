@@ -168,6 +168,14 @@ public class SalesController : Controller
                 await UserDisplayResolver.LoadLabelsByIdAsync(_context, new[] { sale.UserId }),
                 sale.UserId);
 
+        var prixMods = await _context.PrixModifications.AsNoTracking()
+            .Where(m => m.SaleId == sale.Id)
+            .OrderByDescending(m => m.Id)
+            .ToListAsync();
+        ViewBag.PrixModsByProductId = prixMods
+            .GroupBy(m => m.ProductId)
+            .ToDictionary(g => g.Key, g => g.First());
+
         return View(sale);
     }
 
@@ -183,6 +191,14 @@ public class SalesController : Controller
 
         if (sale == null)
             return NotFound();
+
+        var prixMods = await _context.PrixModifications.AsNoTracking()
+            .Where(m => m.SaleId == sale.Id)
+            .OrderByDescending(m => m.Id)
+            .ToListAsync();
+        ViewBag.PrixModsByProductId = prixMods
+            .GroupBy(m => m.ProductId)
+            .ToDictionary(g => g.Key, g => g.First());
 
         return PartialView("_SaleDetailPartial", sale);
     }
@@ -312,6 +328,7 @@ public class SalesController : Controller
         }
 
         await PopulateVendeursForPosAsync();
+        ViewBag.PeutModifierPrix = PeutModifierPrixEnVente();
         return View(new SaleCreateViewModel());
     }
 
@@ -398,7 +415,7 @@ public class SalesController : Controller
                             }
                         }
 
-                        var peutPrix = AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien);
+                        var peutPrix = PeutModifierPrixEnVente();
                         if (peutPrix)
                         {
                             var displayName = (await _userManager.FindByIdAsync(userId))?.DisplayName
@@ -413,6 +430,13 @@ public class SalesController : Controller
                                 var ancien = slot.AncienPrix > 0 ? slot.AncienPrix : saleLine.UnitPrice;
                                 if (slot.UnitPrice < 0 || slot.UnitPrice == ancien)
                                     continue;
+
+                                var raison = string.IsNullOrWhiteSpace(slot.RaisonPrixModifie)
+                                    ? $"Modification prix pendant vente #{sale.Id}"
+                                    : slot.RaisonPrixModifie.Trim();
+                                if (raison.Length > 200)
+                                    raison = raison[..200];
+
                                 saleLine.UnitPrice = slot.UnitPrice;
                                 _context.PrixModifications.Add(new PrixModification
                                 {
@@ -423,7 +447,7 @@ public class SalesController : Controller
                                     ModifiedAt = DateTime.Now,
                                     ModifiedByUserId = userId,
                                     ModifiedByDisplayName = displayName,
-                                    Raison = $"Modification prix pendant vente #{sale.Id}"
+                                    Raison = raison
                                 });
                             }
                         }
@@ -522,6 +546,7 @@ public class SalesController : Controller
         }
 
         await PopulateVendeursForPosAsync(model.VendeurId);
+        ViewBag.PeutModifierPrix = PeutModifierPrixEnVente();
         return View(model);
     }
 
@@ -717,6 +742,7 @@ public class SalesController : Controller
         }
 
         await PopulateVendeursForPosAsync(vm.VendeurId);
+        ViewBag.PeutModifierPrix = PeutModifierPrixEnVente();
         return View("Create", vm);
     }
 
@@ -870,6 +896,14 @@ public class SalesController : Controller
             && !User.IsInRole(AppRoles.AssistantPharmacien)
             && !User.IsInRole(AppRoles.Vendeur);
     }
+
+    private bool PeutModifierPrixEnVente() =>
+        AppRoles.IsTitulaire(User)
+        || User.IsInRole(AppRoles.Pharmacien)
+        || User.IsInRole(AppRoles.Vendeur)
+        || User.IsInRole(AppRoles.Caissier)
+        || User.IsInRole(AppRoles.AssistantPharmacien)
+        || User.IsInRole(AppRoles.Stagiaire);
 
     private void ValiderPaiementFractionne(SaleCreateViewModel model, List<SaleLineSlotViewModel> slots)
     {

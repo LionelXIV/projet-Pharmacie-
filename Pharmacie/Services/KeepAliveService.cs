@@ -44,7 +44,7 @@ public class KeepAliveService : BackgroundService
                     _logger.LogWarning("KeepAlive ping failed: {Msg}", ex.Message);
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(4), stoppingToken);
             }
         }
         catch (OperationCanceledException)

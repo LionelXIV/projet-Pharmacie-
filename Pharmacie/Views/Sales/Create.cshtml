@@ -3,7 +3,13 @@
     var modificationId = ViewBag.ModificationSaleId as int?;
     ViewData["Title"] = modificationId.HasValue ? "Modifier la vente" : "Point de vente";
     var selectedVendeurId = ViewBag.SelectedVendeurId as int? ?? Model.VendeurId;
-    var peutModifierPrix = AppRoles.IsTitulaire(User) || User.IsInRole(AppRoles.Pharmacien);
+    var peutModifierPrix = ViewBag.PeutModifierPrix as bool? ?? (
+        AppRoles.IsTitulaire(User)
+        || User.IsInRole(AppRoles.Pharmacien)
+        || User.IsInRole(AppRoles.Vendeur)
+        || User.IsInRole(AppRoles.Caissier)
+        || User.IsInRole(AppRoles.AssistantPharmacien)
+        || User.IsInRole(AppRoles.Stagiaire));
     var paymentModes = new[]
     {
         new { Value = 0, Label = "Espèces", Icon = "bi-cash-coin", Color = "success" },
@@ -503,6 +509,48 @@
     </div>
 </div>
 
+<div class="modal fade" id="modal-raison-prix" tabindex="-1" aria-labelledby="modal-raison-prix-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="modal-raison-prix-title">
+                    <i class="bi bi-pencil me-2"></i>
+                    Modification de prix
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">
+                    Nouveau prix :
+                    <strong id="modal-nouveau-prix-label">—</strong>
+                </p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold" for="raison-prix">
+                        Raison de la modification
+                        <span class="text-danger">*</span>
+                    </label>
+                    <input type="text"
+                           id="raison-prix"
+                           class="form-control"
+                           placeholder="Ex: Remise client, promotion, erreur prix..."
+                           maxlength="200"
+                           required>
+                    <div class="form-text text-muted">
+                        Cette raison sera visible par le pharmacien titulaire.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="btn-annuler-raison-prix">Annuler</button>
+                <button type="button" class="btn btn-warning" id="btn-confirmer-raison-prix">
+                    <i class="bi bi-check-lg me-1"></i>
+                    Appliquer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
 (function () {
@@ -611,17 +659,90 @@
   };
 
   window.modifierPrixLigne = function (index, newPrice) {
-    var ancien = cart[index].unitPrice;
+    var ancien = cart[index].prixModifie
+      ? (cart[index].ancienPrix || cart[index].unitPrice)
+      : cart[index].unitPrice;
     var n = parseFloat(newPrice);
-    if (isNaN(n) || n < 0) n = ancien;
+    if (isNaN(n) || n < 0) n = cart[index].unitPrice;
+    if (n === cart[index].unitPrice && !cart[index].prixModifie) {
+      renderCart();
+      return;
+    }
+    if (n === ancien) {
+      cart[index].unitPrice = ancien;
+      cart[index].prixModifie = false;
+      cart[index].raisonPrixModifie = '';
+      renderCart();
+      updateSummary();
+      saveDraftPOS();
+      return;
+    }
+
+    pendingPrixIndex = index;
+    pendingPrixValue = n;
+    pendingPrixAncien = ancien;
+    var label = document.getElementById('modal-nouveau-prix-label');
+    if (label) label.textContent = formatFcfa(n);
+    var raisonInput = document.getElementById('raison-prix');
+    if (raisonInput) {
+      raisonInput.value = cart[index].raisonPrixModifie || '';
+      raisonInput.focus();
+    }
+    var modalEl = document.getElementById('modal-raison-prix');
+    if (modalEl && window.bootstrap) {
+      new bootstrap.Modal(modalEl).show();
+    } else {
+      var raison = window.prompt('Raison de la modification de prix (obligatoire) :', cart[index].raisonPrixModifie || '');
+      if (!raison || !raison.trim()) {
+        if (window.toastr) toastr.warning('Veuillez saisir une raison pour la modification de prix.');
+        renderCart();
+        return;
+      }
+      appliquerModificationPrix(index, n, ancien, raison.trim());
+    }
+  };
+
+  var pendingPrixIndex = null;
+  var pendingPrixValue = null;
+  var pendingPrixAncien = null;
+
+  function appliquerModificationPrix(index, n, ancien, raison) {
     if (!cart[index].prixModifie)
       cart[index].ancienPrix = ancien;
     cart[index].unitPrice = n;
     cart[index].prixModifie = true;
+    cart[index].raisonPrixModifie = raison;
     renderCart();
     updateSummary();
     saveDraftPOS();
-  };
+  }
+
+  document.getElementById('btn-confirmer-raison-prix')?.addEventListener('click', function () {
+    var raison = document.getElementById('raison-prix')?.value?.trim();
+    if (!raison) {
+      if (window.toastr) toastr.warning('Veuillez saisir une raison pour la modification de prix.');
+      else alert('Veuillez saisir une raison pour la modification de prix.');
+      return;
+    }
+    if (pendingPrixIndex == null) return;
+    appliquerModificationPrix(pendingPrixIndex, pendingPrixValue, pendingPrixAncien, raison);
+    var modalEl = document.getElementById('modal-raison-prix');
+    var instance = modalEl && bootstrap.Modal.getInstance(modalEl);
+    if (instance) instance.hide();
+    pendingPrixIndex = null;
+  });
+
+  document.getElementById('btn-annuler-raison-prix')?.addEventListener('click', function () {
+    pendingPrixIndex = null;
+    renderCart();
+  });
+
+  document.getElementById('modal-raison-prix')?.addEventListener('hidden.bs.modal', function () {
+    if (pendingPrixIndex != null) {
+      pendingPrixIndex = null;
+      renderCart();
+    }
+  });
 
   function getLineTotal(item) {
     var base = item.unitPrice * item.quantity;
@@ -786,6 +907,7 @@
         '<input type="hidden" name="Lines[' + i + '].UnitPrice" value="' + item.unitPrice + '">' +
         '<input type="hidden" name="Lines[' + i + '].PrixModifie" value="' + (item.prixModifie ? 'true' : 'false') + '">' +
         '<input type="hidden" name="Lines[' + i + '].AncienPrix" value="' + (item.ancienPrix || item.unitPrice) + '">' +
+        '<input type="hidden" name="Lines[' + i + '].RaisonPrixModifie" value="' + escapeHtml(item.raisonPrixModifie || '') + '">' +
         '<input type="hidden" name="Lines[' + i + '].DiscountPercent" value="' + dpVal + '">' +
         '<input type="hidden" name="Lines[' + i + '].DiscountAmount" value="' + daVal + '">' +
         '<input type="hidden" name="Lines[' + i + '].DiscountType" value="' + dtVal + '">';
@@ -1098,6 +1220,14 @@
       notifyError('Ajoutez au moins un produit.');
       return;
     }
+    var prixSansRaison = cart.find(function (item) {
+      return item.prixModifie && !(item.raisonPrixModifie && String(item.raisonPrixModifie).trim());
+    });
+    if (prixSansRaison) {
+      if (window.toastr) toastr.warning('Veuillez saisir une raison pour chaque modification de prix.');
+      else notifyError('Veuillez saisir une raison pour chaque modification de prix.');
+      return;
+    }
     if (paiementMode === 'fractionne') {
       var totalF = calculerTotal();
       var m1f = parseFloat(document.getElementById('montant-1').value) || 0;
@@ -1231,6 +1361,7 @@
       addHidden('Lines[' + i + '].UnitPrice', String(item.unitPrice || 0));
       addHidden('Lines[' + i + '].PrixModifie', item.prixModifie ? 'true' : 'false');
       addHidden('Lines[' + i + '].AncienPrix', String(item.ancienPrix || item.unitPrice || 0));
+      addHidden('Lines[' + i + '].RaisonPrixModifie', item.raisonPrixModifie || '');
       addHidden('Lines[' + i + '].DiscountPercent',
         item.discountType === 'percent' ? String(item.discountValue || 0) : '0');
       addHidden('Lines[' + i + '].DiscountAmount',
