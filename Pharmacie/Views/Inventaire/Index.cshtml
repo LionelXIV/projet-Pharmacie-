@@ -259,8 +259,6 @@
       }
 
       var scanCounts = {};
-      var scanBuffer = '';
-      var scanTimer = null;
       var lastScanCip = '';
       var lastScanAt = 0;
 
@@ -277,19 +275,6 @@
             }
           }
         });
-
-        scanInput.addEventListener('input', function () {
-          clearTimeout(scanTimer);
-          var val = this.value.trim();
-          var input = this;
-          if (/^\d{7,13}$/.test(val)) {
-            scanTimer = setTimeout(function () {
-              processScan(val);
-              input.value = '';
-              input.focus();
-            }, 100);
-          }
-        });
       }
 
       function processScan(cip) {
@@ -301,38 +286,69 @@
 
         var rows = document.querySelectorAll('.inventaire-row');
         var found = false;
+        var foundRow = null;
 
-        rows.forEach(function (row) {
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
           var rowCip = (row.dataset.cip || '').trim();
-          if (!rowCip) return;
+          if (!rowCip) continue;
+
           if (rowCip === cip || rowCip.endsWith(cip) || cip.endsWith(rowCip)) {
-            found = true;
-            if (!scanCounts[cip]) scanCounts[cip] = 0;
-            scanCounts[cip]++;
+            foundRow = row;
+            break;
+          }
+        }
 
-            var input = row.querySelector('.stock-physique');
-            if (input) {
-              var current = parseInt(input.value, 10) || 0;
-              input.value = current + 1;
-              calculerEcart(input);
-              row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              row.style.background = '#d4edda';
-              setTimeout(function () { row.style.background = ''; }, 1000);
-            }
+        if (foundRow) {
+          found = true;
+          var input = foundRow.querySelector('.stock-physique');
+          if (input) {
+            var current = parseInt(input.value, 10) || 0;
+            input.value = current + 1;
+            calculerEcart(input);
 
-            var nom = row.querySelector('td:first-child')?.textContent?.trim();
+            foundRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            foundRow.style.background = '#d4edda';
+            setTimeout(function () { foundRow.style.background = ''; }, 1000);
+
+            var nom = foundRow.querySelector('td:first-child')?.textContent?.trim();
             document.getElementById('scan-nom').textContent = nom || cip;
             document.getElementById('scan-cip').textContent = cip;
+
+            if (!scanCounts[cip]) scanCounts[cip] = 0;
+            scanCounts[cip]++;
             document.getElementById('scan-count').textContent = scanCounts[cip];
             document.getElementById('scan-result').style.display = 'block';
           }
-        });
+        }
 
         if (!found) {
-          if (window.toastr) toastr.warning('CIP ' + cip + ' non trouvé dans la liste.');
+          if (window.toastr) {
+            toastr.warning(
+              'Produit non trouvé pour le code : ' + cip +
+              '. Vérifiez que le produit est dans la liste ou ajoutez son CIP dans la fiche produit.',
+              'CIP non reconnu',
+              { timeOut: 5000 });
+          } else {
+            alert('CIP non reconnu : ' + cip);
+          }
           document.getElementById('scan-result').style.display = 'none';
         }
       }
+
+      var stockInputs = document.querySelectorAll('.stock-physique');
+      stockInputs.forEach(function (input, index) {
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            var next = stockInputs[index + 1];
+            if (next) {
+              next.focus();
+              next.select();
+            }
+          }
+        });
+      });
 
       var codeReader = null;
 
