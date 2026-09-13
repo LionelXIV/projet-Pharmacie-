@@ -2,7 +2,7 @@
 @using Microsoft.AspNetCore.Mvc.Rendering
 @using Pharmacie.Services
 @{
-    ViewData["Title"] = "Mouvements de stock";
+    ViewData["Title"] = "Historique des mouvements";
     var userLabels = ViewBag.UserLabels as Dictionary<string, string> ?? new Dictionary<string, string>();
     var typeList = ViewData["FilterType"] as SelectList;
     var userList = ViewData["FilterUserId"] as IEnumerable<SelectListItem>;
@@ -11,7 +11,7 @@
 <div class="page-header">
     <div class="d-flex flex-column flex-lg-row align-items-lg-start justify-content-lg-between gap-3">
         <div>
-            <h1 class="page-title">Mouvements de stock</h1>
+            <h1 class="page-title">Historique des mouvements</h1>
             <p class="page-lead mb-0">Entrées, sorties et ajustements. <strong>Responsable</strong> : utilisateur connecté lors de l’enregistrement.</p>
         </div>
         <div class="d-flex flex-wrap gap-2 flex-shrink-0">

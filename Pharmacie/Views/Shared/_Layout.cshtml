@@ -274,7 +274,7 @@
                             <a class="nav-link @(isReports && IsAction("SalesHistory") ? "active" : null)" asp-controller="Reports" asp-action="SalesHistory" aria-current="@(isReports && IsAction("SalesHistory") ? "page" : null)">
                                 <i class="bi bi-receipt" aria-hidden="true"></i>Historique ventes
                             </a>
-                            <a class="nav-link @(isReports && IsAction("StockMovementsHistory") ? "active" : null)" asp-controller="Reports" asp-action="StockMovementsHistory" aria-current="@(isReports && IsAction("StockMovementsHistory") ? "page" : null)">
+                            <a class="nav-link @(IsCtrl("StockMovements") ? "active" : null)" asp-controller="StockMovements" asp-action="Index" aria-current="@(IsCtrl("StockMovements") ? "page" : null)">
                                 <i class="bi bi-arrow-left-right" aria-hidden="true"></i>Historique mouvements
                             </a>
                         }
