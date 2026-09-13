@@ -53,12 +53,66 @@ public class ProductsController : Controller
 
         var categories = await _context.Categories.AsNoTracking().OrderBy(c => c.Name).ToListAsync();
         var suppliers = await _context.Suppliers.AsNoTracking().OrderBy(s => s.Name).ToListAsync();
+        ViewBag.Categories = await _context.Categories
+            .AsNoTracking()
+            .Where(c => !c.EstHorsSysteme)
+            .OrderBy(c => c.Name)
+            .ToListAsync();
         return View(new ProductIndexPageViewModel
         {
             Filter = filter,
             Products = list,
             CategoryLookup = categories,
             SupplierLookup = suppliers
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.PharmacienTitulaire + "," + AppRoles.Pharmacien + "," + AppRoles.Administrateur)]
+    public async Task<IActionResult> UpdateInline(int productId, string field, string value)
+    {
+        var product = await _context.Products
+            .Include(p => p.Category)
+            .FirstOrDefaultAsync(p => p.Id == productId);
+
+        if (product == null)
+            return Json(new { success = false, message = "Produit introuvable" });
+
+        string newDisplayValue;
+
+        switch (field)
+        {
+            case "category":
+                if (!int.TryParse(value, out var catId))
+                    return Json(new { success = false, message = "Catégorie invalide" });
+                var cat = await _context.Categories.FindAsync(catId);
+                if (cat == null)
+                    return Json(new { success = false, message = "Catégorie introuvable" });
+                product.CategoryId = catId;
+                newDisplayValue = cat.Name;
+                break;
+
+            case "price":
+                var normalized = (value ?? "").Trim().Replace(',', '.');
+                if (!decimal.TryParse(normalized, System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out var price) || price < 0)
+                    return Json(new { success = false, message = "Prix invalide" });
+                product.SalePrice = price;
+                newDisplayValue = ReportCsvFormatter.FormatFcfa(price);
+                break;
+
+            default:
+                return Json(new { success = false, message = "Champ inconnu" });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            newDisplayValue,
+            message = "Mis à jour."
         });
     }
 
@@ -159,7 +213,7 @@ public class ProductsController : Controller
             ProductType = ProductType.Inconnu,
             IsActive = true,
             StockQuantity = 0,
-            AlertThreshold = 0
+            AlertThreshold = 2
         };
 
         _context.Products.Add(product);
@@ -337,7 +391,7 @@ public class ProductsController : Controller
             SalePrice = prixUnite,
             PurchasePrice = Math.Round(parent.PurchasePrice / nbUnitesParBoite, 2),
             StockQuantity = 0,
-            AlertThreshold = 0,
+            AlertThreshold = 2,
             CategoryId = parent.CategoryId,
             SupplierId = parent.SupplierId,
             IsActive = true,

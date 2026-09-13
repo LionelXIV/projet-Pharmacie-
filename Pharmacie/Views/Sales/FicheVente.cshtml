@@ -163,6 +163,18 @@
                 return l.DiscountAmount;
             return 0m;
         });
+        var apresRemisesLigne = grandTotal;
+        var remiseGlobale = Model.RemiseGlobaleMontant;
+        var remiseGlobaleType = Model.RemiseGlobaleType ?? "percent";
+        var montantRemiseGlobale = remiseGlobale > 0
+            ? (remiseGlobaleType == "amount"
+                ? Math.Min(remiseGlobale, apresRemisesLigne)
+                : apresRemisesLigne * remiseGlobale / 100m)
+            : 0m;
+        var totalFinal = apresRemisesLigne - montantRemiseGlobale + Model.FraisWave;
+        var remiseGlobaleAffichee = remiseGlobaleType == "percent"
+            ? $"{remiseGlobale:N0}%"
+            : $"{remiseGlobale:N0} FCFA";
     }
 
     <div class="totaux">
@@ -174,13 +186,27 @@
             @if (totalRemise > 0)
             {
                 <tr>
-                    <td style="color:red">Remises</td>
+                    <td style="color:red">Remises lignes</td>
                     <td style="text-align:right;color:red">-@totalRemise.ToString("N0") F</td>
+                </tr>
+            }
+            @if (montantRemiseGlobale > 0)
+            {
+                <tr>
+                    <td style="color:red">Remise globale (@remiseGlobaleAffichee)</td>
+                    <td style="text-align:right;color:red">-@montantRemiseGlobale.ToString("N0") F</td>
+                </tr>
+            }
+            @if (Model.FraisWave > 0)
+            {
+                <tr>
+                    <td style="color:#f59e0b">Frais Wave (1%)</td>
+                    <td style="text-align:right;color:#f59e0b">+@Model.FraisWave.ToString("N0") F</td>
                 </tr>
             }
             <tr class="grand-total">
                 <td>TOTAL</td>
-                <td style="text-align:right">@grandTotal.ToString("N0") F</td>
+                <td style="text-align:right">@totalFinal.ToString("N0") F</td>
             </tr>
         </table>
     </div>

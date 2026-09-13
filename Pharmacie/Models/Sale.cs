@@ -75,5 +75,15 @@ public class Sale
 
     public int? VenteRemplaceeParId { get; set; }
 
+    /// <summary>Valeur de la remise globale (pourcentage ou montant FCFA selon RemiseGlobaleType).</summary>
+    public decimal RemiseGlobaleMontant { get; set; } = 0;
+
+    /// <summary>"percent" ou "amount".</summary>
+    [StringLength(20)]
+    public string RemiseGlobaleType { get; set; } = "percent";
+
+    /// <summary>Frais Wave 1 % (0 si autre moyen de paiement).</summary>
+    public decimal FraisWave { get; set; } = 0;
+
     public ICollection<SaleLine> Lines { get; set; } = new List<SaleLine>();
 }

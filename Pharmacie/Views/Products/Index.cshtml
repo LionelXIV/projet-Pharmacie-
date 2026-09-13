@@ -1,6 +1,10 @@
 @model ProductIndexPageViewModel
 @{
     ViewData["Title"] = "Produits";
+    var peutEditInline = AppRoles.IsTitulaire(User)
+        || User.IsInRole(AppRoles.Pharmacien);
+    var categoriesInline = ViewBag.Categories as IEnumerable<Category>
+        ?? Enumerable.Empty<Category>();
 
     string ProductTypeBadgeClass(ProductType type) => type switch
     {
@@ -247,15 +251,69 @@
                                 </div>
                             }
                         </td>
-                        <td class="d-none d-lg-table-cell">@item.Category?.Name</td>
+                        <td class="d-none d-lg-table-cell">
+                            @if (peutEditInline)
+                            {
+                                <span class="editable-cell"
+                                      data-field="category"
+                                      data-product-id="@item.Id"
+                                      data-current="@item.CategoryId"
+                                      onclick="startEdit(this)">@(item.Category?.Name ?? "—")</span>
+                                <select class="form-select form-select-sm edit-input d-none"
+                                        data-field="category"
+                                        data-product-id="@item.Id"
+                                        onchange="saveEdit(this)">
+                                    @foreach (var cat in categoriesInline)
+                                    {
+                                        if (cat.Id == item.CategoryId)
+                                        {
+                                            <option value="@cat.Id" selected>@cat.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@cat.Id">@cat.Name</option>
+                                        }
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                @(item.Category?.Name ?? "—")
+                            }
+                        </td>
                         <td class="font-monospace small text-muted d-none d-xl-table-cell">@(string.IsNullOrWhiteSpace(item.Cip) ? "—" : item.Cip)</td>
                         <td class="text-end text-nowrap">
-                            <div>@ReportCsvFormatter.FormatFcfa(item.SalePrice)</div>
-                            @if (item.EstVenteDetail && item.ChildProducts.Any())
+                            @if (peutEditInline)
                             {
-                                <div class="text-muted small">
-                                    @item.ChildProducts.OrderBy(c => c.Id).First().SalePrice.ToString("N0") F/tab
-                                </div>
+                                <span class="editable-cell"
+                                      data-field="price"
+                                      data-product-id="@item.Id"
+                                      onclick="startEdit(this)">@ReportCsvFormatter.FormatFcfa(item.SalePrice)</span>
+                                <input type="number"
+                                       class="form-control form-control-sm edit-input d-none text-end"
+                                       data-field="price"
+                                       data-product-id="@item.Id"
+                                       value="@item.SalePrice.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                       min="0"
+                                       step="1"
+                                       onblur="saveEdit(this)"
+                                       onkeydown="if(event.key==='Enter'){event.preventDefault();saveEdit(this);}if(event.key==='Escape')cancelEdit(this)" />
+                                @if (item.EstVenteDetail && item.ChildProducts.Any())
+                                {
+                                    <div class="text-muted small">
+                                        @item.ChildProducts.OrderBy(c => c.Id).First().SalePrice.ToString("N0") F/tab
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div>@ReportCsvFormatter.FormatFcfa(item.SalePrice)</div>
+                                @if (item.EstVenteDetail && item.ChildProducts.Any())
+                                {
+                                    <div class="text-muted small">
+                                        @item.ChildProducts.OrderBy(c => c.Id).First().SalePrice.ToString("N0") F/tab
+                                    </div>
+                                }
                             }
                         </td>
                         <td class="text-end d-none d-lg-table-cell">
@@ -339,11 +397,84 @@
 }
 
 @section Scripts {
+    <style>
+        .editable-cell {
+            cursor: pointer;
+            border-bottom: 1px dashed #aaa;
+            display: inline-block;
+            min-width: 3rem;
+            padding: 0.1rem 0.25rem;
+        }
+        .editable-cell:hover {
+            background: #f8f9fa;
+            border-radius: 3px;
+        }
+    </style>
     <script>
       document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
           new bootstrap.Tooltip(el);
         });
       });
+
+      function startEdit(span) {
+        var input = span.nextElementSibling;
+        if (!input || !input.classList.contains('edit-input')) return;
+        span.classList.add('d-none');
+        input.classList.remove('d-none');
+        input.focus();
+        if (input.tagName === 'INPUT') input.select();
+      }
+
+      function cancelEdit(input) {
+        var span = input.previousElementSibling;
+        if (!span) return;
+        input.classList.add('d-none');
+        span.classList.remove('d-none');
+      }
+
+      var _savingInline = false;
+      async function saveEdit(input) {
+        if (_savingInline) return;
+        var productId = input.dataset.productId;
+        var field = input.dataset.field;
+        var value = input.value;
+        if (value === '' || value == null) {
+          cancelEdit(input);
+          return;
+        }
+
+        _savingInline = true;
+        try {
+          var formData = new FormData();
+          formData.append('productId', productId);
+          formData.append('field', field);
+          formData.append('value', value);
+          formData.append('__RequestVerificationToken',
+            document.querySelector('input[name="__RequestVerificationToken"]')?.value || '');
+
+          var response = await fetch('@Url.Action("UpdateInline", "Products")', {
+            method: 'POST',
+            body: formData
+          });
+          var data = await response.json();
+          if (data.success) {
+            var span = input.previousElementSibling;
+            span.textContent = data.newDisplayValue;
+            if (field === 'category') span.dataset.current = value;
+            input.classList.add('d-none');
+            span.classList.remove('d-none');
+            if (window.toastr) toastr.success(data.message || 'Mis à jour.');
+          } else {
+            if (window.toastr) toastr.error(data.message || 'Erreur.');
+            cancelEdit(input);
+          }
+        } catch (e) {
+          if (window.toastr) toastr.error('Erreur réseau.');
+          cancelEdit(input);
+        } finally {
+          _savingInline = false;
+        }
+      }
     </script>
 }

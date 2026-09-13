@@ -397,6 +397,13 @@ public class SalesController : Controller
                             ? model.PaymentMethodAutre?.Trim()
                             : null;
 
+                        sale.RemiseGlobaleType = string.Equals(model.RemiseGlobaleType, "amount", StringComparison.OrdinalIgnoreCase)
+                            ? "amount"
+                            : "percent";
+                        sale.RemiseGlobaleMontant = model.RemiseGlobaleMontant < 0 ? 0 : model.RemiseGlobaleMontant;
+                        if (sale.RemiseGlobaleType == "percent" && sale.RemiseGlobaleMontant > 100)
+                            sale.RemiseGlobaleMontant = 100;
+
                         // Appliquer les remises par ligne (hors SaleService)
                         var orderedSaleLines = sale.Lines.OrderBy(l => l.Id).ToList();
                         for (var i = 0; i < slots.Count && i < orderedSaleLines.Count; i++)
@@ -452,6 +459,23 @@ public class SalesController : Controller
                             }
                         }
 
+                        if (model.PaymentMethod == PaymentMethod.Wave)
+                        {
+                            var baseWave = sale.Lines.Sum(CaisseService.LineTotal);
+                            if (sale.RemiseGlobaleMontant > 0)
+                            {
+                                if (sale.RemiseGlobaleType == "amount")
+                                    baseWave = Math.Max(0, baseWave - sale.RemiseGlobaleMontant);
+                                else
+                                    baseWave = Math.Max(0, baseWave - baseWave * sale.RemiseGlobaleMontant / 100m);
+                            }
+                            sale.FraisWave = Math.Round(baseWave * 0.01m, 0, MidpointRounding.AwayFromZero);
+                        }
+                        else
+                        {
+                            sale.FraisWave = 0;
+                        }
+
                         if (model.VenteOriginaleId is int origId)
                         {
                             sale.VenteOriginaleId = origId;
@@ -460,7 +484,7 @@ public class SalesController : Controller
                                 orig.IsModifiee = true;
                         }
 
-                        var totalVente = sale.Lines.Sum(CaisseService.LineTotal);
+                        var totalVente = ComputePayableTotal(sale);
 
                         if (model.PaiementFractionne)
                         {
@@ -905,11 +929,42 @@ public class SalesController : Controller
         || User.IsInRole(AppRoles.AssistantPharmacien)
         || User.IsInRole(AppRoles.Stagiaire);
 
+    private static decimal ComputePayableTotal(Sale sale)
+    {
+        var sub = sale.Lines.Sum(CaisseService.LineTotal);
+        if (sale.RemiseGlobaleMontant > 0)
+        {
+            if (string.Equals(sale.RemiseGlobaleType, "amount", StringComparison.OrdinalIgnoreCase))
+                sub = Math.Max(0, sub - sale.RemiseGlobaleMontant);
+            else
+                sub = Math.Max(0, sub - sub * sale.RemiseGlobaleMontant / 100m);
+        }
+
+        return sub + sale.FraisWave;
+    }
+
     private void ValiderPaiementFractionne(SaleCreateViewModel model, List<SaleLineSlotViewModel> slots)
     {
         var totalVente = slots
             .Where(l => l.ProductId > 0 && l.Quantity > 0)
             .Sum(SlotLineTotal);
+
+        var remiseType = string.Equals(model.RemiseGlobaleType, "amount", StringComparison.OrdinalIgnoreCase)
+            ? "amount"
+            : "percent";
+        var remiseVal = model.RemiseGlobaleMontant < 0 ? 0 : model.RemiseGlobaleMontant;
+        if (remiseType == "percent" && remiseVal > 100)
+            remiseVal = 100;
+        if (remiseVal > 0)
+        {
+            if (remiseType == "amount")
+                totalVente = Math.Max(0, totalVente - remiseVal);
+            else
+                totalVente = Math.Max(0, totalVente - totalVente * remiseVal / 100m);
+        }
+
+        if (model.PaymentMethod == PaymentMethod.Wave)
+            totalVente += Math.Round(totalVente * 0.01m, 0, MidpointRounding.AwayFromZero);
 
         var m1 = model.MontantPaiement1;
         var m2 = model.MontantPaiement2;

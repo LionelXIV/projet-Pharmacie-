@@ -211,17 +211,35 @@
                     <span id="summary-subtotal">0 FCFA</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted">Remise globale</span>
-                    <div class="input-group input-group-sm" style="width:120px">
+                    <span class="text-muted fw-bold">Remise globale</span>
+                    <div class="d-flex gap-1 align-items-center">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Type de remise">
+                            <button type="button" id="btn-remise-pct" class="btn btn-primary btn-sm"
+                                    onclick="setRemiseType('percent')">%</button>
+                            <button type="button" id="btn-remise-fcfa" class="btn btn-outline-primary btn-sm"
+                                    onclick="setRemiseType('amount')">FCFA</button>
+                        </div>
                         <input type="number"
                                id="remise-globale"
-                               class="form-control text-end"
-                               min="0" max="100" value="0" step="0.5"
-                               aria-label="Remise globale en pourcentage">
-                        <span class="input-group-text">%</span>
+                               class="form-control form-control-sm text-end"
+                               style="width:100px"
+                               min="0"
+                               value="0"
+                               step="1"
+                               placeholder="0"
+                               aria-label="Remise globale"
+                               oninput="updateSummary()">
+                        <span id="remise-globale-suffix" class="text-muted small">%</span>
                     </div>
                 </div>
-                <p class="small text-muted mb-2">La remise est indicative (non enregistrée sur le ticket).</p>
+                <div id="frais-wave-row"
+                     class="d-flex justify-content-between align-items-center mb-1"
+                     style="display:none">
+                    <span class="text-muted small">
+                        <i class="bi bi-phone me-1"></i>Frais Wave (1%)
+                    </span>
+                    <span id="frais-wave-montant" class="text-warning fw-bold"></span>
+                </div>
                 <hr>
                 <div class="d-flex justify-content-between">
                     <span class="fw-bold fs-5">TOTAL</span>
@@ -559,6 +577,8 @@
   var peutModifierPrix = @(peutModifierPrix ? "true" : "false");
   var cart = [];
   var isModification = @(modificationId.HasValue ? "true" : "false");
+  var prixPersonnalises = {};
+  var remiseGlobaleType = 'percent';
   var DRAFT_KEY_POS = 'draft_pos_cart';
   var searchTimer = null;
   var selectedPayment = @((int)Model.PaymentMethod);
@@ -624,13 +644,20 @@
     if (existing) {
       existing.quantity += 1;
     } else {
+      var catalogPrice = parseFloat(product.salePrice) || 0;
+      var prix = (prixPersonnalises[id] !== undefined)
+        ? prixPersonnalises[id]
+        : catalogPrice;
       cart.push({
         productId: id,
         productName: product.text,
-        unitPrice: parseFloat(product.salePrice) || 0,
+        unitPrice: prix,
         quantity: 1,
         discountValue: 0,
-        discountType: 'percent'
+        discountType: 'percent',
+        prixModifie: prixPersonnalises[id] !== undefined,
+        ancienPrix: catalogPrice,
+        raisonPrixModifie: prixPersonnalises[id] !== undefined ? 'Prix mémorisé (même vente)' : ''
       });
     }
     renderCart();
@@ -672,6 +699,7 @@
       cart[index].unitPrice = ancien;
       cart[index].prixModifie = false;
       cart[index].raisonPrixModifie = '';
+      delete prixPersonnalises[cart[index].productId];
       renderCart();
       updateSummary();
       saveDraftPOS();
@@ -712,9 +740,34 @@
     cart[index].unitPrice = n;
     cart[index].prixModifie = true;
     cart[index].raisonPrixModifie = raison;
+    onPrixModifie(cart[index].productId, n);
     renderCart();
     updateSummary();
     saveDraftPOS();
+  }
+
+  function onPrixModifie(productId, nouveauPrix) {
+    prixPersonnalises[productId] = nouveauPrix;
+  }
+
+  function setRemiseType(type) {
+    remiseGlobaleType = type;
+    var suffix = document.getElementById('remise-globale-suffix');
+    var btnPct = document.getElementById('btn-remise-pct');
+    var btnFcfa = document.getElementById('btn-remise-fcfa');
+    var input = document.getElementById('remise-globale');
+    if (type === 'percent') {
+      if (suffix) suffix.textContent = '%';
+      if (btnPct) { btnPct.classList.remove('btn-outline-primary'); btnPct.classList.add('btn-primary'); }
+      if (btnFcfa) { btnFcfa.classList.remove('btn-primary'); btnFcfa.classList.add('btn-outline-primary'); }
+      if (input) input.max = '100';
+    } else {
+      if (suffix) suffix.textContent = 'FCFA';
+      if (btnPct) { btnPct.classList.remove('btn-primary'); btnPct.classList.add('btn-outline-primary'); }
+      if (btnFcfa) { btnFcfa.classList.remove('btn-outline-primary'); btnFcfa.classList.add('btn-primary'); }
+      if (input) input.removeAttribute('max');
+    }
+    updateSummary();
   }
 
   document.getElementById('btn-confirmer-raison-prix')?.addEventListener('click', function () {
@@ -915,12 +968,36 @@
   }
 
   function updateSummary() {
-    var remise = parseFloat(document.getElementById('remise-globale').value) || 0;
+    var remiseVal = parseFloat(document.getElementById('remise-globale').value) || 0;
     var subtotal = cart.reduce(function (sum, item) {
       return sum + getLineTotal(item);
     }, 0);
-    var discount = subtotal * remise / 100;
+
+    var discount = 0;
+    if (remiseGlobaleType === 'percent') {
+      discount = subtotal * remiseVal / 100;
+    } else {
+      discount = Math.min(remiseVal, subtotal);
+    }
+
     var total = subtotal - discount;
+
+    var fraisWave = 0;
+    if (selectedPayment === 1) {
+      fraisWave = Math.round(total * 0.01);
+      total += fraisWave;
+    }
+
+    var fraisWaveRow = document.getElementById('frais-wave-row');
+    if (fraisWaveRow) {
+      if (fraisWave > 0) {
+        fraisWaveRow.style.display = 'flex';
+        var fwEl = document.getElementById('frais-wave-montant');
+        if (fwEl) fwEl.textContent = formatFcfa(fraisWave);
+      } else {
+        fraisWaveRow.style.display = 'none';
+      }
+    }
 
     var articleCount = cart.reduce(function (s, i) { return s + i.quantity; }, 0);
     document.getElementById('summary-count').textContent = String(articleCount);
@@ -1202,6 +1279,7 @@
           autreSection.classList.add('d-none');
         }
       }
+      updateSummary();
     });
   });
 
@@ -1353,6 +1431,8 @@
     addHidden('MontantPaiement1', document.getElementById('field-montant-paiement-1')?.value || '0');
     addHidden('MontantPaiement2', document.getElementById('field-montant-paiement-2')?.value || '0');
     addHidden('VenteOriginaleId', '@(modificationId?.ToString() ?? "")');
+    addHidden('RemiseGlobaleMontant', document.getElementById('remise-globale')?.value || '0');
+    addHidden('RemiseGlobaleType', remiseGlobaleType || 'percent');
 
     // Lignes du panier
     cart.forEach(function (item, i) {

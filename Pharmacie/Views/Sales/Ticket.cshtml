@@ -199,10 +199,39 @@
 
     <div class="separator"></div>
 
+    @{
+        var sousTotalApresLignes = total;
+        var remiseGlobale = Model.RemiseGlobaleMontant;
+        var remiseGlobaleType = Model.RemiseGlobaleType ?? "percent";
+        var montantRemiseGlobale = remiseGlobale > 0
+            ? (remiseGlobaleType == "amount"
+                ? Math.Min(remiseGlobale, sousTotalApresLignes)
+                : sousTotalApresLignes * remiseGlobale / 100m)
+            : 0m;
+        var totalFinal = sousTotalApresLignes - montantRemiseGlobale + Model.FraisWave;
+        var remiseGlobaleAffichee = remiseGlobaleType == "percent"
+            ? $"{remiseGlobale:N0}%"
+            : $"{remiseGlobale:N0} FCFA";
+    }
+
     <div class="total-section">
+        @if (montantRemiseGlobale > 0)
+        {
+            <div class="total-row" style="color:#cc0000;">
+                <span>Remise globale (@remiseGlobaleAffichee)</span>
+                <span>-@montantRemiseGlobale.ToString("N0") FCFA</span>
+            </div>
+        }
+        @if (Model.FraisWave > 0)
+        {
+            <div class="total-row" style="color:#f59e0b;">
+                <span>Frais Wave (1%)</span>
+                <span>+@Model.FraisWave.ToString("N0") FCFA</span>
+            </div>
+        }
         <div class="total-row">
             <span>TOTAL</span>
-            <span>@total.ToString("N0") FCFA</span>
+            <span>@totalFinal.ToString("N0") FCFA</span>
         </div>
         @if (Model.PaiementFractionne)
         {
@@ -231,7 +260,7 @@
         {
             <div class="info-row">
                 <span>Total à payer</span>
-                <span>@total.ToString("N0") F</span>
+                <span>@totalFinal.ToString("N0") F</span>
             </div>
             <div class="info-row">
                 <span>Montant encaissé</span>

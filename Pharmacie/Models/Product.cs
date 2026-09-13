@@ -54,7 +54,7 @@ public class Product
 
     [Display(Name = "Seuil d'alerte")]
     [Range(0, int.MaxValue)]
-    public int AlertThreshold { get; set; }
+    public int AlertThreshold { get; set; } = 2;
 
     /// <summary>Plafond de stock souhaité (0 = non renseigné). Qté à commander = Max − stock actuel.</summary>
     [Display(Name = "Stock maximum")]

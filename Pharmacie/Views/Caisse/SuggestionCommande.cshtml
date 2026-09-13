@@ -1,138 +1,193 @@
-@model List<SuggestionCommandeItem>
 @{
     ViewData["Title"] = "Suggestion de commande";
     var sessionId = ViewBag.SessionId as int? ?? 0;
-    var nbProduits = ViewBag.NbProduits as int? ?? Model.Count;
-    var nbRuptures = ViewBag.NbRuptures as int? ?? Model.Count(p => p.Statut == "Rupture");
-    var groupes = ViewBag.ParFournisseur as List<SuggestionFournisseurGroupe>
-        ?? Model.GroupBy(p => new { p.SupplierId, p.SupplierName })
-            .Select(g => new SuggestionFournisseurGroupe
-            {
-                SupplierId = g.Key.SupplierId,
-                SupplierName = g.Key.SupplierName ?? "Non défini",
-                Items = g.ToList()
-            })
-            .ToList();
-    var idx = 0;
+    var produitsVendus = ViewBag.ProduitsVendus as List<Pharmacie.Models.ViewModels.SuggestionItem>
+        ?? new List<Pharmacie.Models.ViewModels.SuggestionItem>();
+    var ruptures = ViewBag.Ruptures as List<Pharmacie.Models.ViewModels.SuggestionItem>
+        ?? new List<Pharmacie.Models.ViewModels.SuggestionItem>();
+    var stockFaible = ViewBag.StockFaible as List<Pharmacie.Models.ViewModels.SuggestionItem>
+        ?? new List<Pharmacie.Models.ViewModels.SuggestionItem>();
 }
 
 @await Html.PartialAsync("_BackButton")
 
+<style>
+    @@media print {
+        .btn, form, .card-footer, .no-print {
+            display: none !important;
+        }
+        .card {
+            border: 1px solid #000 !important;
+            break-inside: avoid;
+        }
+    }
+</style>
+
 <div class="page-header mb-3">
     <h1 class="page-title">Suggestion de commande après fermeture de caisse</h1>
     <p class="page-lead mb-0">
-        @nbProduits produit(s) à commander dont <strong>@nbRuptures</strong> rupture(s).
-        Cochez les lignes d’un seul fournisseur puis créez la commande.
+        Trois listes : produits vendus pendant la session, ruptures, et stock faible.
     </p>
 </div>
 
 @if (TempData["Error"] is string err)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <div class="alert alert-danger alert-dismissible fade show no-print" role="alert">
         @err
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
     </div>
 }
 
-@if (nbProduits == 0)
-{
-    <div class="alert alert-success">
-        Aucun produit sous le seuil d’alerte. Le stock est à jour.
-    </div>
-    <a class="btn btn-primary" asp-action="Rapport" asp-route-id="@sessionId">
-        Voir le rapport de caisse
+<div class="d-flex flex-wrap gap-2 mb-3 no-print">
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>Imprimer
+    </button>
+    <a asp-controller="PanierCommande" asp-action="Index" class="btn btn-success btn-sm">
+        <i class="bi bi-cart3 me-1"></i>Préparer la commande
     </a>
-}
-else
-{
-    <form asp-action="CreateFromSuggestion" method="post">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="sessionId" value="@sessionId" />
+    <a asp-controller="Caisse" asp-action="Rapport" asp-route-id="@sessionId"
+       class="btn btn-outline-primary btn-sm ms-auto">
+        Voir le rapport
+    </a>
+</div>
 
-        @foreach (var groupe in groupes)
-        {
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-header bg-white py-3 border-bottom fw-semibold d-flex justify-content-between align-items-center">
-                    <span>
-                        <i class="bi bi-truck text-primary me-1"></i>
-                        @(string.IsNullOrWhiteSpace(groupe.SupplierName) ? "Non défini" : groupe.SupplierName)
-                    </span>
-                    <span class="badge text-bg-secondary">@groupe.Items.Count produit(s)</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width:2.5rem"></th>
-                                <th>Produit</th>
-                                <th class="text-center">Stock actuel</th>
-                                <th class="text-center">Seuil</th>
-                                <th class="text-center" style="width:8rem">Qté conseillée</th>
-                                <th>Statut</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in groupe.Items)
+<div class="row g-2">
+    <div class="col-md-4">
+        <div class="card border-primary h-100">
+            <div class="card-header bg-primary text-white py-2">
+                <i class="bi bi-cart-check me-1"></i>
+                Vendus aujourd'hui
+                <span class="badge bg-white text-primary ms-1">@produitsVendus.Count</span>
+            </div>
+            <div class="card-body p-0" style="max-height:400px;overflow-y:auto">
+                <table class="table table-sm mb-0">
+                    <thead class="sticky-top bg-white">
+                        <tr>
+                            <th>Produit</th>
+                            <th class="text-center">Stock</th>
+                            <th class="text-center">Vendu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (produitsVendus.Count == 0)
+                        {
+                            <tr><td colspan="3" class="text-muted small text-center py-3">Aucune vente liée à cette session.</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var p in produitsVendus)
                             {
                                 <tr>
+                                    <td class="small">@p.Nom</td>
                                     <td class="text-center">
-                                        <input type="hidden" name="items[@idx].ProductId" value="@item.ProductId" />
-                                        <input type="hidden" name="items[@idx].ProductName" value="@item.ProductName" />
-                                        <input type="hidden" name="items[@idx].SupplierId" value="@item.SupplierId" />
-                                        <input type="hidden" name="items[@idx].SupplierName" value="@item.SupplierName" />
-                                        <input type="hidden" name="items[@idx].Selectionne" value="false" />
-                                        <input class="form-check-input" type="checkbox" name="items[@idx].Selectionne" value="true" checked />
-                                    </td>
-                                    <td>@item.ProductName</td>
-                                    <td class="text-center">
-                                        <span class="badge @(item.StockActuel <= 0 ? "bg-danger" : "bg-warning text-dark")">
-                                            @item.StockActuel
+                                        <span class="badge @(p.StockActuel <= 0 ? "bg-danger" : p.StockActuel <= p.Seuil ? "bg-warning text-dark" : "bg-success")">
+                                            @p.StockActuel
                                         </span>
                                     </td>
-                                    <td class="text-center">@item.StockMinimum</td>
-                                    <td>
-                                        <input type="number"
-                                               name="items[@idx].QuantiteConseillee"
-                                               class="form-control form-control-sm text-center"
-                                               min="1"
-                                               value="@item.QuantiteConseillee" />
-                                    </td>
-                                    <td>
-                                        @if (item.Statut == "Rupture")
-                                        {
-                                            <span class="badge bg-danger">Rupture</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-warning text-dark">Stock faible</span>
-                                        }
-                                    </td>
+                                    <td class="text-center fw-bold">@p.QteVendue</td>
                                 </tr>
-                                idx++;
                             }
-                        </tbody>
-                    </table>
-                </div>
+                        }
+                    </tbody>
+                </table>
             </div>
-        }
-
-    </form>
-
-        <div class="d-flex flex-wrap gap-2">
-            <form asp-controller="PanierCommande" asp-action="AjouterSuggestions" method="post">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="source" value="Rupture">
-                <button type="submit" class="btn btn-warning">
-                    <i class="bi bi-cart-plus me-1"></i>
-                    Ajouter au panier
-                </button>
-            </form>
-            <a asp-controller="PanierCommande" asp-action="Index" class="btn btn-success">
-                <i class="bi bi-cart3 me-1"></i>
-                Voir le panier
-            </a>
-            <a class="btn btn-outline-secondary" asp-action="Rapport" asp-route-id="@sessionId">
-                Ignorer et voir le rapport
-            </a>
+            <div class="card-footer py-1">
+                <form asp-controller="PanierCommande" asp-action="AjouterSuggestions" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="source" value="TopVente" />
+                    <button type="submit" class="btn btn-sm btn-primary w-100">Ajouter au panier</button>
+                </form>
+            </div>
         </div>
-}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-danger h-100">
+            <div class="card-header bg-danger text-white py-2">
+                <i class="bi bi-x-circle me-1"></i>
+                Ruptures
+                <span class="badge bg-white text-danger ms-1">@ruptures.Count</span>
+            </div>
+            <div class="card-body p-0" style="max-height:400px;overflow-y:auto">
+                <table class="table table-sm mb-0">
+                    <thead class="sticky-top bg-white">
+                        <tr>
+                            <th>Produit</th>
+                            <th>Fournisseur</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (ruptures.Count == 0)
+                        {
+                            <tr><td colspan="2" class="text-muted small text-center py-3">Aucune rupture.</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var p in ruptures)
+                            {
+                                <tr>
+                                    <td class="small fw-bold text-danger">@p.Nom</td>
+                                    <td class="small text-muted">@p.Fournisseur</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer py-1">
+                <form asp-controller="PanierCommande" asp-action="AjouterSuggestions" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="source" value="Rupture" />
+                    <button type="submit" class="btn btn-sm btn-danger w-100">Ajouter au panier</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-warning h-100">
+            <div class="card-header bg-warning text-dark py-2">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Stock faible
+                <span class="badge bg-dark text-warning ms-1">@stockFaible.Count</span>
+            </div>
+            <div class="card-body p-0" style="max-height:400px;overflow-y:auto">
+                <table class="table table-sm mb-0">
+                    <thead class="sticky-top bg-white">
+                        <tr>
+                            <th>Produit</th>
+                            <th class="text-center">Stock</th>
+                            <th class="text-center">Seuil</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (stockFaible.Count == 0)
+                        {
+                            <tr><td colspan="3" class="text-muted small text-center py-3">Aucun stock faible.</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var p in stockFaible)
+                            {
+                                <tr>
+                                    <td class="small">@p.Nom</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning text-dark">@p.StockActuel</span>
+                                    </td>
+                                    <td class="text-center text-muted">@p.Seuil</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer py-1">
+                <form asp-controller="PanierCommande" asp-action="AjouterSuggestions" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="source" value="StockFaible" />
+                    <button type="submit" class="btn btn-sm btn-warning text-dark w-100">Ajouter au panier</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

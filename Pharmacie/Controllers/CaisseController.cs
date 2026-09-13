@@ -193,47 +193,96 @@ public class CaisseController : Controller
         if (session == null)
             return NotFound();
 
-        var produitsACommander = await _context.Products
+        var ventesSession = await _context.VenteCaisses
+            .AsNoTracking()
+            .Include(vc => vc.Sale!)
+                .ThenInclude(s => s.Lines)
+                    .ThenInclude(l => l.Product!)
+                        .ThenInclude(p => p.Supplier)
+            .Where(vc =>
+                vc.SessionCaisseId == sessionId
+                && vc.Sale != null
+                && !vc.Sale.IsAnnulee
+                && !vc.Sale.IsAdminTest)
+            .ToListAsync();
+
+        var produitsVendus = ventesSession
+            .Where(vc => vc.Sale != null)
+            .SelectMany(vc => vc.Sale!.Lines)
+            .Where(l => l.Product != null)
+            .GroupBy(l => new
+            {
+                l.ProductId,
+                l.Product!.CommercialName,
+                l.Product.StockQuantity,
+                l.Product.AlertThreshold,
+                SupplierName = l.Product.Supplier?.Name ?? "Sans fournisseur"
+            })
+            .Select(g => new Pharmacie.Models.ViewModels.SuggestionItem
+            {
+                ProductId = g.Key.ProductId,
+                Nom = g.Key.CommercialName,
+                StockActuel = g.Key.StockQuantity,
+                Seuil = g.Key.AlertThreshold,
+                QteVendue = g.Sum(l => l.Quantity),
+                Fournisseur = g.Key.SupplierName,
+                Source = "VenduAujourdhui"
+            })
+            .OrderByDescending(x => x.QteVendue)
+            .ToList();
+
+        var ruptures = await _context.Products
             .AsNoTracking()
             .Include(p => p.Supplier)
             .Include(p => p.Category)
             .Where(p =>
                 p.IsActive
-                && p.StockQuantity <= p.AlertThreshold
+                && p.StockQuantity <= 0
                 && (p.Category == null || !p.Category.EstHorsSysteme))
-            .OrderBy(p => p.StockQuantity <= 0 ? 0 : 1)
-            .ThenBy(p => p.CommercialName)
-            .Select(p => new SuggestionCommandeItem
+            .OrderBy(p => p.CommercialName)
+            .Select(p => new Pharmacie.Models.ViewModels.SuggestionItem
             {
                 ProductId = p.Id,
-                ProductName = p.CommercialName,
+                Nom = p.CommercialName,
                 StockActuel = p.StockQuantity,
-                StockMinimum = p.AlertThreshold,
-                QuantiteConseillee = Math.Max(p.AlertThreshold * 2 - p.StockQuantity, 1),
-                SupplierId = p.SupplierId,
-                SupplierName = p.Supplier != null ? p.Supplier.Name : "Non défini",
-                Statut = p.StockQuantity <= 0 ? "Rupture" : "Stock faible",
-                Selectionne = true
+                Seuil = p.AlertThreshold,
+                QteVendue = 0,
+                Fournisseur = p.Supplier != null ? p.Supplier.Name : "Sans fournisseur",
+                Source = "Rupture"
             })
             .ToListAsync();
 
-        var parFournisseur = produitsACommander
-            .GroupBy(p => new { p.SupplierId, p.SupplierName })
-            .OrderBy(g => g.Key.SupplierName)
-            .Select(g => new SuggestionFournisseurGroupe
+        var stockFaible = await _context.Products
+            .AsNoTracking()
+            .Include(p => p.Supplier)
+            .Include(p => p.Category)
+            .Where(p =>
+                p.IsActive
+                && p.StockQuantity > 0
+                && p.AlertThreshold > 0
+                && p.StockQuantity <= p.AlertThreshold
+                && (p.Category == null || !p.Category.EstHorsSysteme))
+            .OrderBy(p => p.StockQuantity)
+            .Select(p => new Pharmacie.Models.ViewModels.SuggestionItem
             {
-                SupplierId = g.Key.SupplierId,
-                SupplierName = g.Key.SupplierName ?? "Non défini",
-                Items = g.ToList()
+                ProductId = p.Id,
+                Nom = p.CommercialName,
+                StockActuel = p.StockQuantity,
+                Seuil = p.AlertThreshold,
+                QteVendue = 0,
+                Fournisseur = p.Supplier != null ? p.Supplier.Name : "Sans fournisseur",
+                Source = "StockFaible"
             })
-            .ToList();
+            .ToListAsync();
 
+        ViewBag.ProduitsVendus = produitsVendus;
+        ViewBag.Ruptures = ruptures;
+        ViewBag.StockFaible = stockFaible;
         ViewBag.SessionId = sessionId;
-        ViewBag.ParFournisseur = parFournisseur;
-        ViewBag.NbProduits = produitsACommander.Count;
-        ViewBag.NbRuptures = produitsACommander.Count(p => p.Statut == "Rupture");
+        ViewBag.NbProduits = produitsVendus.Count + ruptures.Count + stockFaible.Count;
+        ViewBag.NbRuptures = ruptures.Count;
 
-        return View(produitsACommander);
+        return View();
     }
 
     [HttpPost]

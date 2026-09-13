@@ -43,6 +43,13 @@ public class SaleCreateViewModel
     [Display(Name = "Vendeur")]
     public int? VendeurId { get; set; }
 
+    /// <summary>Valeur saisie ( % ou FCFA selon RemiseGlobaleType ).</summary>
+    public decimal RemiseGlobaleMontant { get; set; }
+
+    /// <summary>"percent" ou "amount".</summary>
+    [StringLength(20)]
+    public string? RemiseGlobaleType { get; set; } = "percent";
+
     public List<SaleLineSlotViewModel> Lines { get; set; } = new() { new SaleLineSlotViewModel() };
 }
 
