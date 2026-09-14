@@ -210,26 +210,38 @@
                     <span class="text-muted">Sous-total</span>
                     <span id="summary-subtotal">0 FCFA</span>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted fw-bold">Remise globale</span>
-                    <div class="d-flex gap-1 align-items-center">
-                        <div class="btn-group btn-group-sm" role="group" aria-label="Type de remise">
-                            <button type="button" id="btn-remise-pct" class="btn btn-primary btn-sm"
-                                    onclick="setRemiseType('percent')">%</button>
-                            <button type="button" id="btn-remise-fcfa" class="btn btn-outline-primary btn-sm"
-                                    onclick="setRemiseType('amount')">FCFA</button>
+                <div class="mb-2">
+                    <span class="text-muted fw-bold d-block mb-1">Remise globale</span>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted small">En pourcentage</span>
+                        <div class="input-group input-group-sm" style="width:130px">
+                            <input type="number"
+                                   id="remise-globale"
+                                   class="form-control text-end"
+                                   min="0"
+                                   max="100"
+                                   value="0"
+                                   step="0.5"
+                                   placeholder="0"
+                                   aria-label="Remise globale en pourcentage"
+                                   oninput="onRemisePctChange()">
+                            <span class="input-group-text">%</span>
                         </div>
-                        <input type="number"
-                               id="remise-globale"
-                               class="form-control form-control-sm text-end"
-                               style="width:100px"
-                               min="0"
-                               value="0"
-                               step="1"
-                               placeholder="0"
-                               aria-label="Remise globale"
-                               oninput="updateSummary()">
-                        <span id="remise-globale-suffix" class="text-muted small">%</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small">En francs CFA</span>
+                        <div class="input-group input-group-sm" style="width:130px">
+                            <input type="number"
+                                   id="remise-globale-fcfa"
+                                   class="form-control text-end"
+                                   min="0"
+                                   value="0"
+                                   step="1"
+                                   placeholder="0"
+                                   aria-label="Remise globale en FCFA"
+                                   oninput="onRemiseFcfaChange()">
+                            <span class="input-group-text">F</span>
+                        </div>
                     </div>
                 </div>
                 <div id="frais-wave-row"
@@ -750,23 +762,21 @@
     prixPersonnalises[productId] = nouveauPrix;
   }
 
-  function setRemiseType(type) {
-    remiseGlobaleType = type;
-    var suffix = document.getElementById('remise-globale-suffix');
-    var btnPct = document.getElementById('btn-remise-pct');
-    var btnFcfa = document.getElementById('btn-remise-fcfa');
-    var input = document.getElementById('remise-globale');
-    if (type === 'percent') {
-      if (suffix) suffix.textContent = '%';
-      if (btnPct) { btnPct.classList.remove('btn-outline-primary'); btnPct.classList.add('btn-primary'); }
-      if (btnFcfa) { btnFcfa.classList.remove('btn-primary'); btnFcfa.classList.add('btn-outline-primary'); }
-      if (input) input.max = '100';
-    } else {
-      if (suffix) suffix.textContent = 'FCFA';
-      if (btnPct) { btnPct.classList.remove('btn-primary'); btnPct.classList.add('btn-outline-primary'); }
-      if (btnFcfa) { btnFcfa.classList.remove('btn-outline-primary'); btnFcfa.classList.add('btn-primary'); }
-      if (input) input.removeAttribute('max');
+  function onRemisePctChange() {
+    var pct = parseFloat(document.getElementById('remise-globale').value) || 0;
+    if (pct > 0) {
+      document.getElementById('remise-globale-fcfa').value = 0;
     }
+    remiseGlobaleType = 'percent';
+    updateSummary();
+  }
+
+  function onRemiseFcfaChange() {
+    var fcfa = parseFloat(document.getElementById('remise-globale-fcfa').value) || 0;
+    if (fcfa > 0) {
+      document.getElementById('remise-globale').value = 0;
+    }
+    remiseGlobaleType = 'amount';
     updateSummary();
   }
 
@@ -968,7 +978,11 @@
   }
 
   function updateSummary() {
-    var remiseVal = parseFloat(document.getElementById('remise-globale').value) || 0;
+    var remisePct = parseFloat(document.getElementById('remise-globale').value) || 0;
+    var remiseFcfa = parseFloat(document.getElementById('remise-globale-fcfa').value) || 0;
+    var remiseVal = remisePct > 0 ? remisePct : remiseFcfa;
+    remiseGlobaleType = remisePct > 0 ? 'percent' : 'amount';
+
     var subtotal = cart.reduce(function (sum, item) {
       return sum + getLineTotal(item);
     }, 0);
@@ -1060,11 +1074,14 @@
   });
 
   function calculerTotal() {
-    var remise = parseFloat(document.getElementById('remise-globale')?.value) || 0;
+    var remisePct = parseFloat(document.getElementById('remise-globale')?.value) || 0;
+    var remiseFcfa = parseFloat(document.getElementById('remise-globale-fcfa')?.value) || 0;
     var subtotal = cart.reduce(function (sum, item) {
       return sum + getLineTotal(item);
     }, 0);
-    return subtotal - (subtotal * remise / 100);
+    if (remisePct > 0)
+      return subtotal - (subtotal * remisePct / 100);
+    return Math.max(0, subtotal - remiseFcfa);
   }
 
   function ouvrirModalEspeces() {
@@ -1248,8 +1265,6 @@
   document.getElementById('btn-montant-max').addEventListener('click', mettreTotal1);
   document.getElementById('encaisse-frac-input').addEventListener('input', updateFractionne);
 
-  document.getElementById('remise-globale').addEventListener('input', updateSummary);
-
   document.getElementById('notes-input').addEventListener('input', function () {
     document.getElementById('field-notes').value = this.value;
   });
@@ -1431,8 +1446,12 @@
     addHidden('MontantPaiement1', document.getElementById('field-montant-paiement-1')?.value || '0');
     addHidden('MontantPaiement2', document.getElementById('field-montant-paiement-2')?.value || '0');
     addHidden('VenteOriginaleId', '@(modificationId?.ToString() ?? "")');
-    addHidden('RemiseGlobaleMontant', document.getElementById('remise-globale')?.value || '0');
-    addHidden('RemiseGlobaleType', remiseGlobaleType || 'percent');
+    var remisePctFinal = parseFloat(document.getElementById('remise-globale')?.value) || 0;
+    var remiseFcfaFinal = parseFloat(document.getElementById('remise-globale-fcfa')?.value) || 0;
+    var montantFinal = remisePctFinal > 0 ? remisePctFinal : remiseFcfaFinal;
+    var typeFinal = remisePctFinal > 0 ? 'percent' : 'amount';
+    addHidden('RemiseGlobaleMontant', String(montantFinal));
+    addHidden('RemiseGlobaleType', typeFinal);
 
     // Lignes du panier
     cart.forEach(function (item, i) {
@@ -1605,8 +1624,11 @@
     });
     document.getElementById('summary-count').textContent = String(count);
     document.getElementById('summary-subtotal').textContent = formatFcfa(total);
-    var remise = parseFloat(document.getElementById('remise-globale').value) || 0;
-    var discount = total * remise / 100;
+    var remisePct = parseFloat(document.getElementById('remise-globale').value) || 0;
+    var remiseFcfa = parseFloat(document.getElementById('remise-globale-fcfa')?.value) || 0;
+    var discount = remisePct > 0
+      ? total * remisePct / 100
+      : Math.min(remiseFcfa, total);
     document.getElementById('summary-total').textContent = formatFcfa(total - discount);
   }
 
@@ -1678,7 +1700,10 @@
     }
   };
 
-  document.getElementById('remise-globale').addEventListener('input', function () {
+  document.getElementById('remise-globale')?.addEventListener('input', function () {
+    if (posMode === 'rapide') updateTotalRapide();
+  });
+  document.getElementById('remise-globale-fcfa')?.addEventListener('input', function () {
     if (posMode === 'rapide') updateTotalRapide();
   });
 
