@@ -210,6 +210,14 @@
                     <span class="text-muted">Sous-total</span>
                     <span id="summary-subtotal">0 FCFA</span>
                 </div>
+                <div id="summary-remise-row"
+                     class="d-flex justify-content-between mb-2"
+                     style="display:none">
+                    <span class="text-danger small">
+                        <i class="bi bi-tag me-1"></i>Remise
+                    </span>
+                    <span id="summary-remise" class="text-danger fw-bold">−0 FCFA</span>
+                </div>
                 <div class="mb-2">
                     <span class="text-muted fw-bold d-block mb-1">Remise globale</span>
                     <div class="d-flex justify-content-between align-items-center mb-1">
@@ -816,7 +824,24 @@
 
   window.updateDiscount = function (index, input) {
     cart[index].discountValue = parseFloat(input.value) || 0;
-    renderCart();
+
+    var lineTotal = getLineTotal(cart[index]);
+    var lineTotalEl = document.getElementById('line-total-' + index);
+    if (lineTotalEl) {
+      var item = cart[index];
+      var baseTotal = item.unitPrice * item.quantity;
+      if (item.discountValue > 0) {
+        lineTotalEl.innerHTML =
+          '<small class="text-decoration-line-through text-muted d-block">' + formatFcfa(baseTotal) + '</small>' +
+          '<small class="text-danger d-block">-' +
+            (item.discountType === 'percent' ? item.discountValue + '%' : formatFcfa(item.discountValue)) +
+          '</small>' +
+          '<span class="text-success">' + formatFcfa(lineTotal) + '</span>';
+      } else {
+        lineTotalEl.textContent = formatFcfa(lineTotal);
+      }
+    }
+
     updateSummary();
     saveDraftPOS();
   };
@@ -932,6 +957,7 @@
 
       // Total
       var tdTotal = document.createElement('td');
+      tdTotal.id = 'line-total-' + i;
       tdTotal.className = 'fw-bold';
       if (item.discountValue > 0) {
         tdTotal.innerHTML =
@@ -992,6 +1018,31 @@
       discount = subtotal * remiseVal / 100;
     } else {
       discount = Math.min(remiseVal, subtotal);
+    }
+
+    var remiseLigne = cart.reduce(function (sum, item) {
+      var base = item.unitPrice * item.quantity;
+      var lineDiscount = 0;
+      if (item.discountValue > 0) {
+        if (item.discountType === 'percent') {
+          lineDiscount = base * item.discountValue / 100;
+        } else {
+          lineDiscount = Math.min(item.discountValue, base);
+        }
+      }
+      return sum + lineDiscount;
+    }, 0);
+
+    var totalRemise = remiseLigne + discount;
+    var remiseRow = document.getElementById('summary-remise-row');
+    var remiseSpan = document.getElementById('summary-remise');
+    if (remiseRow && remiseSpan) {
+      if (totalRemise > 0) {
+        remiseRow.style.display = 'flex';
+        remiseSpan.textContent = '−' + formatFcfa(totalRemise);
+      } else {
+        remiseRow.style.display = 'none';
+      }
     }
 
     var total = subtotal - discount;
