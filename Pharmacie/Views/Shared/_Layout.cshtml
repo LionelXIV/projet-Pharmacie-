@@ -813,7 +813,7 @@ async function verifierAvantDeconnexion() {
         }
         var data = await response.json();
 
-        if (data.ouverte) {
+        if (data.ouverte && !data.adminTest) {
             if (window.Swal) {
                 Swal.fire({
                     icon: 'warning',

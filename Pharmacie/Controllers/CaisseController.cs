@@ -548,7 +548,7 @@ public class CaisseController : Controller
             && !User.IsInRole(AppRoles.Vendeur);
 
         if (isAdminPur)
-            return Json(new { ouverte = false });
+            return Json(new { ouverte = true, adminTest = true });
 
         var userId = CurrentUserId;
         if (string.IsNullOrEmpty(userId))
@@ -566,6 +566,7 @@ public class CaisseController : Controller
         return Json(new
         {
             ouverte = true,
+            adminTest = false,
             sessionId = session.Id,
             nomCaisse = session.NomCaisse,
             heureOuverture = session.HeureOuverture.ToString("HH:mm"),

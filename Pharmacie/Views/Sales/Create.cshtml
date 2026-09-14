@@ -27,6 +27,14 @@
 
 @await Html.PartialAsync("_BackButton")
 
+@if (ViewBag.IsAdminTest as bool? == true)
+{
+    <div class="alert alert-info py-2 mb-3" role="status">
+        <i class="bi bi-shield-lock me-1" aria-hidden="true"></i>
+        Mode test Administrateur — vente sans caisse (exclue des rapports).
+    </div>
+}
+
 @if (modificationId.HasValue)
 {
     <div class="alert alert-warning py-2 mx-2 mx-lg-0">
@@ -211,7 +219,7 @@
                     <span id="summary-subtotal">0 FCFA</span>
                 </div>
                 <div id="summary-remise-row"
-                     class="d-flex justify-content-between mb-2"
+                     class="justify-content-between mb-2"
                      style="display:none">
                     <span class="text-danger small">
                         <i class="bi bi-tag me-1"></i>Remise

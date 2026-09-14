@@ -302,7 +302,9 @@ public class SalesController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         var isAdminTest = EstVenteTestAdmin();
+        ViewBag.IsAdminTest = isAdminTest;
 
+        // Admin pur : accès libre au POS sans session de caisse.
         if (!isAdminTest)
         {
             var session = await _caisseService.GetSessionOuverteAsync(userId);
@@ -752,6 +754,7 @@ public class SalesController : Controller
             }));
 
         var isAdminTest = EstVenteTestAdmin();
+        ViewBag.IsAdminTest = isAdminTest;
         var session = await _caisseService.GetSessionOuverteAsync(userId);
         if (!isAdminTest && session == null)
         {
